@@ -1,0 +1,30 @@
+dist: xenial
+language: python
+python:
+  - "3.7"
+
+env:
+  - QT_QPA_PLATFORM=offscreen
+
+# Using addons rather than apt-get install
+# NOTE: LANG=en_US.UTF-8 etc. is predefined in travis
+addons:
+  apt:
+    packages:
+    - libhdf5-serial-dev
+    - netcdf-bin
+    - libnetcdf-dev
+    - libsm6
+    - libxext6
+    - libxrender-dev
+    - libxt6
+    - libgl1-mesa-glx
+    - libfontconfig
+    - libxkbcommon-x11-0
+
+install:
+  - pip install boutdata
+  - pip install codecov pytest-cov
+
+script:
+  - pytest --cov=./
