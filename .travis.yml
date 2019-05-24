@@ -1,26 +1,27 @@
 dist: xenial
 language: python
 python:
-  - "3.7"
+  - '3.7'
 
 env:
-  - QT_QPA_PLATFORM=offscreen
+  matrix:
+    - QT_QPA_PLATFORM=offscreen
+  global:
+    secure: 0zjmk+n6nK5bjBUrDisvmcrSrlSh0KMWoiX7LVirc15DlIOQn2Jegh0VueSXzdxDruRDaUpWegDcH38iwPDx3X7tIWKSaq/CJdkffxzeGO+ED39O43n5mRpZVOMLekXxZFNabanLFTzJKrqPyLQIJFLZaGhh+2xO6Bf7Z+KbnC+39qzx/CllvVgdWT8MFlhlOi59fDvJJ04XmRQpCqhwuEOSCsh7NcvtiPqMP/dhlVu322bH2OgWbtZZtuBzqo6bC7s5Xe2742xeRHEe9ZhYw2Fj9eJbAv4Ku8/NEO+KLuBxl80o9+DVzBODYXMgmPpSW5cQsqaKdvqIQ8KVCOXwK1W0dQX+IsnHS8Y7OBFbU1mTizl+K0pP0ob4rxA1QI+aCAswwXi/1brZcp3IP6LyyR7ai8Iq88csO5YjKs241xwJ3txQtV2awovOvBNAOGME3ipNoDXg+7ao6mB7tCCbn3zlU5QRaVYm04RmyjO3hgzsDEnDTS19htl3DF7r99I7ndleMBdRGnaI6ngtMlWPTgZsavzHvz+YjIB0DqXQ+qtFnJsMmQ0YIJuiAl6AuT8Nv46P8hHS94d94JPhjXc3TeRVax1sCexld94XpEZj9pp7ixEZNF9RSoo15h6wFVY6y7GDBDNbwGwqvfowRu9qdBFGFY5EGJBTUGa1Tc4d6LU=
 
-# Using addons rather than apt-get install
-# NOTE: LANG=en_US.UTF-8 etc. is predefined in travis
 addons:
   apt:
     packages:
-    - libhdf5-serial-dev
-    - netcdf-bin
-    - libnetcdf-dev
-    - libsm6
-    - libxext6
-    - libxrender-dev
-    - libxt6
-    - libgl1-mesa-glx
-    - libfontconfig
-    - libxkbcommon-x11-0
+      - libhdf5-serial-dev
+      - netcdf-bin
+      - libnetcdf-dev
+      - libsm6
+      - libxext6
+      - libxrender-dev
+      - libxt6
+      - libgl1-mesa-glx
+      - libfontconfig
+      - libxkbcommon-x11-0
 
 install:
   - pip install boutdata
@@ -28,3 +29,4 @@ install:
 
 script:
   - pytest --cov=./
+
