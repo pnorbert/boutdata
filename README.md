@@ -1,20 +1,15 @@
-# bout-tools
+# boutdata
 
-pip-package of what was previously found in `BOUT-dev/tools/pylib`
+[![Python](https://img.shields.io/badge/python->=3.6-blue.svg)](https://www.python.org/)
+[![pypi package](https://badge.fury.io/py/boutdata.svg)](https://pypi.org/project/boutdata/)
+[![PEP8](https://img.shields.io/badge/code%20style-PEP8-brightgreen.svg)](https://www.python.org/dev/peps/pep-0008/)
+[![License](https://img.shields.io/badge/license-LGPL--3.0-blue.svg)](https://github.com/CELMA-project/bout_install/blob/master/LICENSE)
 
-## Analysis routines for Python
-(Note that this document is out of date)
+pip-package of what was previously found in 
+`BOUT-dev/tools/pylib/boutdata`
 
-### Dependencies
-Following packages must be installed for these
-routines to work:
-* **NumPy**           for arrays
-* **netcdf4-python**  for NetCDF file reading
-
-### Available routines
-* **boutdata/**         BOUT++ data reading package
-  * **collect**   Collect data from BOUT++ dump files
-
+> **NOTE**: This package will likely be superseded by 
+  [`xBOUT`](https://github.com/boutproject/xBOUT) in the near future
 
 ### Examples
 Reading data from dump files:
@@ -23,4 +18,3 @@ Reading data from dump files:
 from boutdata import *
 ni = collect("Ni")
 ```
-
