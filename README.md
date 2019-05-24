@@ -11,6 +11,25 @@ pip-package of what was previously found in
 > **NOTE**: This package will likely be superseded by 
   [`xBOUT`](https://github.com/boutproject/xBOUT) in the near future
 
+# Dependencies
+
+`boutdata` depends on `boututils` which again depends on
+[`netcfd4`](https://github.com/Unidata/netcdf4-python) which requires 
+[`HDF5`](http://www.h5py.org) and 
+[`netcdf-4`](https://github.com/Unidata/netcdf-c/releases) are 
+installed, and that the `nc-config` utility is in your `PATH`. This 
+can be install with 
+
+```
+sudo apt-get install libhdf5-serial-dev netcdf-bin libnetcdf-dev
+```
+ 
+in ubuntu
+
+# Install
+
+`pip install boutdata`
+
 ### Examples
 Reading data from dump files:
 
