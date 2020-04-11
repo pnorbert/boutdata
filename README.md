@@ -1,6 +1,6 @@
 # boutdata
 
-[![Build Status](https://travis-ci.org/boutproject/boutdata.svg?branch=master)](https://travis-ci.org/boutproject/boutdata.svg)
+[![Build Status](https://travis-ci.org/boutproject/boutdata.svg?branch=master)](https://travis-ci.org/boutproject/boutdata)
 [![codecov](https://codecov.io/gh/boutproject/boutdata/branch/master/graph/badge.svg)](https://codecov.io/gh/boutproject/boutdata)
 [![Python](https://img.shields.io/badge/python->=3.6-blue.svg)](https://www.python.org/)
 [![pypi package](https://badge.fury.io/py/boutdata.svg)](https://pypi.org/project/boutdata/)
