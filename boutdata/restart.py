@@ -53,7 +53,7 @@ def resize3DField(var, data, coordsAndSizesTuple, method, mute):
               ' to (nx,ny,nz) = ({},{},{})'.format(newNx, newNy, newNz))
 
     # Make the regular grid function (see examples in
-    # http://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.RegularGridInterpolator.html
+    # https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.RegularGridInterpolator.html
     # for details)
     gridInterpolator = RegularGridInterpolator(
         (xCoordOld, yCoordOld, zCoordOld), data, method)
