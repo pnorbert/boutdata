@@ -30,10 +30,10 @@ setuptools.setup(
     description='Python package for collecting BOUT++ data',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='http://boutproject.github.io',
+    url='https://github.com/boutproject/boutdata',
     project_urls={
         "Bug Tracker": "https://github.com/boutproject/boutdata/issues/",
-        "Documentation": "http://bout-dev.readthedocs.io/en/latest/",
+        "Documentation": "https://bout-dev.readthedocs.io/en/latest/",
         "Source Code": "https://github.com/boutproject/boutdata/",
     },
     packages=setuptools.find_packages(),
