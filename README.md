@@ -1,6 +1,6 @@
 # boutdata
 
-[![Build Status](https://travis-ci.org/boutproject/boutdata.svg?branch=master)](https://travis-ci.org/boutproject/boutdata.svg)
+[![Build Status](https://travis-ci.org/boutproject/boutdata.svg?branch=master)](https://travis-ci.org/boutproject/boutdata)
 [![codecov](https://codecov.io/gh/boutproject/boutdata/branch/master/graph/badge.svg)](https://codecov.io/gh/boutproject/boutdata)
 [![Python](https://img.shields.io/badge/python->=3.6-blue.svg)](https://www.python.org/)
 [![pypi package](https://badge.fury.io/py/boutdata.svg)](https://pypi.org/project/boutdata/)
@@ -21,7 +21,7 @@ See [this issue](https://github.com/boutproject/BOUT-dev/issues/1347),
 
 `boutdata` depends on `boututils` which again depends on
 [`netcfd4`](https://github.com/Unidata/netcdf4-python) which requires
-[`HDF5`](http://www.h5py.org) and
+[`HDF5`](https://www.h5py.org) and
 [`netcdf-4`](https://github.com/Unidata/netcdf-c/releases) are
 installed, and that the `nc-config` utility is in your `PATH`. This
 can be install with

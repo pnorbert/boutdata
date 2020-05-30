@@ -10,5 +10,5 @@ from boutdata.collect import collect, attributes
 
 __all__ = ["attributes", "collect", "gen_surface", "pol_slice"]
 
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 __name__ = 'boutdata'
