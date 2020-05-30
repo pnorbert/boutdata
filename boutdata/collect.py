@@ -194,6 +194,12 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
 
         f = getDataFile(0)
 
+        if varname not in f.keys():
+            if strict:
+                raise ValueError("Variable '{}' not found".format(varname))
+            else:
+                varname = findVar(varname, f.list())
+
         dimensions = f.dimensions(varname)
 
         try:
