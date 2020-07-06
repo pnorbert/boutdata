@@ -719,7 +719,8 @@ def resizeY(newy, path="data", output=".", informat="nc", outformat=None, myg=2)
         varnames = infile.list()
 
         for var in varnames:
-            if infile.ndims(var) == 3:
+            dimensions = infile.dimensions(var)
+            if dimensions == ('x', 'y', 'z'):
                 # Could be an evolving variable [x,y,z]
 
                 print(" -> Resizing " + var)
@@ -742,7 +743,7 @@ def resizeY(newy, path="data", output=".", informat="nc", outformat=None, myg=2)
                         outdata[x, :, z] = f(outy)
 
                 outfile.write(var, outdata)
-            elif infile.ndims(var) == 2:
+            elif dimensions == ('x', 'y'):
                 # Assume evolving variable [x,y]
                 print(" -> Resizing " + var)
 
