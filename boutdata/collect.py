@@ -237,7 +237,7 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
 
         if dimensions == ():
             ranges = []
-        elif dimensions == ('t'):
+        elif dimensions == ('t',):
             ranges = [tind]
         elif dimensions == ('x', 'y'):
             # Field2D
