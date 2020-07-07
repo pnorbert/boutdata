@@ -248,9 +248,9 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
         if not yguards:
             yind = slice(yind.start+myg, yind.stop+myg, yind.step)
 
-        if len(dimensions) == ():
+        if dimensions == ():
             ranges = []
-        elif dimensions == ('t'):
+        elif dimensions == ('t',):
             ranges = [tind]
         elif dimensions == ('x', 'y'):
             # Field2D
