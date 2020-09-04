@@ -110,6 +110,13 @@ class BoutOptions(object):
             return
         self._keys[key.lower()] = value
 
+    def __contains__(self, key):
+        """
+        Check if a key is in the section
+        """
+        key = key.lower()
+        return key in self._sections or key in self._keys
+
     def path(self):
         """Returns the path of this section, joining together names of
         parents
