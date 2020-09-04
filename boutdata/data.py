@@ -162,6 +162,9 @@ class BoutOptions(object):
         """
         if not isinstance(other, BoutOptions):
             return False
+        if self is other:
+            # other is a reference to the same object
+            return True
         if len(self._sections) != len(other._sections):
             return False
         if len(self._keys) != len(other._keys):
