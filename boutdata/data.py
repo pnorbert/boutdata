@@ -157,9 +157,7 @@ class BoutOptions(object):
         return len(self._sections) + len(self._keys)
 
     def __eq__(self, other):
-        """Test if this BoutOptions is the same as another one
-
-        """
+        """Test if this BoutOptions is the same as another one."""
         if not isinstance(other, BoutOptions):
             return False
         if self is other:
