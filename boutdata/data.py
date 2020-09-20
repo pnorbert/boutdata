@@ -4,9 +4,11 @@ OMFIT
 
 """
 
-import os
+import copy
 import glob
+import io
 import numpy
+import os
 import re
 
 from boutdata.collect import collect, create_cache
@@ -43,6 +45,32 @@ from numpy import (
 )
 
 
+from collections import UserDict
+
+
+class CaseInsensitiveDict(UserDict):
+    def __missing__(self, key):
+        return CaseInsensitiveDict({key: CaseInsensitiveDict()})
+
+    def __getitem__(self, key):
+        return self.data[key.lower()][1]
+
+    def __setitem__(self, key, value):
+        self.data[key.lower()] = (key, value)
+
+    def __delitem__(self, key):
+        del self.data[key.lower()]
+
+    def __iter__(self):
+        return (key for key, _ in self.data.values())
+
+    def __contains__(self, key):
+        return key.lower() in self.data
+
+    def __repr__(self):
+        return repr({key: value for key, value in self.data.values()})
+
+
 class BoutOptions(object):
     """This class represents a tree structure. Each node (BoutOptions
     object) can have several sub-nodes (sections), and several
@@ -74,17 +102,19 @@ class BoutOptions(object):
     To pretty print the options
 
     >>> print(optRoot)
-    root
-     |- test
-     |   |- key = 4
+    [test]
+    key = 4
 
     """
 
     def __init__(self, name="root", parent=None):
-        self._sections = {}
-        self._keys = {}
+        self._sections = CaseInsensitiveDict()
+        self._keys = CaseInsensitiveDict()
         self._name = name
         self._parent = parent
+        self.comments = CaseInsensitiveDict()
+        self.inline_comments = CaseInsensitiveDict()
+        self._comment_whitespace = CaseInsensitiveDict()
 
     def getSection(self, name):
         """Return a section object. If the section does not exist then it is
@@ -101,12 +131,11 @@ class BoutOptions(object):
             A new section with the original object as the parent
 
         """
-        name = name.lower()
 
         if name in self._sections:
             return self._sections[name]
         else:
-            newsection = BoutOptions(name, self)
+            newsection = BoutOptions(name=name, parent=self)
             self._sections[name] = newsection
             return newsection
 
@@ -114,7 +143,13 @@ class BoutOptions(object):
         """
         First check if it's a section, then a value
         """
-        key = key.lower()
+
+        key_parts = key.split(":", maxsplit=1)
+
+        if len(key_parts) > 1:
+            section = self[key_parts[0]]
+            return section[key_parts[1]]
+
         if key in self._sections:
             return self._sections[key]
 
@@ -128,14 +163,158 @@ class BoutOptions(object):
         """
         if len(key) == 0:
             return
-        self._keys[key.lower()] = value
+
+        key_parts = key.split(":", maxsplit=1)
+
+        if len(key_parts) > 1:
+            try:
+                section = self[key_parts[0]]
+            except KeyError:
+                section = self.getSection(key_parts[0])
+            section[key_parts[1]] = value
+        else:
+            self._keys[key] = value
+
+    def __delitem__(self, key):
+        key_parts = key.split(":", maxsplit=1)
+
+        if len(key_parts) > 1:
+            section = self[key_parts[0]]
+            del section[key_parts[1]]
+            return
+
+        if key in self._sections:
+            del self._sections[key]
+        elif key in self._keys:
+            del self._keys[key]
+        else:
+            raise KeyError(key)
 
     def __contains__(self, key):
+        key_parts = key.split(":", maxsplit=1)
+
+        if len(key_parts) > 1:
+            if key_parts[0] in self:
+                return key_parts[1] in self[key_parts[0]]
+            return False
+
+        return key in self.keys()
+
+    __marker = object()
+
+    def pop(self, key, default=__marker):
+        """options.pop(k[,d]) -> v, remove specified key and return the
+        corresponding value. If key is not found, d is returned if
+        given, otherwise KeyError is raised.
+
         """
-        Check if a key is in the section
+        return self._pop_impl(key, default)[0]
+
+    def _pop_impl(self, key, default=__marker):
+        """Private implementation of pop; also pops metadata
+
         """
-        key = key.lower()
-        return key in self._sections or key in self._keys
+        key_parts = key.split(":", maxsplit=1)
+
+        if len(key_parts) > 1:
+            return self[key_parts[0]]._pop_impl(key_parts[1], default)
+
+        if key in self._sections:
+            value = self._sections.pop(key)
+            name = self._name
+            parent = self._parent
+        elif key in self._keys:
+            value = self._keys.pop(key)
+            name = None
+            parent = None
+        elif default is self.__marker:
+            raise KeyError(key)
+        else:
+            return default
+
+        comment = self.comments.pop(key, None)
+        inline_comment = self.inline_comments.pop(key, None)
+        comment_whitespace = self._comment_whitespace.pop(key, None)
+
+        return (value, name, parent, comment, inline_comment, comment_whitespace)
+
+    def rename(self, old_name, new_name):
+        """Rename old_name to new_name
+        """
+
+        def setattr_nested(parent, key, attr, value):
+            """Set one of the comment types on some nested section. Slightly
+            complicated because the comment attributes are dicts, but
+            we need to get the (possibly) nested parent section
+
+            """
+            # Don't set comment if it's None
+            if value is None:
+                return
+
+            key_parts = key.split(":", maxsplit=1)
+            if len(key_parts) > 1:
+                setattr_nested(parent[key_parts[0]], key_parts[1], attr, value)
+            else:
+                getattr(parent, attr)[key] = value
+
+        def ensure_sections(parent, path):
+            """Make sure all the components of path in parent are sections
+            """
+            path_parts = path.split(":", maxsplit=1)
+
+            def check_is_section(parent, path):
+                if path in parent and not isinstance(parent[path], BoutOptions):
+                    raise TypeError(
+                        "'{}:{}' already exists and is not a section!".format(
+                            parent._name, path
+                        )
+                    )
+
+            if len(path_parts) > 1:
+                new_parent_name, child_name = path_parts
+                check_is_section(parent, new_parent_name)
+                parent.getSection(new_parent_name)
+                ensure_sections(parent[new_parent_name], child_name)
+            else:
+                check_is_section(parent, path)
+                parent.getSection(path)
+
+        value = self[old_name]
+
+        if isinstance(value, BoutOptions):
+            # We're moving a section: make sure we don't clobber existing values
+            ensure_sections(self, new_name)
+            # Now we're definitely moving into an existing section, so
+            # update values and comments
+            for key in value:
+                self[new_name][key] = value[key]
+                setattr_nested(self[new_name], key, "comments", value.comments.get(key))
+                setattr_nested(
+                    self[new_name],
+                    key,
+                    "inline_comments",
+                    value.inline_comments.get(key),
+                )
+                setattr_nested(
+                    self[new_name],
+                    key,
+                    "_comment_whitespace",
+                    value._comment_whitespace.get(key),
+                )
+            _, _, _, comment, inline_comment, comment_whitespace = self._pop_impl(
+                old_name
+            )
+        else:
+            _, _, _, comment, inline_comment, comment_whitespace = self._pop_impl(
+                old_name
+            )
+            self[new_name] = value
+
+        # Update comments on new parent section
+        setattr_nested(self, new_name, "comments", comment)
+        setattr_nested(self, new_name, "inline_comments", inline_comment)
+        setattr_nested(self, new_name, "_comment_whitespace", comment_whitespace)
 
     def path(self):
         """Returns the path of this section, joining together names of
@@ -148,19 +327,27 @@ class BoutOptions(object):
         return self._name
 
     def keys(self):
-        """Returns all keys, including sections and values"""
+        """Returns all keys, including sections and values
+
+        """
         return list(self._sections) + list(self._keys)
 
     def sections(self):
-        """Return a list of sub-sections"""
+        """Return a list of sub-sections
+
+        """
         return self._sections.keys()
 
     def values(self):
-        """Return a list of values"""
+        """Return a list of values
+
+        """
         return self._keys.keys()
 
     def as_dict(self):
-        """Return a nested dictionary of all the options."""
+        """Return a nested dictionary of all the options.
+
+        """
         dicttree = {name: self[name] for name in self.values()}
         dicttree.update({name: self[name].as_dict() for name in self.sections()})
         return dicttree
@@ -188,22 +375,59 @@ class BoutOptions(object):
         return True
 
     def __iter__(self):
-        """Iterates over all keys. First values, then sections"""
+        """Iterates over all keys. First values, then sections
+
+        """
         for k in self._keys:
             yield k
         for s in self._sections:
             yield s
 
-    def __str__(self, indent=""):
-        """Print a pretty version of the options tree"""
+    def as_tree(self, indent=""):
+        """Return a string formatted as a pretty version of the options tree
+
+        """
         text = self._name + "\n"
 
         for k in self._keys:
             text += indent + " |- " + k + " = " + str(self._keys[k]) + "\n"
 
         for s in self._sections:
-            text += indent + " |- " + self._sections[s].__str__(indent + " |  ")
+            text += indent + " |- " + self._sections[s].as_tree(indent + " |  ")
         return text
+
+    def __str__(self, basename=None, opts=None, f=None):
+        if f is None:
+            f = io.StringIO()
+        if opts is None:
+            opts = self
+
+        def format_inline_comment(name, options):
+            if name in options.inline_comments:
+                f.write(
+                    "{}{}".format(
+                        options._comment_whitespace[name], options.inline_comments[name]
+                    )
+                )
+
+        for key, value in opts._keys.items():
+            if key in opts.comments:
+                f.write("\n".join(opts.comments[key]) + "\n")
+            f.write("{} = {}".format(key, value))
+            format_inline_comment(key, opts)
+            f.write("\n")
+
+        for section in opts._sections.keys():
+            section_name = basename + ":" + section if basename else section
+            if section in opts.comments:
+                f.write("\n".join(opts.comments[section]))
+            if opts[section]._keys:
+                f.write("\n[{}]".format(section_name))
+                format_inline_comment(section, opts)
+                f.write("\n")
+            self.__str__(section_name, opts[section], f)
+
+        return f.getvalue()
 
     def evaluate_scalar(self, name):
         """
@@ -222,7 +446,7 @@ class BoutOptions(object):
         parent = self._parent
         while parent is not None:
             sectionname = parent._name
-            if sectionname is "root":
+            if sectionname == "root":
                 sectionname = ""
             expression = parent._evaluate_section(expression, sectionname)
             parent = parent._parent
@@ -237,7 +461,7 @@ class BoutOptions(object):
         # 'bar:x' (found traversing the tree starting from 'bar') or
         # 'foo:bar:x' (found when traversing tree starting from 'foo').
         for var in self.values():
-            if nested_sectionname is not "":
+            if nested_sectionname != "":
                 nested_name = nested_sectionname + ":" + var
             else:
                 nested_name = var
@@ -252,7 +476,7 @@ class BoutOptions(object):
                 )
 
         for subsection in self.sections():
-            if nested_sectionname is not "":
+            if nested_sectionname != "":
                 nested_name = nested_sectionname + ":" + subsection
             else:
                 nested_name = subsection
@@ -306,6 +530,11 @@ class BoutOptionsFile(BoutOptions):
 
     """
 
+    # Characters that start a comment
+    VALID_COMMENTS = ("#", ";")
+    # Get not just the comment, but also the preceeding whitespace
+    COMMENT_REGEX = re.compile(r"(.*?)(\s*)([{}].*)".format("".join(VALID_COMMENTS)))
+
     def __init__(
         self,
         filename="BOUT.inp",
@@ -316,18 +545,29 @@ class BoutOptionsFile(BoutOptions):
         nz=None,
     ):
         BoutOptions.__init__(self, name)
+        self.filename = filename
+        self.gridfilename = gridfilename
         # Open the file
         with open(filename, "r") as f:
             # Go through each line in the file
             section = self  # Start with root section
+            comments = []
             for linenr, line in enumerate(f.readlines()):
                 # First remove comments, either # or ;
-                startpos = line.find("#")
-                if startpos != -1:
-                    line = line[:startpos]
-                startpos = line.find(";")
-                if startpos != -1:
-                    line = line[:startpos]
+                if line.lstrip().startswith(self.VALID_COMMENTS):
+                    comments.append('#' + line.strip()[1:])
+                    continue
+                if line.strip() == "":
+                    comments.append(line.strip())
+                    continue
+
+                comment_match = self.COMMENT_REGEX.search(line)
+                if comment_match is not None:
+                    line, comment_whitespace, inline_comment = comment_match.groups()
+                    inline_comment = '#' + inline_comment.strip()[1:]
+                else:
+                    inline_comment = None
+                    comment_whitespace = None
 
                 # Check section headers
                 startpos = line.find("[")
@@ -338,15 +578,24 @@ class BoutOptionsFile(BoutOptions):
                         raise SyntaxError("Missing ']' on line %d" % (linenr,))
                     line = line[(startpos + 1) : endpos].strip()
 
-                    section = self
+                    parent_section = self
                     while True:
                         scorepos = line.find(":")
                         if scorepos == -1:
+                            sectionname = line
                             break
                         sectionname = line[0:scorepos]
                         line = line[(scorepos + 1) :]
-                        section = section.getSection(sectionname)
-                    section = section.getSection(line)
+                        parent_section = parent_section.getSection(sectionname)
+                    section = parent_section.getSection(line)
+                    if comments:
+                        parent_section.comments[sectionname] = copy.deepcopy(comments)
+                        comments = []
+                    if inline_comment is not None:
+                        parent_section.inline_comments[sectionname] = inline_comment
+                        parent_section._comment_whitespace[
+                            sectionname
+                        ] = comment_whitespace
                 else:
                     # A key=value pair
 
@@ -354,6 +603,7 @@ class BoutOptionsFile(BoutOptions):
                     if eqpos == -1:
                         # No '=', so just set to true
                         section[line.strip()] = True
+                        value_name = line.strip()
                     else:
                         value = line[(eqpos + 1) :].strip()
                         try:
@@ -367,100 +617,17 @@ class BoutOptionsFile(BoutOptions):
                                 # Leave as a string
                                 pass
 
-                        section[line[:eqpos].strip()] = value
+                        value_name = line[:eqpos].strip()
+                        section[value_name] = value
+                    if comments:
+                        section.comments[value_name] = copy.deepcopy(comments)
+                        comments = []
+                    if inline_comment is not None:
+                        section.inline_comments[value_name] = inline_comment
+                        section._comment_whitespace[value_name] = comment_whitespace
 
         try:
-            # define arrays of x, y, z to be used for substitutions
-            gridfile = None
-            nzfromfile = None
-            if gridfilename:
-                if nx is not None or ny is not None:
-                    raise ValueError(
-                        "nx or ny given as inputs even though "
-                        "gridfilename was given explicitly, "
-                        "don't know which parameters to choose"
-                    )
-                with DataFile(gridfilename) as gridfile:
-                    self.nx = float(gridfile["nx"])
-                    self.ny = float(gridfile["ny"])
-                    try:
-                        nzfromfile = gridfile["MZ"]
-                    except KeyError:
-                        pass
-            elif nx or ny:
-                if nx is None:
-                    raise ValueError(
-                        "nx not specified. If either nx or ny are given, then both must be."
-                    )
-                if ny is None:
-                    raise ValueError(
-                        "ny not specified. If either nx or ny are given, then both must be."
-                    )
-                self.nx = nx
-                self.ny = ny
-            else:
-                try:
-                    self.nx = self["mesh"].evaluate_scalar("nx")
-                    self.ny = self["mesh"].evaluate_scalar("ny")
-                except KeyError:
-                    try:
-                        # get nx, ny, nz from output files
-                        from boutdata.collect import findFiles
-
-                        file_list = findFiles(path=os.path.dirname(), prefix="BOUT.dmp")
-                        with DataFile(file_list[0]) as f:
-                            self.nx = f["nx"]
-                            self.ny = f["ny"]
-                            nzfromfile = f["MZ"]
-                    except (IOError, KeyError):
-                        try:
-                            gridfilename = self["mesh"]["file"]
-                        except KeyError:
-                            gridfilename = self["grid"]
-                        with DataFile(gridfilename) as gridfile:
-                            self.nx = float(gridfile["nx"])
-                            self.ny = float(gridfile["ny"])
-                            try:
-                                nzfromfile = float(gridfile["MZ"])
-                            except KeyError:
-                                pass
-            if nz is not None:
-                self.nz = nz
-            else:
-                try:
-                    self.nz = self["mesh"].evaluate_scalar("nz")
-                except KeyError:
-                    try:
-                        self.nz = self.evaluate_scalar("mz")
-                    except KeyError:
-                        if nzfromfile is not None:
-                            self.nz = nzfromfile
-            mxg = self._keys.get("MXG", 2)
-            myg = self._keys.get("MYG", 2)
-
-            # make self.x, self.y, self.z three dimensional now so
-            # that expressions broadcast together properly.
-            self.x = numpy.linspace(
-                (0.5 - mxg) / (self.nx - 2 * mxg),
-                1.0 - (0.5 - mxg) / (self.nx - 2 * mxg),
-                self.nx,
-            )[:, numpy.newaxis, numpy.newaxis]
-            self.y = (
-                2.0
-                * numpy.pi
-                * numpy.linspace(
-                    (0.5 - myg) / self.ny,
-                    1.0 - (0.5 - myg) / self.ny,
-                    self.ny + 2 * myg,
-                )[numpy.newaxis, :, numpy.newaxis]
-            )
-            self.z = (
-                2.0
-                * numpy.pi
-                * numpy.linspace(0.5 / self.nz, 1.0 - 0.5 / self.nz, self.nz)[
-                    numpy.newaxis, numpy.newaxis, :
-                ]
-            )
+            self.recalculate_xyz(nx=nx, ny=ny, nz=nz)
         except Exception as e:
             alwayswarn(
                 "While building x, y, z coordinate arrays, an "
@@ -468,6 +635,104 @@ class BoutOptionsFile(BoutOptions):
                 + str(e)
                 + "\nEvaluating non-scalar options not available"
             )
+
+    def recalculate_xyz(self, *,  nx=None, ny=None, nz=None):
+        """
+        Recalculate the x, y avd z arrays used to evaluate expressions
+        """
+        # define arrays of x, y, z to be used for substitutions
+        gridfile = None
+        nzfromfile = None
+        if self.gridfilename:
+            if nx is not None or ny is not None:
+                raise ValueError(
+                    "nx or ny given as inputs even though "
+                    "gridfilename was given explicitly, "
+                    "don't know which parameters to choose"
+                )
+            with DataFile(self.gridfilename) as gridfile:
+                self.nx = float(gridfile["nx"])
+                self.ny = float(gridfile["ny"])
+                try:
+                    nzfromfile = gridfile["MZ"]
+                except KeyError:
+                    pass
+        elif nx or ny:
+            if nx is None:
+                raise ValueError(
+                    "nx not specified. If either nx or ny are given, then both must be."
+                )
+            if ny is None:
+                raise ValueError(
+                    "ny not specified. If either nx or ny are given, then both must be."
+                )
+            self.nx = nx
+            self.ny = ny
+        else:
+            try:
+                self.nx = self["mesh"].evaluate_scalar("nx")
+                self.ny = self["mesh"].evaluate_scalar("ny")
+            except KeyError:
+                try:
+                    # get nx, ny, nz from output files
+                    from boutdata.collect import findFiles
+
+                    file_list = findFiles(
+                        path=os.path.dirname("."), prefix="BOUT.dmp"
+                    )
+                    with DataFile(file_list[0]) as f:
+                        self.nx = f["nx"]
+                        self.ny = f["ny"]
+                        nzfromfile = f["MZ"]
+                except (IOError, KeyError):
+                    try:
+                        gridfilename = self["mesh"]["file"]
+                    except KeyError:
+                        gridfilename = self["grid"]
+                    with DataFile(gridfilename) as gridfile:
+                        self.nx = float(gridfile["nx"])
+                        self.ny = float(gridfile["ny"])
+                        try:
+                            nzfromfile = float(gridfile["MZ"])
+                        except KeyError:
+                            pass
+        if nz is not None:
+            self.nz = nz
+        else:
+            try:
+                self.nz = self["mesh"].evaluate_scalar("nz")
+            except KeyError:
+                try:
+                    self.nz = self.evaluate_scalar("mz")
+                except KeyError:
+                    if nzfromfile is not None:
+                        self.nz = nzfromfile
+        mxg = self._keys.get("MXG", 2)
+        myg = self._keys.get("MYG", 2)
+
+        # make self.x, self.y, self.z three dimensional now so
+        # that expressions broadcast together properly.
+        self.x = numpy.linspace(
+            (0.5 - mxg) / (self.nx - 2 * mxg),
+            1.0 - (0.5 - mxg) / (self.nx - 2 * mxg),
+            self.nx,
+        )[:, numpy.newaxis, numpy.newaxis]
+        self.y = (
+            2.0
+            * numpy.pi
+            * numpy.linspace(
+                (0.5 - myg) / self.ny,
+                1.0 - (0.5 - myg) / self.ny,
+                self.ny + 2 * myg,
+            )[numpy.newaxis, :, numpy.newaxis]
+        )
+        self.z = (
+            2.0
+            * numpy.pi
+            * numpy.linspace(0.5 / self.nz, 1.0 - 0.5 / self.nz, self.nz)[
+                numpy.newaxis, numpy.newaxis, :
+            ]
+        )
 
     def evaluate(self, name):
         """Evaluate (recursively) expressions
@@ -500,7 +765,7 @@ class BoutOptionsFile(BoutOptions):
         return eval(expression)
 
     def write(self, filename=None, overwrite=False):
-        """Write to BOUT++ options file
+        """ Write to BOUT++ options file
 
         This method will throw an error rather than overwriting an existing
         file unless the overwrite argument is set to true.
@@ -525,17 +790,8 @@ class BoutOptionsFile(BoutOptions):
                 "Not overwriting existing file, cannot write output to " + filename
             )
 
-        def write_section(basename, opts, f):
-            if basename:
-                f.write("[" + basename + "]\n")
-            for key, value in opts._keys.items():
-                f.write(key + " = " + str(value) + "\n")
-            for section in opts.sections():
-                section_name = basename + ":" + section if basename else section
-                write_section(section_name, opts[section], f)
-
         with open(filename, "w") as f:
-            write_section("", self, f)
+            f.write(str(self))
 
 
 class BoutOutputs(object):
@@ -607,7 +863,7 @@ class BoutOutputs(object):
         self._path = path
         # normalize prefix by removing trailing '.' if present
         self._prefix = prefix.rstrip(".")
-        if suffix == None:
+        if suffix is None:
             temp_file_list = glob.glob(os.path.join(self._path, self._prefix + "*"))
             latest_file = max(temp_file_list, key=os.path.getctime)
             self._suffix = latest_file.split(".")[-1]
@@ -624,7 +880,7 @@ class BoutOutputs(object):
         self._file_list = glob.glob(
             os.path.join(path, self._prefix + "*" + self._suffix)
         )
-        if not suffix == None:
+        if suffix is not None:
             latest_file = max(self._file_list, key=os.path.getctime)
             # if suffix==None we already found latest_file
 
@@ -681,11 +937,15 @@ class BoutOutputs(object):
         self._DataFileCache = None
 
     def keys(self):
-        """Return a list of available variable names"""
+        """Return a list of available variable names
+
+        """
         return self.varNames
 
     def evolvingVariables(self):
-        """Return a list of names of time-evolving variables"""
+        """Return a list of names of time-evolving variables
+
+        """
         return self.evolvingVariableNames
 
     def redistribute(self, npes, nxpe=None, mxg=2, myg=2, include_restarts=True):
@@ -878,7 +1138,9 @@ class BoutOutputs(object):
             )
 
     def _collect(self, *args, **kwargs):
-        """Wrapper for collect to pass self._DataFileCache if necessary."""
+        """Wrapper for collect to pass self._DataFileCache if necessary.
+
+        """
         if self._DataFileCaching and self._DataFileCache is None:
             # Need to create the cache
             self._DataFileCache = create_cache(self._path, self._prefix)
@@ -921,7 +1183,9 @@ class BoutOutputs(object):
             return data
 
     def _removeFirstFromCache(self):
-        """Pop the first item from the OrderedDict _datacache"""
+        """Pop the first item from the OrderedDict _datacache
+
+        """
         item = self._datacache.popitem(last=False)
         self._datacachesize -= item[1].nbytes
 
@@ -934,7 +1198,9 @@ class BoutOutputs(object):
             yield k
 
     def __str__(self, indent=""):
-        """Print a pretty version of the tree"""
+        """Print a pretty version of the tree
+
+        """
         text = ""
         for k in self.varNames:
             text += indent + k + "\n"
