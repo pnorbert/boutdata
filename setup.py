@@ -48,7 +48,6 @@ setuptools.setup(
                       'numpy',
                       'matplotlib',
                       'scipy',
-                      'bunch',
                       'boututils'],
     classifiers=[
         'Programming Language :: Python :: 3',
