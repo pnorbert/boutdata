@@ -46,6 +46,7 @@ def main():
     parser.add_argument("-q", "--quiet", action="store_true", default=False)
     parser.add_argument("-a", "--append", action="store_true", default=False)
     parser.add_argument("-d", "--delete", action="store_true", default=False)
+    parser.add_argument("--tind_auto", action="store_true", default=False)
 
     if argcomplete:
         argcomplete.autocomplete(parser)
