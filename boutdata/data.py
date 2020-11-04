@@ -823,6 +823,9 @@ class BoutOutputs(object):
         Switch for creation of a cache of DataFile objects to be
         passed to collect so that DataFiles do not need to be
         re-opened to read each variable (default: True)
+    tind_auto : bool, optional
+        Read all files, to get the shortest length of time_indices. All data truncated
+        to the shortest length.  Useful if writing got interrupted (default: False)
 
     **kwargs
         keyword arguments that are passed through to _caching_collect()
@@ -855,6 +858,7 @@ class BoutOutputs(object):
         suffix=None,
         caching=False,
         DataFileCaching=True,
+        tind_auto=False,
         **kwargs
     ):
         """
@@ -873,6 +877,20 @@ class BoutOutputs(object):
         self._caching = caching
         self._DataFileCaching = DataFileCaching
         self._kwargs = kwargs
+
+        if tind_auto:
+            if self._kwargs.get("tind", None) is not None:
+                raise ValueError("Cannot use 'tind' argument with 'tind_auto=True'")
+            nt = len(
+                self._collect(
+                    "t_array",
+                    path=self._path,
+                    prefix=self._prefix,
+                    tind_auto=True,
+                    **self._kwargs
+                )
+            )
+            self._kwargs["tind"] = slice(nt)
 
         # Label for this data
         self.label = path
