@@ -22,7 +22,8 @@ import glob
 def squashoutput(datadir=".", outputname="BOUT.dmp.nc", format="NETCDF4", tind=None,
                  xind=None, yind=None, zind=None, xguards=True, yguards="include_upper",
                  singleprecision=False, compress=False, least_significant_digit=None,
-                 quiet=False, complevel=None, append=False, delete=False):
+                 quiet=False, complevel=None, append=False, delete=False,
+                 tind_auto=False):
     """
     Collect all data from BOUT.dmp.* files and create a single output file.
 
@@ -74,6 +75,9 @@ def squashoutput(datadir=".", outputname="BOUT.dmp.nc", format="NETCDF4", tind=N
         Append to existing squashed file
     delete : bool
         Delete the original files after squashing.
+    tind_auto : bool, optional
+        Read all files, to get the shortest length of time_indices. All data truncated
+        to the shortest length.  Useful if writing got interrupted (default: False)
     """
 
     fullpath = os.path.join(datadir, outputname)
@@ -93,7 +97,8 @@ def squashoutput(datadir=".", outputname="BOUT.dmp.nc", format="NETCDF4", tind=N
 
     # useful object from BOUT pylib to access output data
     outputs = BoutOutputs(datadir, info=False, xguards=xguards,
-                          yguards=yguards, tind=tind, xind=xind, yind=yind, zind=zind)
+                          yguards=yguards, tind=tind, xind=xind, yind=yind, zind=zind,
+                          tind_auto=tind_auto)
     outputvars = outputs.keys()
     # Read a value to cache the files
     outputs[outputvars[0]]
