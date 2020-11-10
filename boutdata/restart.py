@@ -680,6 +680,10 @@ def redistribute(
                 outfile.write(v, mysub)
             elif v == "MZSUB":
                 outfile.write(v, mzsub)
+            elif v == "MXG":
+                outfile.write(v, mxg)
+            elif v == "MYG":
+                outfile.write(v, myg)
             elif dimensions == ():
                 # scalar
                 outfile.write(v, data)
