@@ -10,22 +10,11 @@ root_path = Path(__file__).parent
 init_path = root_path.joinpath(name, '__init__.py')
 readme_path = root_path.joinpath('README.md')
 
-# https://packaging.python.org/guides/single-sourcing-package-version/
-with init_path.open('r') as f:
-    version_file = f.read()
-    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",
-                              version_file, re.M)
-    if version_match:
-        version = version_match.group(1)
-    else:
-        raise RuntimeError('Unable to find version string.')
-
 with readme_path.open('r') as f:
     long_description = f.read()
 
 setuptools.setup(
     name=name,
-    version=version,
     author='Ben Dudson et al.',
     description='Python package for collecting BOUT++ data',
     long_description=long_description,
@@ -44,11 +33,16 @@ setuptools.setup(
               'data-extraction',
               'data-analysis',
               'data-visualization'],
+    use_scm_version=True,
+    setup_requires=['setuptools>=42',
+                    'setuptools_scm[toml]>=3.4',
+                    'setuptools_scm_git_archive'],
     install_requires=['sympy',
                       'numpy',
                       'matplotlib',
                       'scipy',
-                      'boututils'],
+                      'boututils',
+                      "importlib-metadata ; python_version<'3.8'"],
     classifiers=[
         'Programming Language :: Python :: 3',
         ('License :: OSI Approved :: '
