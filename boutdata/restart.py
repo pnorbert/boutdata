@@ -622,9 +622,6 @@ def redistribute(npes, path="data", nxpe=None, output=".", informat=None, outfor
                 outfile.write(v, mysub)
             elif v == "MZSUB":
                 outfile.write(v, mzsub)
-            elif dimensions == ():
-                # scalar
-                outfile.write(v, data)
             elif dimensions == ('x', 'y'):
                 # Field2D
                 outfile.write(
@@ -641,6 +638,9 @@ def redistribute(npes, path="data", nxpe=None, output=".", informat=None, outfor
                 # Field3D
                 outfile.write(
                     v, data[ix*mxsub:(ix+1)*mxsub+2*mxg, iy*mysub:(iy+1)*mysub+2*myg, :])
+            elif not any(d in dimensions for d in ('x', 'y', 'z')):
+                # scalar or other non-spatially-dependent variable
+                outfile.write(v, data)
             else:
                 print(
                     "ERROR: variable found with unexpected dimensions,", dimensions, v)
