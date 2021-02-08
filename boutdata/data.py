@@ -278,13 +278,37 @@ class BoutOptions(object):
                 ensure_sections(parent[new_parent_name], child_name)
             else:
                 check_is_section(parent, path)
-                parent.getSection(path)
+
+        def rename_key(thing, new_name, old_name):
+            """Rename a key in a dict while trying to preserve order, useful for minimising diffs"""
+            return {new_name if k == old_name else k: v for k, v in thing.items()}
+
+        def get_immediate_parent(path):
+            """Get the immediate parent of path"""
+            parent = path.rpartition(":")[0]
+            if parent:
+                return self[parent]
+            return self
 
         value = self[old_name]
 
         if isinstance(value, BoutOptions):
             # We're moving a section: make sure we don't clobber existing values
             ensure_sections(self, new_name)
+            parent = get_immediate_parent(new_name)
+
+            # Renaming a child section just within the same parent section, we can preserve the order
+            if parent == get_immediate_parent(old_name):
+                parent._sections = rename_key(parent._sections, new_name, old_name)
+                parent.comments = rename_key(parent.comments, new_name, old_name)
+                parent.inline_comments = rename_key(
+                    parent.inline_comments, new_name, old_name
+                )
+                parent._comment_whitespace = rename_key(
+                    parent._comment_whitespace, new_name, old_name
+                )
+                return
+
             # Now we're definitely moving into an existing section, so
             # update values and comments
             for key in value:
@@ -306,6 +330,20 @@ class BoutOptions(object):
                 old_name
             )
         else:
+            parent = get_immediate_parent(new_name)
+
+            # Renaming a child key just within the same parent section, we can preserve the order
+            if parent == get_immediate_parent(old_name):
+                parent._keys = rename_key(parent._keys, new_name, old_name)
+                parent.comments = rename_key(parent.comments, new_name, old_name)
+                parent.inline_comments = rename_key(
+                    parent.inline_comments, new_name, old_name
+                )
+                parent._comment_whitespace = rename_key(
+                    parent._comment_whitespace, new_name, old_name
+                )
+                return
+
             _, _, _, comment, inline_comment, comment_whitespace = self._pop_impl(
                 old_name
             )
