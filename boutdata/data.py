@@ -258,18 +258,18 @@ class BoutOptions(object):
             else:
                 getattr(parent, attr)[key] = value
 
+        def check_is_section(parent, path):
+            if path in parent and not isinstance(parent[path], BoutOptions):
+                raise TypeError(
+                    "'{}:{}' already exists and is not a section!".format(
+                        parent._name, path
+                    )
+                )
+
         def ensure_sections(parent, path):
             """Make sure all the components of path in parent are sections
             """
             path_parts = path.split(":", maxsplit=1)
-
-            def check_is_section(parent, path):
-                if path in parent and not isinstance(parent[path], BoutOptions):
-                    raise TypeError(
-                        "'{}:{}' already exists and is not a section!".format(
-                            parent._name, path
-                        )
-                    )
 
             if len(path_parts) > 1:
                 new_parent_name, child_name = path_parts
@@ -278,34 +278,41 @@ class BoutOptions(object):
                 ensure_sections(parent[new_parent_name], child_name)
             else:
                 check_is_section(parent, path)
+                parent.getSection(path)
 
         def rename_key(thing, new_name, old_name):
             """Rename a key in a dict while trying to preserve order, useful for minimising diffs"""
             return {new_name if k == old_name else k: v for k, v in thing.items()}
 
-        def get_immediate_parent(path):
+        def get_immediate_parent_and_child(path):
             """Get the immediate parent of path"""
-            parent = path.rpartition(":")[0]
-            if parent:
-                return self[parent]
-            return self
+            parent, _, child = path.rpartition(":")
+            if parent and parent in self:
+                return self[parent], child
+            return self, path
 
         value = self[old_name]
 
         if isinstance(value, BoutOptions):
             # We're moving a section: make sure we don't clobber existing values
             ensure_sections(self, new_name)
-            parent = get_immediate_parent(new_name)
+
+            new_parent, new_child = get_immediate_parent_and_child(new_name)
+            old_parent, old_child = get_immediate_parent_and_child(old_name)
 
             # Renaming a child section just within the same parent section, we can preserve the order
-            if parent == get_immediate_parent(old_name):
-                parent._sections = rename_key(parent._sections, new_name, old_name)
-                parent.comments = rename_key(parent.comments, new_name, old_name)
-                parent.inline_comments = rename_key(
-                    parent.inline_comments, new_name, old_name
+            if new_parent == old_parent and new_child not in old_parent:
+                # We just put a new section in, but it will have been
+                # added at the end -- remove it so we can actually put
+                # the new section in the same order as the original
+                new_parent.pop(new_child)
+                new_parent._sections = rename_key(new_parent._sections, new_child, old_child)
+                new_parent.comments = rename_key(new_parent.comments, new_child, old_child)
+                new_parent.inline_comments = rename_key(
+                    new_parent.inline_comments, new_child, old_child
                 )
-                parent._comment_whitespace = rename_key(
-                    parent._comment_whitespace, new_name, old_name
+                new_parent._comment_whitespace = rename_key(
+                    new_parent._comment_whitespace, new_child, old_child
                 )
                 return
 
@@ -330,17 +337,18 @@ class BoutOptions(object):
                 old_name
             )
         else:
-            parent = get_immediate_parent(new_name)
+            new_parent, new_child = get_immediate_parent_and_child(new_name)
+            old_parent, old_child = get_immediate_parent_and_child(old_name)
 
             # Renaming a child key just within the same parent section, we can preserve the order
-            if parent == get_immediate_parent(old_name):
-                parent._keys = rename_key(parent._keys, new_name, old_name)
-                parent.comments = rename_key(parent.comments, new_name, old_name)
-                parent.inline_comments = rename_key(
-                    parent.inline_comments, new_name, old_name
+            if new_parent == old_parent:
+                new_parent._keys = rename_key(new_parent._keys, new_child, old_child)
+                new_parent.comments = rename_key(new_parent.comments, new_child, old_child)
+                new_parent.inline_comments = rename_key(
+                    new_parent.inline_comments, new_child, old_child
                 )
-                parent._comment_whitespace = rename_key(
-                    parent._comment_whitespace, new_name, old_name
+                new_parent._comment_whitespace = rename_key(
+                    new_parent._comment_whitespace, new_child, old_child
                 )
                 return
 
