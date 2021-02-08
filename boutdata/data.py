@@ -300,14 +300,24 @@ class BoutOptions(object):
             new_parent, new_child = get_immediate_parent_and_child(new_name)
             old_parent, old_child = get_immediate_parent_and_child(old_name)
 
+            # Did we just add a new section?
+            new_section = len(new_parent[new_child].keys()) == 0
+            # Was it just a change in case?
+            case_change = new_child.lower() == old_child.lower()
+
             # Renaming a child section just within the same parent section, we can preserve the order
-            if new_parent == old_parent and new_child not in old_parent:
+            if (new_parent is old_parent) and (new_section or case_change):
                 # We just put a new section in, but it will have been
                 # added at the end -- remove it so we can actually put
                 # the new section in the same order as the original
-                new_parent.pop(new_child)
-                new_parent._sections = rename_key(new_parent._sections, new_child, old_child)
-                new_parent.comments = rename_key(new_parent.comments, new_child, old_child)
+                if new_section:
+                    new_parent.pop(new_child)
+                new_parent._sections = rename_key(
+                    new_parent._sections, new_child, old_child
+                )
+                new_parent.comments = rename_key(
+                    new_parent.comments, new_child, old_child
+                )
                 new_parent.inline_comments = rename_key(
                     new_parent.inline_comments, new_child, old_child
                 )
@@ -341,9 +351,11 @@ class BoutOptions(object):
             old_parent, old_child = get_immediate_parent_and_child(old_name)
 
             # Renaming a child key just within the same parent section, we can preserve the order
-            if new_parent == old_parent:
+            if new_parent is old_parent:
                 new_parent._keys = rename_key(new_parent._keys, new_child, old_child)
-                new_parent.comments = rename_key(new_parent.comments, new_child, old_child)
+                new_parent.comments = rename_key(
+                    new_parent.comments, new_child, old_child
+                )
                 new_parent.inline_comments = rename_key(
                     new_parent.inline_comments, new_child, old_child
                 )

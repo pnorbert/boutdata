@@ -89,6 +89,16 @@ def test_rename_value_case_sensitive():
     assert options.as_dict() == expected
 
 
+def test_rename_section_case_sensitive():
+    options = BoutOptions()
+    options["lower:a"] = 0
+
+    options.rename("lower", "LOWER")
+
+    expected = {"LOWER": {"a": 0}}
+    assert options.as_dict() == expected
+
+
 def test_rename_section_deeper():
     options = BoutOptions()
     options["top-level value"] = 0
