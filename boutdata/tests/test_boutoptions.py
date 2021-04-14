@@ -1,5 +1,6 @@
 from boutdata.data import BoutOptions
 
+import pytest
 import textwrap
 
 
@@ -220,3 +221,68 @@ def test_str():
     ).lstrip()
 
     assert str(options) == expected
+
+
+def test_get_bool():
+    options = BoutOptions()
+
+    for truelike in [
+        "y",
+        "Y",
+        "yes",
+        "Yes",
+        "t",
+        "T",
+        "true",
+        "True",
+        "yaihets",
+        "Yaxfus",
+        "tueoxg",
+        "Teouaig",
+        1,
+        "1uegxa",
+    ]:
+        options["truevalue"] = truelike
+        assert options.get_bool("truevalue") is True
+        assert options.get_bool("truevalue", True) is True
+        assert options.get_bool("truevalue", False) is True
+        with pytest.raises(ValueError):
+            options.get_bool("truevalue", "not a bool")
+
+    for falseelike in [
+        "n",
+        "N",
+        "no",
+        "No",
+        "f",
+        "F",
+        "false",
+        "False",
+        "naihets",
+        "Naxfus",
+        "fueoxg",
+        "Feouaig",
+        0,
+        "0uegxa",
+    ]:
+        options["falseevalue"] = falseelike
+        assert options.get_bool("falseevalue") is False
+        assert options.get_bool("falseevalue", True) is False
+        assert options.get_bool("falseevalue", False) is False
+        with pytest.raises(ValueError):
+            options.get_bool("falsevalue", 1)
+
+    with pytest.raises(KeyError):
+        options.get_bool("missingoption")
+    assert options.get_bool("missingoption", True) is True
+    assert options.get_bool("missingoption", False) is False
+    with pytest.raises(ValueError):
+        options.get_bool("missingoption", "not a bool")
+
+    options["stringvalue"] = "bar"
+    with pytest.raises(ValueError):
+        options.get_bool("stringvalue")
+    with pytest.raises(ValueError):
+        options.get_bool("stringvalue", True)
+    with pytest.raises(ValueError):
+        options.get_bool("stringvalue", False)

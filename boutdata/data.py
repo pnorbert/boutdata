@@ -487,6 +487,47 @@ class BoutOptions(object):
 
         return f.getvalue()
 
+    def get_bool(self, name, default=None):
+        """
+        Convert an option value to a bool, in (almost) the same way as BOUT++.
+
+        Note BOUT++ will convert any option value beginning with "y", "Y", "t", "T" or
+        "1" to True, and any beginning with "n", "N", "f", "F" or "0" to False. Because
+        BoutOptions converts option values to int and float, this method cannot be quite
+        so permissive, and will raise an exception for ints other than 0 and 1 and for
+        floats, which BOUT++ might convert to a bool.
+
+        Parameters
+        ----------
+        name : str
+            The name of the option to read
+        default : bool, optional
+            Value to return if the option is not present. If default is not provided an
+            exception will be raised if the option is not present.
+        """
+        if default is not None and not isinstance(default, bool):
+            raise ValueError(f'default "{default}" is not a bool')
+
+        try:
+            value = self[name]
+        except KeyError:
+            if default is None:
+                raise
+            else:
+                return default
+
+        def test_first(s, testvals):
+            if isinstance(s, str):
+                return s[0] in tuple(testvals)
+            return False
+
+        if value == 1 or test_first(value, ("y", "Y", "t", "T", "1")):
+            return True
+        elif value == 0 or test_first(value, ("n", "N", "f", "F", "0")):
+            return False
+
+        raise ValueError(f"Could not convert {name}={value} to a bool")
+
     def evaluate_scalar(self, name):
         """
         Evaluate (recursively) scalar expressions
