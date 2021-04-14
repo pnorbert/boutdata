@@ -226,22 +226,7 @@ def test_str():
 def test_get_bool():
     options = BoutOptions()
 
-    for truelike in [
-        "y",
-        "Y",
-        "yes",
-        "Yes",
-        "t",
-        "T",
-        "true",
-        "True",
-        "yaihets",
-        "Yaxfus",
-        "tueoxg",
-        "Teouaig",
-        1,
-        "1uegxa",
-    ]:
+    for truelike in ["y", "Y", "yes", "Yes", "t", "T", "true", "True", 1]:
         options["truevalue"] = truelike
         assert options.get_bool("truevalue") is True
         assert options.get_bool("truevalue", True) is True
@@ -249,22 +234,7 @@ def test_get_bool():
         with pytest.raises(ValueError):
             options.get_bool("truevalue", "not a bool")
 
-    for falseelike in [
-        "n",
-        "N",
-        "no",
-        "No",
-        "f",
-        "F",
-        "false",
-        "False",
-        "naihets",
-        "Naxfus",
-        "fueoxg",
-        "Feouaig",
-        0,
-        "0uegxa",
-    ]:
+    for falseelike in ["n", "N", "no", "No", "f", "F", "false", "False", 0]:
         options["falseevalue"] = falseelike
         assert options.get_bool("falseevalue") is False
         assert options.get_bool("falseevalue", True) is False
@@ -279,10 +249,23 @@ def test_get_bool():
     with pytest.raises(ValueError):
         options.get_bool("missingoption", "not a bool")
 
-    options["stringvalue"] = "bar"
-    with pytest.raises(ValueError):
-        options.get_bool("stringvalue")
-    with pytest.raises(ValueError):
-        options.get_bool("stringvalue", True)
-    with pytest.raises(ValueError):
-        options.get_bool("stringvalue", False)
+    for invalid in [
+        "bar",
+        "yaihets",
+        "Yaxfus",
+        "tueoxg",
+        "Teouaig",
+        "1uegxa",
+        "naihets",
+        "Naxfus",
+        "fueoxg",
+        "Feouaig",
+        "0uegxa",
+    ]:
+        options["stringvalue"] = invalid
+        with pytest.raises(ValueError):
+            options.get_bool("stringvalue")
+        with pytest.raises(ValueError):
+            options.get_bool("stringvalue", True)
+        with pytest.raises(ValueError):
+            options.get_bool("stringvalue", False)
