@@ -491,8 +491,10 @@ class BoutOptions(object):
         """
         Convert an option value to a bool, in (almost) the same way as BOUT++.
 
-        Note BOUT++ will convert any option value beginning with "y", "Y", "t", "T" or
-        "1" to True, and any beginning with "n", "N", "f", "F" or "0" to False. Because
+        Warnings
+        --------
+        BOUT++ will convert any option value beginning with "y", "Y", "t", "T" or "1" to
+        True, and any beginning with "n", "N", "f", "F" or "0" to False. Because
         BoutOptions converts option values to int and float, this method cannot be quite
         so permissive, and will raise an exception for ints other than 0 and 1 and for
         floats, which BOUT++ might convert to a bool.
