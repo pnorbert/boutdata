@@ -516,14 +516,13 @@ class BoutOptions(object):
             else:
                 return default
 
-        def test_first(s, testvals):
-            if isinstance(s, str):
-                return s[0] in tuple(testvals)
-            return False
-
-        if value == 1 or test_first(value, ("y", "Y", "t", "T", "1")):
+        if value == 1 or (
+            isinstance(value, str) and value.lower() in ("y", "yes", "t", "true")
+        ):
             return True
-        elif value == 0 or test_first(value, ("n", "N", "f", "F", "0")):
+        elif value == 0 or (
+            isinstance(value, str) and value.lower() in ("n", "no", "f", "false")
+        ):
             return False
 
         raise ValueError(f"Could not convert {name}={value} to a bool")
