@@ -75,6 +75,16 @@ def squashoutput(datadir=".", outputname="BOUT.dmp.nc", format="NETCDF4", tind=N
     delete : bool
         Delete the original files after squashing.
     """
+    try:
+        # If we are using the netCDF4 module (the usual case) set caching to zero, since
+        # each variable is read and written exactly once so caching does not help, only
+        # uses memory - for large data sets, the memory usage may become excessive.
+        from netCDF4 import get_chunk_cache, set_chunk_cache
+    except ImportError:
+        netcdf4_chunk_cache = None
+    else:
+        netcdf4_chunk_cache = get_chunk_cache()
+        set_chunk_cache(0)
 
     fullpath = os.path.join(datadir, outputname)
 
@@ -158,3 +168,7 @@ def squashoutput(datadir=".", outputname="BOUT.dmp.nc", format="NETCDF4", tind=N
             os.remove(f)
         if append:
             os.rmdir(datadir)
+
+    if netcdf4_chunk_cache is not None:
+        # Reset the default chunk_cache size that was changed for squashoutput
+        set_chunk_cache(netcdf4_chunk_cache)
