@@ -171,4 +171,6 @@ def squashoutput(datadir=".", outputname="BOUT.dmp.nc", format="NETCDF4", tind=N
 
     if netcdf4_chunk_cache is not None:
         # Reset the default chunk_cache size that was changed for squashoutput
-        set_chunk_cache(netcdf4_chunk_cache)
+        # Note that get_chunk_cache() returns a tuple, so we have to unpack it when
+        # passing to set_chunk_cache.
+        set_chunk_cache(*netcdf4_chunk_cache)
