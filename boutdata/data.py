@@ -1084,17 +1084,18 @@ class BoutOutputs(object):
 
             if len(self._file_list) != self.npes:
                 alwayswarn("Too many data files, reading most recent ones")
-                if self.npes == 1:
-                    # single output file
-                    # do like this to catch, e.g. either 'BOUT.dmp.nc' or 'BOUT.dmp.0.nc'
-                    self._file_list = [latest_file]
-                else:
-                    self._file_list = [
-                        os.path.join(
-                            path, self._prefix + "." + str(i) + "." + self._suffix
-                        )
-                        for i in range(self.npes)
-                    ]
+            if len(self._file_list) != self.npes and self.npes == 1:
+                # single output file
+                # do like this to catch, e.g. either 'BOUT.dmp.nc' or 'BOUT.dmp.0.nc'
+                self._file_list = [latest_file]
+            else:
+                # Re-create self._file_list so that it is sorted
+                self._file_list = [
+                    os.path.join(
+                        path, self._prefix + "." + str(i) + "." + self._suffix
+                    )
+                    for i in range(self.npes)
+                ]
 
             # Get variable names
             self.varNames = f.keys()
