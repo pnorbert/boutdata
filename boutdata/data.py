@@ -11,9 +11,13 @@ import numpy
 import os
 import re
 
-from boutdata.collect import collect, create_cache
+from multiprocessing import Process, Pipe, RawArray
+
+from boutdata.collect import collect, create_cache, findVar, _convert_to_nice_slice
+from boututils.boutarray import BoutArray
 from boututils.boutwarnings import alwayswarn
 from boututils.datafile import DataFile
+from boututils.run_wrapper import determineNumberOfCPUs
 
 # These are imported to be used by 'eval' in
 # BoutOptions.evaluate_scalar() and BoutOptionsFile.evaluate().
@@ -923,6 +927,10 @@ class BoutOutputs(object):
         Switch for creation of a cache of DataFile objects to be
         passed to collect so that DataFiles do not need to be
         re-opened to read each variable (default: True)
+    parallel : bool or int, default False
+        If set to True or 0, use the multiprocessing library to read data in parallel
+        with the maximum number of available processors. If set to an int, use that many
+        processes.
 
     **kwargs
         keyword arguments that are passed through to _caching_collect()
@@ -979,11 +987,16 @@ class BoutOutputs(object):
             # normalize suffix by removing leading '.' if present
             self._suffix = suffix.lstrip(".")
         self._caching = caching
-        self._DataFileCaching = DataFileCaching
         self._info = info
         self._xguards = xguards
         self._yguards = yguards
         self._kwargs = kwargs
+        self._parallel = parallel
+        if self._parallel is False:
+            self._DataFileCaching = DataFileCaching
+        else:
+            # parallel functionality caches DataFiles in worker processes
+            self._DataFileCaching = False
 
         # Label for this data
         self.label = path
@@ -1117,7 +1130,49 @@ class BoutOutputs(object):
                 self._datacachesize = 0
                 self._datacachemaxsize = self._caching * 1.0e9
 
+        if self._parallel is not False:
+            if self._parallel is True or self._parallel == 0:
+                self._parallel = determineNumberOfCPUs()
+            if not isinstance(self._parallel, int) or self._parallel <= 0:
+                raise ValueError(
+                    "Passed or found inconsistent value %i for number of processes",
+                    self._parallel,
+                )
+
+            # Work out which files to assign to which workers
+            min_files_per_proc = int(self.npes) // self._parallel
+            extra_files = int(self.npes) % self._parallel
+            files_per_proc = [min_files_per_proc] * (self._parallel - extra_files) + [
+                min_files_per_proc + 1
+            ] * extra_files
+            # self._workers is a list of pairs of (worker, connection)
+            self._workers = []
+            filenum = 0
+            for i in range(self._parallel):
+                parent_connection, child_connection = Pipe()
+                proc_list = tuple(
+                    p for p in range(filenum, filenum + files_per_proc[i])
+                )
+                filenum = filenum + files_per_proc[i]
+                self._workers.append(
+                    (
+                        Process(
+                            target=self._worker_function,
+                            args=(child_connection, proc_list),
+                        ),
+                        parent_connection,
+                    )
+                )
+                self._workers[-1][0].start()
+
         self._DataFileCache = None
+
+    def __del__(self):
+        if self._parallel is not False:
+            for worker, _ in self._workers:
+                worker.terminate()
+                worker.join()
+                worker.close()
 
     def keys(self):
         """Return a list of available variable names
@@ -1324,6 +1379,9 @@ class BoutOutputs(object):
         """Wrapper for collect to pass self._DataFileCache if necessary.
 
         """
+        if self._parallel:
+            return self._collect_parallel(*args, **kwargs)
+
         if self._DataFileCaching and self._DataFileCache is None:
             # Need to create the cache
             self._DataFileCache = create_cache(self._path, self._prefix)
@@ -1341,6 +1399,338 @@ class BoutOutputs(object):
             zind=self.zind,
             **kwargs,
         )
+
+    def _collect_parallel(self, varname, strict=False, tind_auto=False):
+        if tind_auto:
+            raise ValueError("tind_auto not supported when parallel=True")
+
+        if varname not in self.keys():
+            if strict:
+                raise ValueError("Variable '{}' not found".format(varname))
+            else:
+                varname = findVar(varname, self.keys())
+
+        dimensions = self.dimensions[varname]
+        is_fieldperp = dimensions in (("t", "x", "z"), ("x", "z"))
+
+        dim_sizes = tuple(self.sizes[d] for d in dimensions)
+        shared_result_raw = RawArray("d", int(numpy.prod(dim_sizes)))
+        shared_result = numpy.reshape(numpy.frombuffer(shared_result_raw), dim_sizes)
+
+        for worker, connection in self._workers:
+            connection.send((varname, shared_result, is_fieldperp))
+
+        yindex_global = None
+        fieldperp_yproc = None
+        var_attributes = self.attributes[varname]
+
+        for worker, connection in self._workers:
+            temp_yindex, temp_fieldperp_yproc, temp_var_attributes = connection.recv()
+            if is_fieldperp:
+                if temp_yindex is not None:
+                    # Found actual data for a FieldPerp, so update FieldPerp properties
+                    # and check they are unique
+                    # FieldPerp should only be defined on processors which contain its
+                    # (unique) yindex_global
+                    if yindex_global is not None and yindex_global != temp_yindex:
+                        raise ValueError(
+                            "Multiple global y-indices found for FieldPerp"
+                        )
+                    yindex_global = temp_yindex
+                    temp_fieldperp_yproc = i // self.nxpe
+                    if (
+                        fieldperp_yproc is not None
+                        and fieldperp_yproc != temp_fieldperp_yproc
+                    ):
+                        raise ValueError("FieldPerp found at multiple yproc indices")
+                    fieldperp_yproc = temp_fieldperp_yproc
+                    var_attributes = temp_var_attributes
+
+        return BoutArray(shared_result, attributes=var_attributes)
+
+    def _collect_from_one_proc(
+        self, i, datafile, varname, *, shared_result, is_fieldperp
+    ):
+        """Read part of a variable from one processor
+
+        For use in _collect_parallel()
+
+        Parameters
+        ----------
+        i : int
+            Processor number being read from
+        datafile : DataFile
+            File to read from
+        varname : str
+            Name of variable to read
+        shared_result : numpy.Array
+            Array in which to put the data
+        is_fieldperp : bool
+            Is this variable a FieldPerp?
+
+        Returns
+        -------
+        temp_yindex, var_attributes
+        """
+        dimensions = self.dimensions[varname]
+        ndims = len(dimensions)
+
+        # ndims is 0 for reals, and 1 for f.ex. t_array
+        if ndims == 0:
+            if i != 0:
+                # Only read scalars from file 0
+                return None, None
+
+            # Just read from file
+            shared_result[...] = datafile.read(varname)
+            return None, None
+
+        if ndims > 4:
+            raise ValueError("ERROR: Too many dimensions")
+
+        if not any(dim in dimensions for dim in ("x", "y", "z")):
+            if i != 0:
+                return None, None
+
+            # Not a Field (i.e. no spatial dependence) so only read from the 0'th file
+            if "t" in dimensions:
+                if not dimensions[0] == "t":
+                    # 't' should be the first dimension in the list if present
+                    raise ValueError(
+                        varname
+                        + " has a 't' dimension, but it is not the first dimension "
+                        "in dimensions=" + str(dimensions)
+                    )
+                shared_result[:] = datafile.read(
+                    varname, ranges=[self.tind] + (ndims - 1) * [None]
+                )
+            else:
+                # No time or space dimensions, so no slicing
+                shared_result[...] = datafile.read(varname)
+            return None, None
+
+        # Get X and Y processor indices
+        pe_yind = i // self.nxpe
+        pe_xind = i % self.nxpe
+
+        inrange = True
+
+        if self._yguards:
+            # Get local ranges
+            ystart = self.yind.start - pe_yind * self.mysub
+            ystop = self.yind.stop - pe_yind * self.mysub
+
+            # Check lower y boundary
+            if pe_yind == 0:
+                # Keeping inner boundary
+                if ystop <= 0:
+                    inrange = False
+                if ystart < 0:
+                    ystart = 0
+            else:
+                if ystop < self.myg - 1:
+                    inrange = False
+                if ystart < self.myg:
+                    ystart = self.myg
+            # and lower y boundary at upper target
+            if (
+                self.yproc_upper_target is not None
+                and pe_yind - 1 == self.yproc_upper_target
+            ):
+                ystart = ystart - self.myg
+
+            # Upper y boundary
+            if pe_yind == (self.nype - 1):
+                # Keeping outer boundary
+                if ystart >= (self.mysub + 2 * self.myg):
+                    inrange = False
+                if ystop > (self.mysub + 2 * self.myg):
+                    ystop = self.mysub + 2 * self.myg
+            else:
+                if ystart >= (self.mysub + self.myg):
+                    inrange = False
+                if ystop > (self.mysub + self.myg):
+                    ystop = self.mysub + self.myg
+            # upper y boundary at upper target
+            if (
+                self.yproc_upper_target is not None
+                and pe_yind == self.yproc_upper_target
+            ):
+                ystop = ystop + self.myg
+
+        else:
+            # Get local ranges
+            ystart = self.yind.start - self.pe_yind * self.mysub + self.myg
+            ystop = self.yind.stop - self.pe_yind * self.mysub + self.myg
+
+            if (ystart >= (self.mysub + self.myg)) or (ystop <= self.myg):
+                inrange = False  # Y out of range
+
+            if ystart < self.myg:
+                ystart = self.myg
+            if ystop > self.mysub + self.myg:
+                ystop = self.myg + self.mysub
+
+        if self._xguards:
+            # Get local ranges
+            xstart = self.xind.start - pe_xind * self.mxsub
+            xstop = self.xind.stop - pe_xind * self.mxsub
+
+            # Check lower x boundary
+            if pe_xind == 0:
+                # Keeping inner boundary
+                if xstop <= 0:
+                    inrange = False
+                if xstart < 0:
+                    xstart = 0
+            else:
+                if xstop <= self.mxg:
+                    inrange = False
+                if xstart < self.mxg:
+                    xstart = self.mxg
+
+            # Upper x boundary
+            if pe_xind == (self.nxpe - 1):
+                # Keeping outer boundary
+                if xstart >= (self.mxsub + 2 * self.mxg):
+                    inrange = False
+                if xstop > (self.mxsub + 2 * self.mxg):
+                    xstop = self.mxsub + 2 * self.mxg
+            else:
+                if xstart >= (self.mxsub + self.mxg):
+                    inrange = False
+                if xstop > (self.mxsub + self.mxg):
+                    xstop = self.mxsub + self.mxg
+
+        else:
+            # Get local ranges
+            xstart = self.xind.start - self.pe_xind * self.mxsub + self.mxg
+            xstop = self.xind.stop - self.pe_xind * self.mxsub + self.mxg
+
+            if (xstart >= (self.mxsub + self.mxg)) or (xstop <= self.mxg):
+                inrange = False  # X out of range
+
+            if xstart < self.mxg:
+                xstart = self.mxg
+            if xstop > self.mxsub + self.mxg:
+                xstop = self.mxg + self.mxsub
+
+        local_slices = []
+        if "t" in dimensions:
+            local_slices.append(self.tind)
+        if "x" in dimensions:
+            local_slices.append(slice(xstart, xstop))
+        if "y" in dimensions:
+            local_slices.append(slice(ystart, ystop))
+        if "z" in dimensions:
+            local_slices.append(self.zind)
+        local_slices = tuple(local_slices)
+
+        if self._xguards:
+            xgstart = xstart + pe_xind * self.mxsub
+            xgstop = xstop + pe_xind * self.mxsub
+        else:
+            xgstart = xstart + pe_xind * self.mxsub - self.mxg
+            xgstop = xstop + pe_xind * self.mxsub - self.mxg
+        if self._yguards:
+            ygstart = ystart + pe_yind * self.mysub
+            ygstop = ystop + pe_yind * self.mysub
+            if (
+                self.yproc_upper_target is not None
+                and pe_yind > self.yproc_upper_target
+            ):
+                ygstart = ygstart + 2 * self.myg
+                ygstop = ygstop + 2 * self.myg
+        else:
+            ygstart = ystart + pe_yind * self.mysub - self.myg
+            ygstop = ystop + pe_yind * self.mysub - self.myg
+
+        global_slices = []
+        if "t" in dimensions:
+            global_slices.append(slice(None))
+        if "x" in dimensions:
+            global_slices.append(slice(xgstart, xgstop))
+        if "y" in dimensions:
+            global_slices.append(slice(ygstart, ygstop))
+        if "z" in dimensions:
+            global_slices.append(slice(None))
+        global_slices = tuple(global_slices)
+
+        if not inrange:
+            return None, None  # Don't need this file
+
+        if self._info:
+            sys.stdout.write(
+                "\rReading from "
+                + i
+                + ": ["
+                + str(xstart)
+                + "-"
+                + str(xstop - 1)
+                + "]["
+                + str(ystart)
+                + "-"
+                + str(ystop - 1)
+                + "] -> ["
+                + str(xgstart)
+                + "-"
+                + str(xgstop - 1)
+                + "]["
+                + str(ygstart)
+                + "-"
+                + str(ygstop - 1)
+                + "]\n"
+            )
+
+        if is_fieldperp:
+            f_attributes = data_file.attributes(varname)
+            temp_yindex = f_attributes["yindex_global"]
+            if temp_yindex < 0:
+                # No data for FieldPerp on this processor
+                return None, None
+
+        shared_result[global_slices] = datafile.read(varname, ranges=local_slices)
+
+        if is_fieldperp:
+            return temp_yindex, var_attributes
+
+        return None, None
+
+    def _worker_function(self, connection, proc_list):
+        data_files = [DataFile(self._file_list[i]) for i in proc_list]
+        while True:
+            varname, shared_result, is_fieldperp = connection.recv()
+
+            yindex_global = None
+            fieldperp_yproc = None
+            var_attributes = None
+
+            for i, f in zip(proc_list, data_files):
+                temp_yindex, temp_var_attributes = self._collect_from_one_proc(
+                    i,
+                    f,
+                    varname,
+                    shared_result=shared_result,
+                    is_fieldperp=is_fieldperp,
+                )
+                if is_fieldperp:
+                    if temp_yindex is not None:
+                        # Found actual data for a FieldPerp, so update FieldPerp properties
+                        # and check they are unique
+                        if yindex_global is not None and yindex_global != temp_yindex:
+                            raise ValueError(
+                                "Multiple global y-indices found for FieldPerp"
+                            )
+                        yindex_global = temp_yindex
+                        pe_yind = i // self.nxpe
+                        if fieldperp_yproc is not None and fieldperp_yproc != pe_yind:
+                            raise ValueError(
+                                "FieldPerp found at multiple yproc indices"
+                            )
+                        fieldperp_yproc = pe_yind
+                        var_attributes = temp_var_attributes
+
+            connection.send((yindex_global, fieldperp_yproc, var_attributes))
 
     def __len__(self):
         return len(self.varNames)
