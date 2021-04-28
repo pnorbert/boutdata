@@ -1140,6 +1140,9 @@ class BoutOutputs(object):
                     self._parallel,
                 )
 
+            # Open the 0'th file so we can read scalars without the worker processes
+            self._root_file = DataFile(self._file_list[0])
+
             # Need to initialise all workers with a shared memory buffer to write to
             dim_sizes = tuple(self.sizes[d] for d in ("t", "x", "y", "z"))
             self._shared_buffer_raw = RawArray("d", int(numpy.prod(dim_sizes)))
@@ -1419,11 +1422,13 @@ class BoutOutputs(object):
                 varname = findVar(varname, self.keys())
 
         dimensions = self.dimensions[varname]
-        is_fieldperp = dimensions in (("t", "x", "z"), ("x", "z"))
+        var_attributes = self.attributes[varname]
 
-        dim_sizes = tuple(self.sizes[d] for d in dimensions)
-        shared_result_raw = RawArray("d", int(numpy.prod(dim_sizes)))
-        shared_result = numpy.reshape(numpy.frombuffer(shared_result_raw), dim_sizes)
+        if not ("x" in dimensions or "y" in dimensions or "z" in dimensions):
+            # No spatial dependence - read without using workers to preserve type
+            return BoutArray(self._root_file.read(varname), attributes=var_attributes)
+
+        is_fieldperp = dimensions in (("t", "x", "z"), ("x", "z"))
 
         # Initialise buffer to zero
         self._shared_buffer[:] = 0.0
