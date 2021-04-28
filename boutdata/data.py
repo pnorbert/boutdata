@@ -1140,6 +1140,13 @@ class BoutOutputs(object):
                     self._parallel,
                 )
 
+            # Need to initialise all workers with a shared memory buffer to write to
+            dim_sizes = tuple(self.sizes[d] for d in ("t", "x", "y", "z"))
+            self._shared_buffer_raw = RawArray("d", int(numpy.prod(dim_sizes)))
+            self._shared_buffer = numpy.reshape(
+                numpy.frombuffer(self._shared_buffer_raw), dim_sizes
+            )
+
             # Work out which files to assign to which workers
             min_files_per_proc = int(self.npes) // self._parallel
             extra_files = int(self.npes) % self._parallel
@@ -1159,7 +1166,7 @@ class BoutOutputs(object):
                     (
                         Process(
                             target=self._worker_function,
-                            args=(child_connection, proc_list),
+                            args=(child_connection, proc_list, self._shared_buffer_raw),
                         ),
                         parent_connection,
                     )
@@ -1418,8 +1425,11 @@ class BoutOutputs(object):
         shared_result_raw = RawArray("d", int(numpy.prod(dim_sizes)))
         shared_result = numpy.reshape(numpy.frombuffer(shared_result_raw), dim_sizes)
 
+        # Initialise buffer to zero
+        self._shared_buffer[:] = 0.0
+
         for worker, connection in self._workers:
-            connection.send((varname, shared_result, is_fieldperp))
+            connection.send((varname, is_fieldperp))
 
         yindex_global = None
         fieldperp_yproc = None
@@ -1447,7 +1457,28 @@ class BoutOutputs(object):
                     fieldperp_yproc = temp_fieldperp_yproc
                     var_attributes = temp_var_attributes
 
-        return BoutArray(shared_result, attributes=var_attributes)
+        global_slices = []
+        if "t" in dimensions:
+            global_slices.append(slice(None))
+        else:
+            global_slices.append(0)
+        if "x" in dimensions:
+            # Apply any requested step here, after collecting
+            global_slices.append(slice(None, None, self.xind.step))
+        else:
+            global_slices.append(0)
+        if "y" in dimensions:
+            # Apply any requested step here, after collecting
+            global_slices.append(slice(None, None, self.yind.step))
+        else:
+            global_slices.append(0)
+        if "z" in dimensions:
+            global_slices.append(slice(None))
+        else:
+            global_slices.append(0)
+        global_slices = tuple(global_slices)
+
+        return BoutArray(self._shared_buffer[global_slices].copy(), attributes=var_attributes)
 
     def _collect_from_one_proc(
         self, i, datafile, varname, *, shared_result, is_fieldperp
@@ -1649,12 +1680,20 @@ class BoutOutputs(object):
         global_slices = []
         if "t" in dimensions:
             global_slices.append(slice(None))
+        else:
+            global_slices.append(0)
         if "x" in dimensions:
             global_slices.append(slice(xgstart, xgstop))
+        else:
+            global_slices.append(0)
         if "y" in dimensions:
             global_slices.append(slice(ygstart, ygstop))
+        else:
+            global_slices.append(0)
         if "z" in dimensions:
             global_slices.append(slice(None))
+        else:
+            global_slices.append(0)
         global_slices = tuple(global_slices)
 
         if not inrange:
@@ -1697,10 +1736,14 @@ class BoutOutputs(object):
 
         return None, None
 
-    def _worker_function(self, connection, proc_list):
+    def _worker_function(self, connection, proc_list, shared_buffer_raw):
         data_files = [DataFile(self._file_list[i]) for i in proc_list]
+        dim_sizes = tuple(self.sizes[d] for d in ("t", "x", "y", "z"))
+        shared_buffer = numpy.reshape(
+            numpy.frombuffer(shared_buffer_raw), dim_sizes
+        )
         while True:
-            varname, shared_result, is_fieldperp = connection.recv()
+            varname, is_fieldperp = connection.recv()
 
             yindex_global = None
             fieldperp_yproc = None
@@ -1711,7 +1754,7 @@ class BoutOutputs(object):
                     i,
                     f,
                     varname,
-                    shared_result=shared_result,
+                    shared_result=shared_buffer,
                     is_fieldperp=is_fieldperp,
                 )
                 if is_fieldperp:
