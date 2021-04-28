@@ -955,7 +955,15 @@ class BoutOutputs(object):
         suffix=None,
         caching=False,
         DataFileCaching=True,
-        **kwargs
+        info=False,
+        xguards=True,
+        yguards=False,
+        tind=None,
+        xind=None,
+        yind=None,
+        zind=None,
+        parallel=False,
+        **kwargs,
     ):
         """
         Initialise BoutOutputs object
@@ -972,6 +980,9 @@ class BoutOutputs(object):
             self._suffix = suffix.lstrip(".")
         self._caching = caching
         self._DataFileCaching = DataFileCaching
+        self._info = info
+        self._xguards = xguards
+        self._yguards = yguards
         self._kwargs = kwargs
 
         # Label for this data
@@ -990,14 +1001,77 @@ class BoutOutputs(object):
 
         # Available variables
         self.varNames = []
+        self.attributes = {}
         self.dimensions = {}
         self.evolvingVariableNames = []
 
         with DataFile(latest_file) as f:
-            npes = f.read("NXPE") * f.read("NYPE")
-            if len(self._file_list) != npes:
+            self.nt = len(f.read("t_array"))
+            mz = int(f.read("MZ"))
+            self.mxg = int(f.read("MXG"))
+            self.myg = int(f.read("MYG"))
+            self.is_doublenull = f.read("jyseps2_1") != f.read("jyseps1_2")
+            self.ny_inner = int(f.read("ny_inner"))
+            self.nxpe = int(f.read("NXPE"))
+            self.nype = int(f.read("NYPE"))
+            self.npes = self.nxpe * self.nype
+            self.mxsub = int(f.read("MXSUB"))
+            self.mysub = int(f.read("MYSUB"))
+
+            # Get the version of BOUT++ (should be > 0.6 for NetCDF anyway)
+            try:
+                version = f["BOUT_VERSION"]
+            except KeyError:
+                print("BOUT++ version : Pre-0.2")
+                version = 0
+            if version < 3.5:
+                # Remove extra point
+                self.nz = mz - 1
+            else:
+                self.nz = mz
+
+            if self._xguards:
+                self.nx = self.nxpe * self.mxsub + 2 * self.mxg
+            else:
+                self.nx = self.nxpe * self.mxsub
+
+            if self._yguards:
+                self.ny = self.mysub * self.nype + 2 * self.myg
+                if self._yguards == "include_upper" and self.is_doublenull:
+                    # Simulation has a second (upper) target, with a second set of y-boundary
+                    # points
+                    self.ny = self.ny + 2 * self.myg
+                    self.yproc_upper_target = self.ny_inner // self.mysub - 1
+                    if self.ny_inner % self.mysub != 0:
+                        raise ValueError(
+                            "Trying to keep upper boundary cells but mysub={} does not "
+                            "divide ny_inner={}".format(self.mysub, self.ny_inner)
+                        )
+                else:
+                    self.yproc_upper_target = None
+            else:
+                self.ny = self.mysub * self.nype
+
+            self.xind = _convert_to_nice_slice(xind, self.nx, "xind")
+            self.yind = _convert_to_nice_slice(yind, self.ny, "yind")
+            self.zind = _convert_to_nice_slice(zind, self.nz, "zind")
+            self.tind = _convert_to_nice_slice(tind, self.nt, "tind")
+
+            xsize = self.xind.stop - self.xind.start
+            ysize = self.yind.stop - self.yind.start
+            zsize = int(
+                numpy.ceil(float(self.zind.stop - self.zind.start) / self.zind.step)
+            )
+            tsize = int(
+                numpy.ceil(float(self.tind.stop - self.tind.start) / self.tind.step)
+            )
+
+            # Map between dimension names and output size
+            self.sizes = {"x": xsize, "y": ysize, "z": zsize, "t": tsize}
+
+            if len(self._file_list) != self.npes:
                 alwayswarn("Too many data files, reading most recent ones")
-                if npes == 1:
+                if self.npes == 1:
                     # single output file
                     # do like this to catch, e.g. either 'BOUT.dmp.nc' or 'BOUT.dmp.0.nc'
                     self._file_list = [latest_file]
@@ -1006,16 +1080,25 @@ class BoutOutputs(object):
                         os.path.join(
                             path, self._prefix + "." + str(i) + "." + self._suffix
                         )
-                        for i in range(npes)
+                        for i in range(self.npes)
                     ]
 
             # Get variable names
             self.varNames = f.keys()
             for name in f.keys():
+                self.attributes[name] = f.attributes(name)
                 dimensions = f.dimensions(name)
                 self.dimensions[name] = dimensions
                 if name != "t_array" and "t" in dimensions:
                     self.evolvingVariableNames.append(name)
+
+        if self._info:
+            print("mxsub = %d mysub = %d mz = %d\n" % (self.mxsub, self.mysub, self.nz))
+            print("nxpe = %d, nype = %d, npe = %d\n" % (self.nxpe, self.nype, self.npe))
+            if self.npe < len(self._file_list):
+                print("WARNING: More files than expected (" + str(npe) + ")")
+            elif self.npe > len(self._file_list):
+                print("WARNING: Some files missing. Expected " + str(npe))
 
         # Private variables
         if self._caching:
@@ -1244,7 +1327,20 @@ class BoutOutputs(object):
         if self._DataFileCaching and self._DataFileCache is None:
             # Need to create the cache
             self._DataFileCache = create_cache(self._path, self._prefix)
-        return collect(*args, datafile_cache=self._DataFileCache, **kwargs)
+        return collect(
+            *args,
+            datafile_cache=self._DataFileCache,
+            path=self._path,
+            prefix=self._prefix,
+            info=self._info,
+            xguards=self._xguards,
+            yguards=self._yguards,
+            tind=self.tind,
+            xind=self.xind,
+            yind=self.yind,
+            zind=self.zind,
+            **kwargs,
+        )
 
     def __len__(self):
         return len(self.varNames)
@@ -1259,9 +1355,7 @@ class BoutOutputs(object):
 
         if self._caching:
             if name not in self._datacache.keys():
-                item = self._collect(
-                    name, path=self._path, prefix=self._prefix, **self._kwargs
-                )
+                item = self._collect(name, **self._kwargs)
                 if self._caching is not True:
                     itemsize = item.nbytes
                     if itemsize > self._datacachemaxsize:
@@ -1278,7 +1372,8 @@ class BoutOutputs(object):
         else:
             # Collect the data from the repository
             data = self._collect(
-                name, path=self._path, prefix=self._prefix, **self._kwargs
+                name,
+                **self._kwargs,
             )
             return data
 
