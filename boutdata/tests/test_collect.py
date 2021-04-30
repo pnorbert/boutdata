@@ -8,6 +8,7 @@ from boutdata.collect import collect
 from boutdata.squashoutput import squashoutput
 
 from boutdata.tests.make_test_data import (
+    apply_slices,
     create_dump_file,
     concatenate_data,
     expected_attributes,
@@ -706,6 +707,564 @@ class TestCollect:
         )
 
     @pytest.mark.parametrize("squash", [False, True])
+    # This parametrize passes tuples for 'tind', 'xind', 'yind' and 'zind'. The first
+    # value is the 'tind'/'xind'/'yind'/'zind' argument to pass to collect() or
+    # squashoutput(), the second is the equivalent slice() to use on the expected
+    # output.
+    #
+    # Note that the 3-element list form of the argument is inconsistent with the
+    # 2-element form as the 3-element uses an exclusive end index (like slice()) while
+    # the 2-element uses an inclusive end index (for backward compatibility).
+    @pytest.mark.parametrize(
+        ("tind", "xind", "yind", "zind"),
+        [
+            # t-slicing
+            (
+                (2, slice(2, 3)),
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            (
+                (slice(4), slice(4)),
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            (
+                ([0, 3], slice(4)),
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            (
+                (slice(2, None), slice(2, None)),
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            (
+                ([2, -1], slice(2, None)),
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            (
+                (slice(2, 4), slice(2, 4)),
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            (
+                ([2, 3], slice(2, 4)),
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            (
+                (slice(None, None, 3), slice(None, None, 3)),
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            (
+                ([0, -1, 3], slice(None, -1, 3)),
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            (
+                (slice(1, 5, 2), slice(1, 5, 2)),
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            (
+                ([1, 4, 2], slice(1, 4, 2)),
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            # x-slicing
+            (
+                (None, slice(None)),
+                (7, slice(7, 8)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            (
+                (None, slice(None)),
+                (slice(8), slice(8)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            (
+                (None, slice(None)),
+                ([0, 8], slice(9)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            (
+                (None, slice(None)),
+                (slice(4, None), slice(4, None)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            (
+                (None, slice(None)),
+                ([5, -1], slice(5, None)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            (
+                (None, slice(None)),
+                (slice(6, 10), slice(6, 10)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            (
+                (None, slice(None)),
+                ([4, 8], slice(4, 9)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            (
+                (None, slice(None)),
+                (slice(None, None, 4), slice(None, None, 4)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            (
+                (None, slice(None)),
+                ([0, -1, 3], slice(None, -1, 3)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            (
+                (None, slice(None)),
+                (slice(3, 10, 3), slice(3, 10, 3)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            (
+                (None, slice(None)),
+                ([4, 8, 4], slice(4, 8, 4)),
+                (None, slice(None)),
+                (None, slice(None)),
+            ),
+            # y-slicing
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                (17, slice(17, 18)),
+                (None, slice(None)),
+            ),
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                (slice(30), slice(30)),
+                (None, slice(None)),
+            ),
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                ([0, 28], slice(29)),
+                (None, slice(None)),
+            ),
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                (slice(5, None), slice(5, None)),
+                (None, slice(None)),
+            ),
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                ([6, -1], slice(6, None)),
+                (None, slice(None)),
+            ),
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                (slice(7, 28), slice(7, 28)),
+                (None, slice(None)),
+            ),
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                ([8, 27], slice(8, 28)),
+                (None, slice(None)),
+            ),
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                (slice(None, None, 5), slice(None, None, 5)),
+                (None, slice(None)),
+            ),
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                ([0, -1, 6], slice(None, -1, 6)),
+                (None, slice(None)),
+            ),
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                (slice(9, 26, 7), slice(9, 26, 7)),
+                (None, slice(None)),
+            ),
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                ([5, 33, 4], slice(5, 33, 4)),
+                (None, slice(None)),
+            ),
+            # z-slicing
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+                (1, slice(1, 2)),
+            ),
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+                (slice(3), slice(3)),
+            ),
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+                ([0, 2], slice(3)),
+            ),
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+                (slice(1, None), slice(1, None)),
+            ),
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+                ([1, -1], slice(1, None)),
+            ),
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+                (slice(1, 3), slice(1, 3)),
+            ),
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+                ([1, 2], slice(1, 3)),
+            ),
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+                (slice(None, None, 2), slice(None, None, 2)),
+            ),
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+                ([0, -1, 2], slice(None, -1, 2)),
+            ),
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+                (slice(1, 4, 2), slice(1, 4, 2)),
+            ),
+            (
+                (None, slice(None)),
+                (None, slice(None)),
+                (None, slice(None)),
+                ([1, 3, 2], slice(1, 3, 2)),
+            ),
+            # combined slicing
+            ((2, slice(2, 3)), (7, slice(7, 8)), (17, slice(17, 18)), (1, slice(1, 2))),
+            (
+                (slice(4), slice(4)),
+                (slice(8), slice(8)),
+                (slice(30), slice(30)),
+                (slice(3), slice(3)),
+            ),
+            (
+                ([0, 3], slice(4)),
+                ([0, 9], slice(10)),
+                ([0, 28], slice(29)),
+                ([0, 2], slice(3)),
+            ),
+            (
+                (slice(2, None), slice(2, None)),
+                (slice(4, None), slice(4, None)),
+                (slice(5, None), slice(5, None)),
+                (slice(1, None), slice(1, None)),
+            ),
+            (
+                ([2, -1], slice(2, None)),
+                ([5, -1], slice(5, None)),
+                ([6, -1], slice(6, None)),
+                ([1, -1], slice(1, None)),
+            ),
+            (
+                (slice(2, 4), slice(2, 4)),
+                (slice(6, 10), slice(6, 10)),
+                (slice(7, 28), slice(7, 28)),
+                (slice(1, 3), slice(1, 3)),
+            ),
+            (
+                ([2, 3], slice(2, 4)),
+                ([4, 8], slice(4, 9)),
+                ([8, 27], slice(8, 28)),
+                ([1, 2], slice(1, 3)),
+            ),
+            (
+                (slice(None, None, 3), slice(None, None, 3)),
+                (slice(None, None, 4), slice(None, None, 4)),
+                (slice(None, None, 5), slice(None, None, 5)),
+                (slice(None, None, 2), slice(None, None, 2)),
+            ),
+            (
+                ([0, -1, 3], slice(None, -1, 3)),
+                ([0, -1, 3], slice(None, -1, 3)),
+                ([0, -1, 6], slice(None, -1, 6)),
+                ([0, -1, 2], slice(None, -1, 2)),
+            ),
+            (
+                (slice(1, 5, 2), slice(1, 5, 2)),
+                (slice(3, 10, 3), slice(3, 10, 3)),
+                (slice(9, 26, 7), slice(9, 26, 7)),
+                (slice(1, 4, 2), slice(1, 4, 2)),
+            ),
+            (
+                ([1, 4, 2], slice(1, 4, 2)),
+                ([4, 8, 4], slice(4, 8, 4)),
+                ([5, 33, 4], slice(5, 33, 4)),
+                ([1, 3, 2], slice(1, 3, 2)),
+            ),
+        ],
+    )
+    def test_singlenull_tind_xind_yind_zind(
+        self, tmp_path, squash, tind, xind, yind, zind
+    ):
+        tind, tslice = tind
+        xind, xslice = xind
+        yind, yslice = yind
+        zind, zslice = zind
+
+        collect_kwargs = {
+            "xguards": True,
+            "yguards": "include_upper",
+            "tind": tind,
+            "xind": xind,
+            "yind": yind,
+            "zind": zind,
+        }
+
+        grid_info = {}
+        grid_info["iteration"] = 6
+        grid_info["MXSUB"] = 3
+        grid_info["MYSUB"] = 4
+        grid_info["MZSUB"] = 5
+        grid_info["MXG"] = 2
+        grid_info["MYG"] = 2
+        grid_info["MZG"] = 0
+        grid_info["NXPE"] = 3
+        grid_info["NYPE"] = 9
+        grid_info["NZPE"] = 1
+        grid_info["nx"] = grid_info["NXPE"] * grid_info["MXSUB"] + 2 * grid_info["MXG"]
+        grid_info["ny"] = grid_info["NYPE"] * grid_info["MYSUB"]
+        grid_info["nz"] = grid_info["NZPE"] * grid_info["MZSUB"]
+        grid_info["MZ"] = grid_info["nz"]
+        grid_info["ixseps1"] = 7
+        grid_info["ixseps2"] = 13
+        grid_info["jyseps1_1"] = grid_info["MYSUB"] - 1
+        grid_info["jyseps2_1"] = grid_info["ny"] // 2 - 1
+        grid_info["ny_inner"] = grid_info["ny"] // 2
+        grid_info["jyseps1_2"] = grid_info["ny"] // 2 - 1
+        grid_info["jyseps2_2"] = 6 * grid_info["MYSUB"] - 1
+
+        fieldperp_global_yind = 19
+        fieldperp_yproc_ind = 4
+
+        rng = np.random.default_rng(106)
+
+        dump_params = [
+            # inner divertor leg
+            {
+                "i": 0,
+                "boundaries": ["xinner", "ylower"],
+                "fieldperp_global_yind": -1,
+            },
+            {
+                "i": 1,
+                "boundaries": ["ylower"],
+                "fieldperp_global_yind": -1,
+            },
+            {
+                "i": 2,
+                "boundaries": ["xouter", "ylower"],
+                "fieldperp_global_yind": -1,
+            },
+            {
+                "i": 3,
+                "boundaries": ["xinner"],
+                "fieldperp_global_yind": -1,
+            },
+            {
+                "i": 4,
+                "boundaries": [],
+                "fieldperp_global_yind": -1,
+            },
+            {
+                "i": 5,
+                "boundaries": ["xouter"],
+                "fieldperp_global_yind": -1,
+            },
+            {
+                "i": 6,
+                "boundaries": ["xinner"],
+                "fieldperp_global_yind": -1,
+            },
+            {
+                "i": 7,
+                "boundaries": [],
+                "fieldperp_global_yind": -1,
+            },
+            {
+                "i": 8,
+                "boundaries": ["xouter"],
+                "fieldperp_global_yind": -1,
+            },
+            # core
+            {
+                "i": 9,
+                "boundaries": ["xinner"],
+                "fieldperp_global_yind": -1,
+            },
+            {
+                "i": 10,
+                "boundaries": [],
+                "fieldperp_global_yind": -1,
+            },
+            {
+                "i": 11,
+                "boundaries": ["xouter"],
+                "fieldperp_global_yind": -1,
+            },
+            {
+                "i": 12,
+                "boundaries": ["xinner"],
+                "fieldperp_global_yind": fieldperp_global_yind,
+            },
+            {
+                "i": 13,
+                "boundaries": [],
+                "fieldperp_global_yind": fieldperp_global_yind,
+            },
+            {
+                "i": 14,
+                "boundaries": ["xouter"],
+                "fieldperp_global_yind": fieldperp_global_yind,
+            },
+            {
+                "i": 15,
+                "boundaries": ["xinner"],
+                "fieldperp_global_yind": -1,
+            },
+            {
+                "i": 16,
+                "boundaries": [],
+                "fieldperp_global_yind": -1,
+            },
+            {
+                "i": 17,
+                "boundaries": ["xouter"],
+                "fieldperp_global_yind": -1,
+            },
+            # outer divertor leg
+            {
+                "i": 18,
+                "boundaries": ["xinner"],
+                "fieldperp_global_yind": -1,
+            },
+            {
+                "i": 19,
+                "boundaries": [],
+                "fieldperp_global_yind": -1,
+            },
+            {
+                "i": 20,
+                "boundaries": ["xouter"],
+                "fieldperp_global_yind": -1,
+            },
+            {
+                "i": 21,
+                "boundaries": ["xinner"],
+                "fieldperp_global_yind": -1,
+            },
+            {
+                "i": 22,
+                "boundaries": [],
+                "fieldperp_global_yind": -1,
+            },
+            {
+                "i": 23,
+                "boundaries": ["xouter"],
+                "fieldperp_global_yind": -1,
+            },
+            {
+                "i": 24,
+                "boundaries": ["xinner", "yupper"],
+                "fieldperp_global_yind": -1,
+            },
+            {
+                "i": 25,
+                "boundaries": ["yupper"],
+                "fieldperp_global_yind": -1,
+            },
+            {
+                "i": 26,
+                "boundaries": ["xouter", "yupper"],
+                "fieldperp_global_yind": -1,
+            },
+        ]
+        dumps = []
+        for p in dump_params:
+            dumps.append(
+                create_dump_file(
+                    tmpdir=tmp_path,
+                    rng=rng,
+                    grid_info=grid_info,
+                    **p,
+                )
+            )
+
+        expected = concatenate_data(
+            dumps, nxpe=grid_info["NXPE"], fieldperp_yproc_ind=fieldperp_yproc_ind
+        )
+
+        # Can only apply here (before effect of 'xguards' and 'yguards' is applied in
+        # check_collected_data) because we keep 'xguards=True' and
+        # 'yguards="include_upper"' for this test, so neither has an effect.
+        apply_slices(expected, tslice, xslice, yslice, zslice)
+
+        check_collected_data(
+            expected,
+            fieldperp_global_yind=fieldperp_global_yind,
+            doublenull=False,
+            path=tmp_path,
+            squash=squash,
+            collect_kwargs=collect_kwargs,
+        )
+
+    @pytest.mark.parametrize("squash", [False, True])
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
     def test_connected_doublenull_min_files(self, tmp_path, squash, collect_kwargs):
         grid_info = {}
@@ -734,7 +1293,7 @@ class TestCollect:
         fieldperp_global_yind = 7
         fieldperp_yproc_ind = 1
 
-        rng = np.random.default_rng(106)
+        rng = np.random.default_rng(107)
 
         dump_params = [
             # inner, lower divertor leg
@@ -827,7 +1386,7 @@ class TestCollect:
         fieldperp_global_yind = 19
         fieldperp_yproc_ind = 4
 
-        rng = np.random.default_rng(107)
+        rng = np.random.default_rng(108)
 
         dump_params = [
             # inner, lower divertor leg
@@ -1160,7 +1719,7 @@ class TestCollect:
         fieldperp_global_yind = 7
         fieldperp_yproc_ind = 1
 
-        rng = np.random.default_rng(108)
+        rng = np.random.default_rng(109)
 
         dump_params = [
             # inner, lower divertor leg
@@ -1253,7 +1812,7 @@ class TestCollect:
         fieldperp_global_yind = 19
         fieldperp_yproc_ind = 4
 
-        rng = np.random.default_rng(109)
+        rng = np.random.default_rng(110)
 
         dump_params = [
             # inner, lower divertor leg
@@ -1592,7 +2151,7 @@ class TestCollect:
         fieldperp_global_yind = 19
         fieldperp_yproc_ind = 4
 
-        rng = np.random.default_rng(109)
+        rng = np.random.default_rng(111)
 
         dump_params = [
             # inner, lower divertor leg

@@ -8,6 +8,7 @@ field2d_t_list = ["field2d_t_1", "field2d_t_2"]
 field2d_list = ["field2d_1", "field2d_2"]
 fieldperp_t_list = ["fieldperp_t_1", "fieldperp_t_2"]
 fieldperp_list = ["fieldperp_1", "fieldperp_2"]
+scalar_t_list = ["t_array", "scalar_t_1", "scalar_t_2"]
 
 # Note "yindex_global" attribute not included here for FieldPerps, because it is handled
 # specially
@@ -306,6 +307,25 @@ def concatenate_data(data_list, *, nxpe, fieldperp_yproc_ind):
         )
 
     return result
+
+
+def apply_slices(expected, tslice, xslice, yslice, zslice):
+    # Note - this should by called after 'xguards' and 'yguards' have been applied to
+    # 'expected'.
+    for varname in field3d_t_list:
+        expected[varname] = expected[varname][tslice, xslice, yslice, zslice]
+    for varname in field3d_list:
+        expected[varname] = expected[varname][xslice, yslice, zslice]
+    for varname in field2d_t_list:
+        expected[varname] = expected[varname][tslice, xslice, yslice]
+    for varname in field2d_list:
+        expected[varname] = expected[varname][xslice, yslice]
+    for varname in fieldperp_t_list:
+        expected[varname] = expected[varname][tslice, xslice, zslice]
+    for varname in fieldperp_list:
+        expected[varname] = expected[varname][xslice, zslice]
+    for varname in scalar_t_list:
+        expected[varname] = expected[varname][tslice]
 
 
 def remove_xboundaries(expected, mxg):
