@@ -11,13 +11,44 @@ from boutdata.tests.make_test_data import (
     create_dump_file,
     concatenate_data,
     expected_attributes,
+    remove_xboundaries,
+    remove_yboundaries,
+    remove_yboundaries_upper_divertor,
 )
 
 # Note - using tmp_path fixture requires pytest>=3.9.0
 
+collect_kwargs_list = [
+    {"xguards": True, "yguards": "include_upper"},
+    {"xguards": False, "yguards": "include_upper"},
+    {"xguards": True, "yguards": True},
+    {"xguards": False, "yguards": True},
+    {"xguards": True, "yguards": False},
+    {"xguards": False, "yguards": False},
+]
+
+
 def check_collected_data(
-    expected, *, fieldperp_global_yind, path, squash, collect_kwargs, squash_kwargs={}
+    expected,
+    *,
+    fieldperp_global_yind,
+    doublenull,
+    path,
+    squash,
+    collect_kwargs,
+    squash_kwargs={},
 ):
+    # Apply effect of arguments to expected data
+    if not collect_kwargs["xguards"]:
+        remove_xboundaries(expected, expected["MXG"])
+    if collect_kwargs["yguards"] is True and doublenull:
+        remove_yboundaries_upper_divertor(
+            expected, expected["MYG"], expected["ny_inner"]
+        )
+    if not collect_kwargs["yguards"]:
+        remove_yboundaries(expected, expected["MYG"], expected["ny_inner"], doublenull)
+
+    collect_kwargs = collect_kwargs.copy()
     if squash:
         squashoutput(path, outputname="boutdata.nc", **collect_kwargs)
         collect_kwargs["prefix"] = "boutdata"
@@ -29,6 +60,10 @@ def check_collected_data(
         for x in ("tind", "xind", "yind", "zind"):
             if x in collect_kwargs:
                 collect_kwargs.pop(x)
+        # Never remove x-boundaries when collecting from a squashed file without them
+        collect_kwargs["xguards"] = True
+        # Never remove y-boundaries when collecting from a squashed file without them
+        collect_kwargs["yguards"] = "include_upper"
 
     for varname in expected:
         actual = collect(varname, path=path, **collect_kwargs)
@@ -65,7 +100,8 @@ def check_collected_data(
 
 class TestCollect:
     @pytest.mark.parametrize("squash", [False, True])
-    def test_core_min_files(self, tmp_path, squash):
+    @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
+    def test_core_min_files(self, tmp_path, squash, collect_kwargs):
         grid_info = {}
         grid_info["iteration"] = 6
         grid_info["MXSUB"] = 3
@@ -119,18 +155,18 @@ class TestCollect:
             dumps, nxpe=grid_info["NXPE"], fieldperp_yproc_ind=fieldperp_yproc_ind
         )
 
-        collect_kwargs = {"xguards": True, "yguards": "include_upper"}
-
         check_collected_data(
             expected,
             fieldperp_global_yind=fieldperp_global_yind,
+            doublenull=False,
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
         )
 
     @pytest.mark.parametrize("squash", [False, True])
-    def test_core(self, tmp_path, squash):
+    @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
+    def test_core(self, tmp_path, squash, collect_kwargs):
         grid_info = {}
         grid_info["iteration"] = 6
         grid_info["MXSUB"] = 3
@@ -224,18 +260,18 @@ class TestCollect:
             dumps, nxpe=grid_info["NXPE"], fieldperp_yproc_ind=fieldperp_yproc_ind
         )
 
-        collect_kwargs = {"xguards": True, "yguards": "include_upper"}
-
         check_collected_data(
             expected,
             fieldperp_global_yind=fieldperp_global_yind,
+            doublenull=False,
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
         )
 
     @pytest.mark.parametrize("squash", [False, True])
-    def test_sol_min_files(self, tmp_path, squash):
+    @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
+    def test_sol_min_files(self, tmp_path, squash, collect_kwargs):
         grid_info = {}
         grid_info["iteration"] = 6
         grid_info["MXSUB"] = 3
@@ -287,18 +323,18 @@ class TestCollect:
             dumps, nxpe=grid_info["NXPE"], fieldperp_yproc_ind=fieldperp_yproc_ind
         )
 
-        collect_kwargs = {"xguards": True, "yguards": "include_upper"}
-
         check_collected_data(
             expected,
             fieldperp_global_yind=fieldperp_global_yind,
+            doublenull=False,
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
         )
 
     @pytest.mark.parametrize("squash", [False, True])
-    def test_sol(self, tmp_path, squash):
+    @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
+    def test_sol(self, tmp_path, squash, collect_kwargs):
         grid_info = {}
         grid_info["iteration"] = 6
         grid_info["MXSUB"] = 3
@@ -390,18 +426,18 @@ class TestCollect:
             dumps, nxpe=grid_info["NXPE"], fieldperp_yproc_ind=fieldperp_yproc_ind
         )
 
-        collect_kwargs = {"xguards": True, "yguards": "include_upper"}
-
         check_collected_data(
             expected,
             fieldperp_global_yind=fieldperp_global_yind,
+            doublenull=False,
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
         )
 
     @pytest.mark.parametrize("squash", [False, True])
-    def test_singlenull_min_files(self, tmp_path, squash):
+    @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
+    def test_singlenull_min_files(self, tmp_path, squash, collect_kwargs):
         grid_info = {}
         grid_info["iteration"] = 6
         grid_info["MXSUB"] = 3
@@ -465,18 +501,18 @@ class TestCollect:
             dumps, nxpe=grid_info["NXPE"], fieldperp_yproc_ind=fieldperp_yproc_ind
         )
 
-        collect_kwargs = {"xguards": True, "yguards": "include_upper"}
-
         check_collected_data(
             expected,
             fieldperp_global_yind=fieldperp_global_yind,
+            doublenull=False,
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
         )
 
     @pytest.mark.parametrize("squash", [False, True])
-    def test_singlenull(self, tmp_path, squash):
+    @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
+    def test_singlenull(self, tmp_path, squash, collect_kwargs):
         grid_info = {}
         grid_info["iteration"] = 6
         grid_info["MXSUB"] = 3
@@ -660,18 +696,18 @@ class TestCollect:
             dumps, nxpe=grid_info["NXPE"], fieldperp_yproc_ind=fieldperp_yproc_ind
         )
 
-        collect_kwargs = {"xguards": True, "yguards": "include_upper"}
-
         check_collected_data(
             expected,
             fieldperp_global_yind=fieldperp_global_yind,
+            doublenull=False,
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
         )
 
     @pytest.mark.parametrize("squash", [False, True])
-    def test_connected_doublenull_min_files(self, tmp_path, squash):
+    @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
+    def test_connected_doublenull_min_files(self, tmp_path, squash, collect_kwargs):
         grid_info = {}
         grid_info["iteration"] = 6
         grid_info["MXSUB"] = 3
@@ -753,18 +789,18 @@ class TestCollect:
             dumps, nxpe=grid_info["NXPE"], fieldperp_yproc_ind=fieldperp_yproc_ind
         )
 
-        collect_kwargs = {"xguards": True, "yguards": "include_upper"}
-
         check_collected_data(
             expected,
             fieldperp_global_yind=fieldperp_global_yind,
+            doublenull=True,
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
         )
 
     @pytest.mark.parametrize("squash", [False, True])
-    def test_connected_doublenull(self, tmp_path, squash):
+    @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
+    def test_connected_doublenull(self, tmp_path, squash, collect_kwargs):
         grid_info = {}
         grid_info["iteration"] = 6
         grid_info["MXSUB"] = 3
@@ -1086,18 +1122,18 @@ class TestCollect:
             dumps, nxpe=grid_info["NXPE"], fieldperp_yproc_ind=fieldperp_yproc_ind
         )
 
-        collect_kwargs = {"xguards": True, "yguards": "include_upper"}
-
         check_collected_data(
             expected,
             fieldperp_global_yind=fieldperp_global_yind,
+            doublenull=True,
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
         )
 
     @pytest.mark.parametrize("squash", [False, True])
-    def test_disconnected_doublenull_min_files(self, tmp_path, squash):
+    @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
+    def test_disconnected_doublenull_min_files(self, tmp_path, squash, collect_kwargs):
         grid_info = {}
         grid_info["iteration"] = 6
         grid_info["MXSUB"] = 3
@@ -1179,18 +1215,18 @@ class TestCollect:
             dumps, nxpe=grid_info["NXPE"], fieldperp_yproc_ind=fieldperp_yproc_ind
         )
 
-        collect_kwargs = {"xguards": True, "yguards": "include_upper"}
-
         check_collected_data(
             expected,
             fieldperp_global_yind=fieldperp_global_yind,
+            doublenull=True,
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
         )
 
     @pytest.mark.parametrize("squash", [False, True])
-    def test_disconnected_doublenull(self, tmp_path, squash):
+    @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
+    def test_disconnected_doublenull(self, tmp_path, squash, collect_kwargs):
         grid_info = {}
         grid_info["iteration"] = 6
         grid_info["MXSUB"] = 3
@@ -1512,11 +1548,10 @@ class TestCollect:
             dumps, nxpe=grid_info["NXPE"], fieldperp_yproc_ind=fieldperp_yproc_ind
         )
 
-        collect_kwargs = {"xguards": True, "yguards": "include_upper"}
-
         check_collected_data(
             expected,
             fieldperp_global_yind=fieldperp_global_yind,
+            doublenull=True,
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
@@ -1857,6 +1892,7 @@ class TestCollect:
         check_collected_data(
             expected,
             fieldperp_global_yind=fieldperp_global_yind,
+            doublenull=True,
             path=tmp_path,
             squash=True,
             collect_kwargs=collect_kwargs,

@@ -2,6 +2,13 @@ from copy import copy
 from netCDF4 import Dataset
 import numpy as np
 
+field3d_t_list = ["field3d_t_1", "field3d_t_2"]
+field3d_list = ["field3d_1", "field3d_2"]
+field2d_t_list = ["field2d_t_1", "field2d_t_2"]
+field2d_list = ["field2d_1", "field2d_2"]
+fieldperp_t_list = ["fieldperp_t_1", "fieldperp_t_2"]
+fieldperp_list = ["fieldperp_1", "fieldperp_2"]
+
 # Note "yindex_global" attribute not included here for FieldPerps, because it is handled
 # specially
 expected_attributes = {
@@ -299,3 +306,65 @@ def concatenate_data(data_list, *, nxpe, fieldperp_yproc_ind):
         )
 
     return result
+
+
+def remove_xboundaries(expected, mxg):
+    if mxg == 0:
+        return
+
+    for varname in field3d_t_list + field2d_t_list + fieldperp_t_list:
+        expected[varname] = expected[varname][:, mxg:-mxg]
+
+    for varname in field3d_list + field2d_list + fieldperp_list:
+        expected[varname] = expected[varname][mxg:-mxg]
+
+
+def remove_yboundaries(expected, myg, ny_inner, doublenull):
+    if myg == 0:
+        return
+
+    if doublenull:
+        for varname in field3d_t_list + field2d_t_list:
+            expected[varname] = np.concatenate(
+                [
+                    expected[varname][:, :, myg : ny_inner + myg],
+                    expected[varname][:, :, ny_inner + 3 * myg : -myg],
+                ],
+                axis=2,
+            )
+        for varname in field3d_list + field2d_list:
+            expected[varname] = np.concatenate(
+                [
+                    expected[varname][:, myg : ny_inner + myg],
+                    expected[varname][:, ny_inner + 3 * myg : -myg],
+                ],
+                axis=1,
+            )
+    else:
+        for varname in field3d_t_list + field2d_t_list:
+            expected[varname] = expected[varname][:, :, myg:-myg]
+        for varname in field3d_list + field2d_list:
+            expected[varname] = expected[varname][:, myg:-myg]
+
+
+def remove_yboundaries_upper_divertor(expected, myg, ny_inner):
+    if myg == 0:
+        return
+
+    for varname in field3d_t_list + field2d_t_list:
+        expected[varname] = np.concatenate(
+            [
+                expected[varname][:, :, : ny_inner + myg],
+                expected[varname][:, :, ny_inner + 3 * myg :],
+            ],
+            axis=2,
+        )
+
+    for varname in field3d_list + field2d_list:
+        expected[varname] = np.concatenate(
+            [
+                expected[varname][:, : ny_inner + myg],
+                expected[varname][:, ny_inner + 3 * myg :],
+            ],
+            axis=1,
+        )
