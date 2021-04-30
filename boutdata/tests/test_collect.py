@@ -167,7 +167,7 @@ class TestCollect:
         fieldperp_global_yind = 3
         fieldperp_yproc_ind = 0
 
-        rng = np.random.default_rng(100)
+        rng = np.random.default_rng(101)
 
         # core
         # core includes "ylower" and "yupper" even though there is no actual y-boundary
@@ -274,7 +274,7 @@ class TestCollect:
         fieldperp_global_yind = 3
         fieldperp_yproc_ind = 0
 
-        rng = np.random.default_rng(100)
+        rng = np.random.default_rng(102)
 
         # SOL
         dump_params = [
@@ -339,7 +339,7 @@ class TestCollect:
         fieldperp_global_yind = 3
         fieldperp_yproc_ind = 0
 
-        rng = np.random.default_rng(100)
+        rng = np.random.default_rng(103)
 
         # SOL
         dump_params = [
@@ -444,7 +444,7 @@ class TestCollect:
         fieldperp_global_yind = 7
         fieldperp_yproc_ind = 1
 
-        rng = np.random.default_rng(100)
+        rng = np.random.default_rng(104)
 
         dump_params = [
             # inner divertor leg
@@ -521,7 +521,7 @@ class TestCollect:
         fieldperp_global_yind = 19
         fieldperp_yproc_ind = 4
 
-        rng = np.random.default_rng(100)
+        rng = np.random.default_rng(105)
 
         dump_params = [
             # inner divertor leg
@@ -718,7 +718,7 @@ class TestCollect:
         fieldperp_global_yind = 7
         fieldperp_yproc_ind = 1
 
-        rng = np.random.default_rng(100)
+        rng = np.random.default_rng(106)
 
         dump_params = [
             # inner, lower divertor leg
@@ -813,7 +813,7 @@ class TestCollect:
         fieldperp_global_yind = 19
         fieldperp_yproc_ind = 4
 
-        rng = np.random.default_rng(100)
+        rng = np.random.default_rng(107)
 
         dump_params = [
             # inner, lower divertor leg
@@ -1148,7 +1148,7 @@ class TestCollect:
         fieldperp_global_yind = 7
         fieldperp_yproc_ind = 1
 
-        rng = np.random.default_rng(100)
+        rng = np.random.default_rng(108)
 
         dump_params = [
             # inner, lower divertor leg
@@ -1243,7 +1243,7 @@ class TestCollect:
         fieldperp_global_yind = 19
         fieldperp_yproc_ind = 4
 
-        rng = np.random.default_rng(100)
+        rng = np.random.default_rng(109)
 
         dump_params = [
             # inner, lower divertor leg
