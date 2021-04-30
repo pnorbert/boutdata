@@ -176,6 +176,208 @@ class TestCollect:
         dumps = []
 
         # core
+        # core includes "ylower" and "yupper" even though there is no actual y-boundary
+        # because collect/squashoutput collect these points
+        dumps.append(
+            create_dump_file(
+                i=0,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner", "ylower"],
+                fieldperp_global_yind=fieldperp_global_yind,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=1,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["ylower"],
+                fieldperp_global_yind=fieldperp_global_yind,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=2,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xouter", "ylower"],
+                fieldperp_global_yind=fieldperp_global_yind,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=3,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=4,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=[],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=5,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xouter"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=6,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner", "yupper"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=7,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["yupper"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=8,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xouter", "yupper"],
+                fieldperp_global_yind=-1,
+            )
+        )
+
+        expected = concatenate_data(
+            dumps, nxpe=grid_info["NXPE"], fieldperp_yproc_ind=fieldperp_yproc_ind
+        )
+
+        collect_kwargs = {"xguards": True, "yguards": "include_upper"}
+
+        check_collected_data(
+            expected,
+            fieldperp_global_yind=fieldperp_global_yind,
+            path=tmp_path,
+            squash=squash,
+            collect_kwargs=collect_kwargs,
+            squash_kwargs=squash_kwargs,
+        )
+
+    @pytest.mark.parametrize("squash", [False, True])
+    @pytest.mark.parametrize("squash_kwargs", squash_kwargs)
+    def test_sol_min_files(self, tmp_path, squash, squash_kwargs):
+        grid_info = {}
+        grid_info["iteration"] = 6
+        grid_info["MXSUB"] = 3
+        grid_info["MYSUB"] = 4
+        grid_info["MZSUB"] = 5
+        grid_info["MXG"] = 2
+        grid_info["MYG"] = 2
+        grid_info["MZG"] = 0
+        grid_info["NXPE"] = 1
+        grid_info["NYPE"] = 1
+        grid_info["NZPE"] = 1
+        grid_info["nx"] = grid_info["NXPE"] * grid_info["MXSUB"] + 2 * grid_info["MXG"]
+        grid_info["ny"] = grid_info["NYPE"] * grid_info["MYSUB"]
+        grid_info["nz"] = grid_info["NZPE"] * grid_info["MZSUB"]
+        grid_info["MZ"] = grid_info["nz"]
+        grid_info["ixseps1"] = 0
+        grid_info["ixseps2"] = 0
+        grid_info["jyseps1_1"] = -1
+        grid_info["jyseps2_1"] = grid_info["ny"] // 2 - 1
+        grid_info["ny_inner"] = grid_info["ny"] // 2
+        grid_info["jyseps1_2"] = grid_info["ny"] // 2 - 1
+        grid_info["jyseps2_2"] = grid_info["ny"] // 2
+
+        fieldperp_global_yind = 3
+        fieldperp_yproc_ind = 0
+
+        rng = np.random.default_rng(100)
+
+        dumps = []
+
+        # SOL
+        dumps.append(
+            create_dump_file(
+                i=0,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner", "xouter", "ylower", "yupper"],
+                fieldperp_global_yind=fieldperp_global_yind,
+            )
+        )
+
+        expected = concatenate_data(
+            dumps, nxpe=grid_info["NXPE"], fieldperp_yproc_ind=fieldperp_yproc_ind
+        )
+
+        collect_kwargs = {"xguards": True, "yguards": "include_upper"}
+
+        check_collected_data(
+            expected,
+            fieldperp_global_yind=fieldperp_global_yind,
+            path=tmp_path,
+            squash=squash,
+            collect_kwargs=collect_kwargs,
+            squash_kwargs=squash_kwargs,
+        )
+
+    @pytest.mark.parametrize("squash", [False, True])
+    @pytest.mark.parametrize("squash_kwargs", squash_kwargs)
+    def test_sol(self, tmp_path, squash, squash_kwargs):
+        grid_info = {}
+        grid_info["iteration"] = 6
+        grid_info["MXSUB"] = 3
+        grid_info["MYSUB"] = 4
+        grid_info["MZSUB"] = 5
+        grid_info["MXG"] = 2
+        grid_info["MYG"] = 2
+        grid_info["MZG"] = 0
+        grid_info["NXPE"] = 3
+        grid_info["NYPE"] = 3
+        grid_info["NZPE"] = 1
+        grid_info["nx"] = grid_info["NXPE"] * grid_info["MXSUB"] + 2 * grid_info["MXG"]
+        grid_info["ny"] = grid_info["NYPE"] * grid_info["MYSUB"]
+        grid_info["nz"] = grid_info["NZPE"] * grid_info["MZSUB"]
+        grid_info["MZ"] = grid_info["nz"]
+        grid_info["ixseps1"] = 0
+        grid_info["ixseps2"] = 0
+        grid_info["jyseps1_1"] = -1
+        grid_info["jyseps2_1"] = grid_info["ny"] // 2 - 1
+        grid_info["ny_inner"] = grid_info["ny"] // 2
+        grid_info["jyseps1_2"] = grid_info["ny"] // 2 - 1
+        grid_info["jyseps2_2"] = grid_info["ny"] // 2
+
+        fieldperp_global_yind = 3
+        fieldperp_yproc_ind = 0
+
+        rng = np.random.default_rng(100)
+
+        dumps = []
+
+        # SOL
         dumps.append(
             create_dump_file(
                 i=0,
