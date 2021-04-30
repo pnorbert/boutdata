@@ -891,3 +891,723 @@ class TestCollect:
             collect_kwargs=collect_kwargs,
             squash_kwargs=squash_kwargs,
         )
+
+    @pytest.mark.parametrize("squash", [False, True])
+    @pytest.mark.parametrize("squash_kwargs", squash_kwargs)
+    def test_connected_doublenull_min_files(self, tmp_path, squash, squash_kwargs):
+        grid_info = {}
+        grid_info["iteration"] = 6
+        grid_info["MXSUB"] = 3
+        grid_info["MYSUB"] = 4
+        grid_info["MZSUB"] = 5
+        grid_info["MXG"] = 2
+        grid_info["MYG"] = 2
+        grid_info["MZG"] = 0
+        grid_info["NXPE"] = 1
+        grid_info["NYPE"] = 6
+        grid_info["NZPE"] = 1
+        grid_info["nx"] = grid_info["NXPE"] * grid_info["MXSUB"] + 2 * grid_info["MXG"]
+        grid_info["ny"] = grid_info["NYPE"] * grid_info["MYSUB"]
+        grid_info["nz"] = grid_info["NZPE"] * grid_info["MZSUB"]
+        grid_info["MZ"] = grid_info["nz"]
+        grid_info["ixseps1"] = 4
+        grid_info["ixseps2"] = 4
+        grid_info["jyseps1_1"] = grid_info["MYSUB"] - 1
+        grid_info["jyseps2_1"] = 2 * grid_info["MYSUB"] - 1
+        grid_info["ny_inner"] = 3 * grid_info["MYSUB"]
+        grid_info["jyseps1_2"] = 4 * grid_info["MYSUB"] - 1
+        grid_info["jyseps2_2"] = 5 * grid_info["MYSUB"] - 1
+
+        fieldperp_global_yind = 7
+        fieldperp_yproc_ind = 1
+
+        rng = np.random.default_rng(100)
+
+        dumps = []
+
+        # inner, lower divertor leg
+        dumps.append(
+            create_dump_file(
+                i=0,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner", "xouter", "ylower"],
+                fieldperp_global_yind=-1,
+            )
+        )
+
+        # inner core
+        dumps.append(
+            create_dump_file(
+                i=1,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner", "xouter"],
+                fieldperp_global_yind=fieldperp_global_yind,
+            )
+        )
+
+        # inner, upper divertor leg
+        dumps.append(
+            create_dump_file(
+                i=2,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner", "xouter", "yupper"],
+                fieldperp_global_yind=-1,
+            )
+        )
+
+        # outer, upper divertor leg
+        dumps.append(
+            create_dump_file(
+                i=3,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner", "xouter", "ylower"],
+                fieldperp_global_yind=-1,
+            )
+        )
+
+        # outer core
+        dumps.append(
+            create_dump_file(
+                i=4,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner", "xouter"],
+                fieldperp_global_yind=-1,
+            )
+        )
+
+        # outer, lower divertor leg
+        dumps.append(
+            create_dump_file(
+                i=5,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner", "xouter", "yupper"],
+                fieldperp_global_yind=-1,
+            )
+        )
+
+        expected = concatenate_data(
+            dumps, nxpe=grid_info["NXPE"], fieldperp_yproc_ind=fieldperp_yproc_ind
+        )
+
+        collect_kwargs = {"xguards": True, "yguards": "include_upper"}
+
+        check_collected_data(
+            expected,
+            fieldperp_global_yind=fieldperp_global_yind,
+            path=tmp_path,
+            squash=squash,
+            collect_kwargs=collect_kwargs,
+            squash_kwargs=squash_kwargs,
+        )
+
+    @pytest.mark.parametrize("squash", [False, True])
+    @pytest.mark.parametrize("squash_kwargs", squash_kwargs)
+    def test_connected_doublenull(self, tmp_path, squash, squash_kwargs):
+        grid_info = {}
+        grid_info["iteration"] = 6
+        grid_info["MXSUB"] = 3
+        grid_info["MYSUB"] = 4
+        grid_info["MZSUB"] = 5
+        grid_info["MXG"] = 2
+        grid_info["MYG"] = 2
+        grid_info["MZG"] = 0
+        grid_info["NXPE"] = 3
+        grid_info["NYPE"] = 18
+        grid_info["NZPE"] = 1
+        grid_info["nx"] = grid_info["NXPE"] * grid_info["MXSUB"] + 2 * grid_info["MXG"]
+        grid_info["ny"] = grid_info["NYPE"] * grid_info["MYSUB"]
+        grid_info["nz"] = grid_info["NZPE"] * grid_info["MZSUB"]
+        grid_info["MZ"] = grid_info["nz"]
+        grid_info["ixseps1"] = 7
+        grid_info["ixseps2"] = 7
+        grid_info["jyseps1_1"] = 3 * grid_info["MYSUB"] - 1
+        grid_info["jyseps2_1"] = 6 * grid_info["MYSUB"] - 1
+        grid_info["ny_inner"] = 9 * grid_info["MYSUB"]
+        grid_info["jyseps1_2"] = 12 * grid_info["MYSUB"] - 1
+        grid_info["jyseps2_2"] = 15 * grid_info["MYSUB"] - 1
+
+        fieldperp_global_yind = 19
+        fieldperp_yproc_ind = 4
+
+        rng = np.random.default_rng(100)
+
+        dumps = []
+
+        # inner, lower divertor leg
+        dumps.append(
+            create_dump_file(
+                i=0,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner", "ylower"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=1,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["ylower"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=2,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xouter", "ylower"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=3,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=4,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=[],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=5,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xouter"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=6,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=7,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=[],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=8,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xouter"],
+                fieldperp_global_yind=-1,
+            )
+        )
+
+        # inner core
+        dumps.append(
+            create_dump_file(
+                i=9,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=10,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=[],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=11,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xouter"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=12,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner"],
+                fieldperp_global_yind=fieldperp_global_yind,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=13,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=[],
+                fieldperp_global_yind=fieldperp_global_yind,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=14,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xouter"],
+                fieldperp_global_yind=fieldperp_global_yind,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=15,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=16,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=[],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=17,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xouter"],
+                fieldperp_global_yind=-1,
+            )
+        )
+
+        # inner, upper divertor leg
+        dumps.append(
+            create_dump_file(
+                i=18,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=19,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=[],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=20,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xouter"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=21,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=22,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=[],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=23,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xouter"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=24,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner", "yupper"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=25,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["yupper"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=26,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xouter", "yupper"],
+                fieldperp_global_yind=-1,
+            )
+        )
+
+        # outer, upper divertor leg
+        dumps.append(
+            create_dump_file(
+                i=27,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner", "ylower"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=28,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["ylower"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=29,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xouter", "ylower"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=30,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=31,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=[],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=32,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xouter"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=33,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=34,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=[],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=35,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xouter"],
+                fieldperp_global_yind=-1,
+            )
+        )
+
+        # outer core
+        dumps.append(
+            create_dump_file(
+                i=36,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=37,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=[],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=38,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xouter"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=39,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=40,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=[],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=41,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xouter"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=42,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=43,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=[],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=44,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xouter"],
+                fieldperp_global_yind=-1,
+            )
+        )
+
+        # outer, lower divertor leg
+        dumps.append(
+            create_dump_file(
+                i=45,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=46,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=[],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=47,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xouter"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=48,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=49,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=[],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=50,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xouter"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=51,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xinner", "yupper"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=52,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["yupper"],
+                fieldperp_global_yind=-1,
+            )
+        )
+        dumps.append(
+            create_dump_file(
+                i=53,
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                boundaries=["xouter", "yupper"],
+                fieldperp_global_yind=-1,
+            )
+        )
+
+        expected = concatenate_data(
+            dumps, nxpe=grid_info["NXPE"], fieldperp_yproc_ind=fieldperp_yproc_ind
+        )
+
+        collect_kwargs = {"xguards": True, "yguards": "include_upper"}
+
+        check_collected_data(
+            expected,
+            fieldperp_global_yind=fieldperp_global_yind,
+            path=tmp_path,
+            squash=squash,
+            collect_kwargs=collect_kwargs,
+            squash_kwargs=squash_kwargs,
+        )
