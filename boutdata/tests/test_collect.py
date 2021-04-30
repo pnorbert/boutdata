@@ -1939,14 +1939,16 @@ class TestCollect:
 
     @pytest.mark.parametrize("squash", [False, True])
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
-    def test_disconnected_doublenull(self, tmp_path, squash, collect_kwargs):
+    @pytest.mark.parametrize("mxg", [0, 1, 2])
+    @pytest.mark.parametrize("myg", [0, 1, 2])
+    def test_disconnected_doublenull(self, tmp_path, squash, collect_kwargs, mxg, myg):
         grid_info = {}
         grid_info["iteration"] = 6
         grid_info["MXSUB"] = 3
         grid_info["MYSUB"] = 4
         grid_info["MZSUB"] = 5
-        grid_info["MXG"] = 2
-        grid_info["MYG"] = 2
+        grid_info["MXG"] = mxg
+        grid_info["MYG"] = myg
         grid_info["MZG"] = 0
         grid_info["NXPE"] = 3
         grid_info["NYPE"] = 18
