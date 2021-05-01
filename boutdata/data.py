@@ -1140,6 +1140,10 @@ class BoutOutputs(object):
                     self._parallel,
                 )
 
+            if self._parallel > self.npes:
+                # Using current self._parallel, some workers would have no work
+                self._parallel = self.npes
+
             # Open the 0'th file so we can read scalars without the worker processes
             self._root_file = DataFile(self._file_list[0])
 
