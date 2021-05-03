@@ -10,17 +10,6 @@ and because single files are quicker to download.
 
 """
 
-from boutdata.data import BoutOutputs
-from boututils.datafile import DataFile
-from boututils.boutarray import BoutArray
-import numpy
-import os
-import gc
-import tempfile
-import shutil
-import glob
-
-
 def squashoutput(datadir=".", outputname="BOUT.dmp.nc", format="NETCDF4", tind=None,
                  xind=None, yind=None, zind=None, xguards=True, yguards="include_upper",
                  singleprecision=False, compress=False, least_significant_digit=None,
@@ -77,6 +66,16 @@ def squashoutput(datadir=".", outputname="BOUT.dmp.nc", format="NETCDF4", tind=N
     delete : bool
         Delete the original files after squashing.
     """
+    from boutdata.data import BoutOutputs
+    from boututils.datafile import DataFile
+    from boututils.boutarray import BoutArray
+    import numpy
+    import os
+    import gc
+    import tempfile
+    import shutil
+    import glob
+
     try:
         # If we are using the netCDF4 module (the usual case) set caching to zero, since
         # each variable is read and written exactly once so caching does not help, only
