@@ -49,4 +49,9 @@ setuptools.setup(
          'GNU Lesser General Public License v3 or later (LGPLv3+)'),
         'Operating System :: OS Independent',
     ],
+    entry_points={
+        "console_scripts": [
+            "bout-squashoutput = boutdata.squashoutput:main"
+        ]
+    },
 )
