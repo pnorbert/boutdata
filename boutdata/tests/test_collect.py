@@ -201,6 +201,9 @@ class TestCollect:
     @pytest.mark.parametrize("squash", [False, True])
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
     def test_core_min_files(self, tmp_path, squash, collect_kwargs):
+        """
+        Check output from a core-only case using the minimum number of processes
+        """
         grid_info = self.make_grid_info()
 
         fieldperp_global_yind = 3
@@ -245,6 +248,11 @@ class TestCollect:
     @pytest.mark.parametrize("squash", [False, True])
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
     def test_core(self, tmp_path, squash, collect_kwargs):
+        """
+        Check output from a core-only case using a large number of processes. 'Large'
+        means there is at least one process in each region with no edges touching
+        another region.
+        """
         grid_info = self.make_grid_info(nxpe=3, nype=3)
 
         fieldperp_global_yind = 3
@@ -329,6 +337,9 @@ class TestCollect:
     @pytest.mark.parametrize("squash", [False, True])
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
     def test_sol_min_files(self, tmp_path, squash, collect_kwargs):
+        """
+        Check output from a SOL-only case using the minimum number of processes
+        """
         grid_info = self.make_grid_info(ixseps1=0, ixseps2=0)
 
         fieldperp_global_yind = 3
@@ -371,6 +382,11 @@ class TestCollect:
     @pytest.mark.parametrize("squash", [False, True])
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
     def test_sol(self, tmp_path, squash, collect_kwargs):
+        """
+        Check output from a SOL-only case using a large number of processes. 'Large'
+        means there is at least one process in each region with no edges touching
+        another region.
+        """
         grid_info = self.make_grid_info(nxpe=3, nype=3, ixseps1=0, ixseps2=0)
 
         fieldperp_global_yind = 3
@@ -453,6 +469,9 @@ class TestCollect:
     @pytest.mark.parametrize("squash", [False, True])
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
     def test_singlenull_min_files(self, tmp_path, squash, collect_kwargs):
+        """
+        Check output from a single-null case using the minimum number of processes
+        """
         grid_info = self.make_grid_info(nype=3, ixseps1=4, xpoints=1)
 
         fieldperp_global_yind = 7
@@ -509,6 +528,10 @@ class TestCollect:
     def test_singlenull_min_files_lower_boundary_fieldperp(
         self, tmp_path, squash, collect_kwargs
     ):
+        """
+        Check output from a single-null case using the minimum number of processes. This
+        test puts the FieldPerp in the lower boundary.
+        """
         grid_info = self.make_grid_info(nype=3, ixseps1=4, xpoints=1)
 
         fieldperp_global_yind = 1
@@ -565,6 +588,10 @@ class TestCollect:
     def test_singlenull_min_files_upper_boundary_fieldperp(
         self, tmp_path, squash, collect_kwargs
     ):
+        """
+        Check output from a single-null case using the minimum number of processes. This
+        test puts the FieldPerp in the upper boundary.
+        """
         grid_info = self.make_grid_info(nype=3, ixseps1=4, xpoints=1)
 
         fieldperp_global_yind = 14
@@ -620,6 +647,11 @@ class TestCollect:
     def test_singlenull_min_files_fieldperp_on_two_yproc_different_index(
         self, tmp_path, squash
     ):
+        """
+        Check output from a single-null case using the minimum number of processes. This
+        test has FieldPerps created with inconsistent y-indices to check this produces
+        an error.
+        """
         collect_kwargs = {"xguards": True, "yguards": "include_upper"}
 
         grid_info = self.make_grid_info(nype=3, ixseps1=4, xpoints=1)
@@ -678,6 +710,11 @@ class TestCollect:
     def test_singlenull_min_files_fieldperp_on_two_yproc_same_index(
         self, tmp_path, squash
     ):
+        """
+        Check output from a single-null case using the minimum number of processes. This
+        test has FieldPerps created on different y-processes to check this produces an
+        error.
+        """
         collect_kwargs = {"xguards": True, "yguards": "include_upper"}
 
         grid_info = self.make_grid_info(nype=3, ixseps1=4, xpoints=1)
@@ -735,6 +772,11 @@ class TestCollect:
     @pytest.mark.parametrize("squash", [False, True])
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
     def test_singlenull(self, tmp_path, squash, collect_kwargs):
+        """
+        Check output from a single-null case using a large number of processes. 'Large'
+        means there is at least one process in each region with no edges touching
+        another region.
+        """
         grid_info = self.make_grid_info(nxpe=3, nype=9, ixseps1=7, xpoints=1)
 
         fieldperp_global_yind = 19
@@ -1253,6 +1295,12 @@ class TestCollect:
     def test_singlenull_tind_xind_yind_zind(
         self, tmp_path, squash, tind, xind, yind, zind
     ):
+        """
+        Check output from a single-null case using a large number of processes. 'Large'
+        means there is at least one process in each region with no edges touching
+        another region. This test checks the 'tind', 'xind', 'yind' and 'zind' arguments
+        to `collect()` and `squashoutput()`.
+        """
         tind, tslice = tind
         xind, xslice = xind
         yind, yslice = yind
@@ -1446,6 +1494,10 @@ class TestCollect:
     @pytest.mark.parametrize("squash", [False, True])
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
     def test_connected_doublenull_min_files(self, tmp_path, squash, collect_kwargs):
+        """
+        Check output from a connected double-null case using the minimum number of
+        processes
+        """
         grid_info = self.make_grid_info(nype=6, ixseps1=4, ixseps2=4, xpoints=2)
 
         fieldperp_global_yind = 7
@@ -1518,6 +1570,11 @@ class TestCollect:
     @pytest.mark.parametrize("squash", [False, True])
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
     def test_connected_doublenull(self, tmp_path, squash, collect_kwargs):
+        """
+        Check output from a connected double-null case using a large number of
+        processes. 'Large' means there is at least one process in each region with no
+        edges touching another region.
+        """
         grid_info = self.make_grid_info(
             nxpe=3, nype=18, ixseps1=7, ixseps2=7, xpoints=2
         )
@@ -1832,6 +1889,10 @@ class TestCollect:
     @pytest.mark.parametrize("squash", [False, True])
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
     def test_disconnected_doublenull_min_files(self, tmp_path, squash, collect_kwargs):
+        """
+        Check output from a disconnected double-null case using the minimum number of
+        processes
+        """
         grid_info = self.make_grid_info(nype=6, ixseps1=3, ixseps2=5, xpoints=2)
 
         fieldperp_global_yind = 7
@@ -1906,6 +1967,11 @@ class TestCollect:
     @pytest.mark.parametrize("mxg", [0, 1, 2])
     @pytest.mark.parametrize("myg", [0, 1, 2])
     def test_disconnected_doublenull(self, tmp_path, squash, collect_kwargs, mxg, myg):
+        """
+        Check output from a disconnected double-null case using a large number of
+        processes. 'Large' means there is at least one process in each region with no
+        edges touching another region.
+        """
         grid_info = self.make_grid_info(
             mxg=mxg, myg=myg, nxpe=3, nype=18, ixseps1=6, ixseps2=11, xpoints=2
         )
@@ -2226,6 +2292,12 @@ class TestCollect:
         ],
     )
     def test_disconnected_doublenull_with_compression(self, tmp_path, squash_kwargs):
+        """
+        Check output from a disconnected double-null case using a large number of
+        processes. 'Large' means there is at least one process in each region with no
+        edges touching another region. This test checks some compression options that
+        can be used with `squashoutput()`, verifying that they do not modify data.
+        """
         grid_info = self.make_grid_info(
             nxpe=3, nype=18, ixseps1=6, ixseps2=11, xpoints=2
         )
