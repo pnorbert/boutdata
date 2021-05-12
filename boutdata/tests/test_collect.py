@@ -2288,6 +2288,13 @@ class TestCollect:
         [
             {},
             {"compress": True, "complevel": 1},
+            {"compress": True, "complevel": 2},
+            {"compress": True, "complevel": 3},
+            {"compress": True, "complevel": 4},
+            {"compress": True, "complevel": 5},
+            {"compress": True, "complevel": 5},
+            {"compress": True, "complevel": 7},
+            {"compress": True, "complevel": 8},
             {"compress": True, "complevel": 9},
         ],
     )
