@@ -248,6 +248,21 @@ def create_dump_file(*, i, tmpdir, rng, grid_info, boundaries, fieldperp_global_
 
 
 def concatenate_data(data_list, *, nxpe, fieldperp_yproc_ind):
+    """
+    Joins together lists of data arrays for expected results from each process into a
+    global array.
+
+    Parameters
+    ----------
+    data_list : list of dict of {str: numpy array}
+        List, ordered by processor number, of dicts of expected data (key is name, value
+        is scalar or numpy array of data). Data should not include guard cells.
+    nxpe : int
+        Number of processes in the x-direction.
+    fieldperp_yproc_ind : int
+        y-processes index to keep FieldPerps from. FieldPerps can only be defined at a
+        single global y-index, so should be discarded from other processes.
+    """
     # Just keep scalars from root file
     result = copy(data_list[0])
     for x in list(result.keys()):
@@ -309,6 +324,23 @@ def concatenate_data(data_list, *, nxpe, fieldperp_yproc_ind):
 
 
 def apply_slices(expected, tslice, xslice, yslice, zslice):
+    """
+    Slice expected data
+
+    Parameters
+    ----------
+    expected : dict {str: numpy array}
+        dict of expected data (key is name, value is scalar or numpy array of data).
+        Arrays should be global (not per-process).
+    tslice : slice object
+        Slice to apply in the t-direction
+    xslice : slice object
+        Slice to apply in the x-direction
+    yslice : slice object
+        Slice to apply in the y-direction
+    zslice : slice object
+        Slice to apply in the z-direction
+    """
     # Note - this should by called after 'xguards' and 'yguards' have been applied to
     # 'expected'.
     for varname in field3d_t_list:
@@ -328,6 +360,17 @@ def apply_slices(expected, tslice, xslice, yslice, zslice):
 
 
 def remove_xboundaries(expected, mxg):
+    """
+    Remove x-boundary points from expected data
+
+    Parameters
+    ----------
+    expected : dict {str: numpy array}
+        dict of expected data (key is name, value is scalar or numpy array of data).
+        Arrays should be global (not per-process).
+    mxg : int
+        Number of boundary points to remove.
+    """
     if mxg == 0:
         return
 
@@ -339,6 +382,24 @@ def remove_xboundaries(expected, mxg):
 
 
 def remove_yboundaries(expected, myg, ny_inner, doublenull):
+    """
+    Remove y-boundary points from expected data
+
+    Parameters
+    ----------
+    expected : dict {str: numpy array}
+        dict of expected data (key is name, value is scalar or numpy array of data).
+        Arrays should be global (not per-process).
+    myg : int
+        Number of boundary points to remove.
+    ny_inner : int
+        BOUT++ ny_inner parameter - specifies location of 'upper target' y-boundary for
+        double-null topology
+    doublenull : bool
+        If True the data for double-null. If False the data is for single-null, limiter,
+        core or SOL topologies which do not have a y-boundary in the middle of the
+        domain.
+    """
     if myg == 0:
         return
 
@@ -367,6 +428,21 @@ def remove_yboundaries(expected, myg, ny_inner, doublenull):
 
 
 def remove_yboundaries_upper_divertor(expected, myg, ny_inner):
+    """
+    Remove y-boundary points just from the 'upper divertor' - the y-boundaries in the
+    middle of the domain.
+
+    Parameters
+    ----------
+    expected : dict {str: numpy array}
+        dict of expected data (key is name, value is scalar or numpy array of data).
+        Arrays should be global (not per-process).
+    myg : int
+        Number of boundary points to remove.
+    ny_inner : int
+        BOUT++ ny_inner parameter - specifies location of 'upper target' y-boundary for
+        double-null topology
+    """
     if myg == 0:
         return
 

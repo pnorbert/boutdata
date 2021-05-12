@@ -39,6 +39,27 @@ def check_collected_data(
     collect_kwargs,
     squash_kwargs={},
 ):
+    """
+    Use `collect()` to read 'actual' data from the files. Test that 'actual' and
+    'expected' data and attributes match.
+
+    Parameters
+    ----------
+    expected : dict {str: numpy array}
+        dict of expected data (key is name, value is scalar or numpy array of data).
+        Arrays should be global (not per-process).
+    fieldperp_global_yind : int
+        Global y-index where FieldPerps are expected to be defined.
+    path : pathlib.Path or str
+        Path to collect data from.
+    squash : bool
+        If True, call `squashoutput()` and delete the `BOUT.dmp.*.nc` files (so that we
+        can only read the 'squashed' data) before collecting and checking data.
+    collect_kwargs : dict
+        Keyword arguments passed to `collect()`.
+    squash_kwargs : dict, optional
+        Keyword arguments passed to `squashoutput()`.
+    """
     # Apply effect of arguments to expected data
     if not collect_kwargs["xguards"]:
         remove_xboundaries(expected, expected["MXG"])
