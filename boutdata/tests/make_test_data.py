@@ -86,7 +86,6 @@ def create_dump_file(*, i, tmpdir, rng, grid_info, boundaries, fieldperp_global_
     i : int
         Number of the output file
     tmpdir : pathlib.Path
-    tmpdir : pathlib.Path
         Directory to write the dump file in
     rng : numpy.random.Generator
         Random number generator to create data
