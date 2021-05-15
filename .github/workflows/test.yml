@@ -50,7 +50,7 @@ jobs:
 
       - name: Test local run
         run: |
-          pytest --cov=./
+          pytest -v --cov=./
 
       - name: Upload to codecov
         run: |
