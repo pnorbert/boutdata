@@ -604,11 +604,19 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
 
                     # we have found a file with containing the FieldPerp, get the attributes from here
                     var_attributes = f_attributes
-                assert temp_yindex == yindex_global
+                if temp_yindex != yindex_global:
+                    raise ValueError(
+                        "Found FieldPerp {} at different global y-indices, {} and {}"
+                        .format(varname, temp_yindex, yindex_global)
+                    )
 
             if temp_yindex >= 0:
                 # Check we only read from one pe_yind
-                assert fieldperp_yproc is None or fieldperp_yproc == pe_yind
+                if not (fieldperp_yproc is None or fieldperp_yproc == pe_yind):
+                    raise ValueError(
+                        "Found FieldPerp {} on different y-processor indices, {} and {}"
+                        .format(varname, fieldperp_yproc, pe_yind)
+                    )
 
                 fieldperp_yproc = pe_yind
 
@@ -632,11 +640,19 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
 
                     # we have found a file with containing the FieldPerp, get the attributes from here
                     var_attributes = f_attributes
-                assert temp_yindex == yindex_global
+                if temp_yindex != yindex_global:
+                    raise ValueError(
+                        "Found FieldPerp {} at different global y-indices, {} and {}"
+                        .format(varname, temp_yindex, yindex_global)
+                    )
 
             if temp_yindex >= 0:
                 # Check we only read from one pe_yind
-                assert fieldperp_yproc is None or fieldperp_yproc == pe_yind
+                if not (fieldperp_yproc is None or fieldperp_yproc == pe_yind):
+                    raise ValueError(
+                        "Found FieldPerp {} on different y-processor indices, {} and {}"
+                        .format(varname, fieldperp_yproc, pe_yind)
+                    )
 
                 fieldperp_yproc = pe_yind
 
