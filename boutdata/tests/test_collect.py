@@ -215,20 +215,18 @@ class TestCollect:
         # core includes "ylower" and "yupper" even though there is no actual y-boundary
         # because collect/squashoutput collect these points
         dump_params = [
-            {
-                "i": 0,
-                "boundaries": ["xinner", "xouter", "ylower", "yupper"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
+            (0, ["xinner", "xouter", "ylower", "yupper"], fieldperp_global_yind),
         ]
         dumps = []
-        for p in dump_params:
+        for i, boundaries, fieldperp_yind in dump_params:
             dumps.append(
                 create_dump_file(
                     tmpdir=tmp_path,
                     rng=rng,
                     grid_info=grid_info,
-                    **p,
+                    i=i,
+                    boundaries=boundaries,
+                    fieldperp_global_yind=fieldperp_yind,
                 )
             )
 
@@ -264,60 +262,26 @@ class TestCollect:
         # core includes "ylower" and "yupper" even though there is no actual y-boundary
         # because collect/squashoutput collect these points
         dump_params = [
-            {
-                "i": 0,
-                "boundaries": ["xinner", "ylower"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
-            {
-                "i": 1,
-                "boundaries": ["ylower"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
-            {
-                "i": 2,
-                "boundaries": ["xouter", "ylower"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
-            {
-                "i": 3,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 4,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 5,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 6,
-                "boundaries": ["xinner", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 7,
-                "boundaries": ["yupper"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 8,
-                "boundaries": ["xouter", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
+            (0, ["xinner", "ylower"], fieldperp_global_yind),
+            (1, ["ylower"], fieldperp_global_yind),
+            (2, ["xouter", "ylower"], fieldperp_global_yind),
+            (3, ["xinner"], -1),
+            (4, [], -1),
+            (5, ["xouter"], -1),
+            (6, ["xinner", "yupper"], -1),
+            (7, ["yupper"], -1),
+            (8, ["xouter", "yupper"], -1),
         ]
         dumps = []
-        for p in dump_params:
+        for i, boundaries, fieldperp_yind in dump_params:
             dumps.append(
                 create_dump_file(
                     tmpdir=tmp_path,
                     rng=rng,
                     grid_info=grid_info,
-                    **p,
+                    i=i,
+                    boundaries=boundaries,
+                    fieldperp_global_yind=fieldperp_yind,
                 )
             )
 
@@ -349,20 +313,18 @@ class TestCollect:
 
         # SOL
         dump_params = [
-            {
-                "i": 0,
-                "boundaries": ["xinner", "xouter", "ylower", "yupper"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
+            (0, ["xinner", "xouter", "ylower", "yupper"], fieldperp_global_yind),
         ]
         dumps = []
-        for p in dump_params:
+        for i, boundaries, fieldperp_yind in dump_params:
             dumps.append(
                 create_dump_file(
                     tmpdir=tmp_path,
                     rng=rng,
                     grid_info=grid_info,
-                    **p,
+                    i=i,
+                    boundaries=boundaries,
+                    fieldperp_global_yind=fieldperp_yind,
                 )
             )
 
@@ -396,60 +358,26 @@ class TestCollect:
 
         # SOL
         dump_params = [
-            {
-                "i": 0,
-                "boundaries": ["xinner", "ylower"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
-            {
-                "i": 1,
-                "boundaries": ["ylower"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
-            {
-                "i": 2,
-                "boundaries": ["xouter", "ylower"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
-            {
-                "i": 3,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 4,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 5,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 6,
-                "boundaries": ["xinner", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 7,
-                "boundaries": ["yupper"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 8,
-                "boundaries": ["xouter", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
+            (0, ["xinner", "ylower"], fieldperp_global_yind),
+            (1, ["ylower"], fieldperp_global_yind),
+            (2, ["xouter", "ylower"], fieldperp_global_yind),
+            (3, ["xinner"], -1),
+            (4, [], -1),
+            (5, ["xouter"], -1),
+            (6, ["xinner", "yupper"], -1),
+            (7, ["yupper"], -1),
+            (8, ["xouter", "yupper"], -1),
         ]
         dumps = []
-        for p in dump_params:
+        for i, boundaries, fieldperp_yind in dump_params:
             dumps.append(
                 create_dump_file(
                     tmpdir=tmp_path,
                     rng=rng,
                     grid_info=grid_info,
-                    **p,
+                    i=i,
+                    boundaries=boundaries,
+                    fieldperp_global_yind=fieldperp_yind,
                 )
             )
 
@@ -481,32 +409,22 @@ class TestCollect:
 
         dump_params = [
             # inner divertor leg
-            {
-                "i": 0,
-                "boundaries": ["xinner", "xouter", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
+            (0, ["xinner", "xouter", "ylower"], -1),
             # core
-            {
-                "i": 1,
-                "boundaries": ["xinner", "xouter"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
+            (1, ["xinner", "xouter"], fieldperp_global_yind),
             # outer divertor leg
-            {
-                "i": 2,
-                "boundaries": ["xinner", "xouter", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
+            (2, ["xinner", "xouter", "yupper"], -1),
         ]
         dumps = []
-        for p in dump_params:
+        for i, boundaries, fieldperp_yind in dump_params:
             dumps.append(
                 create_dump_file(
                     tmpdir=tmp_path,
                     rng=rng,
                     grid_info=grid_info,
-                    **p,
+                    i=i,
+                    boundaries=boundaries,
+                    fieldperp_global_yind=fieldperp_yind,
                 )
             )
 
@@ -541,32 +459,22 @@ class TestCollect:
 
         dump_params = [
             # inner divertor leg
-            {
-                "i": 0,
-                "boundaries": ["xinner", "xouter", "ylower"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
+            (0, ["xinner", "xouter", "ylower"], fieldperp_global_yind),
             # core
-            {
-                "i": 1,
-                "boundaries": ["xinner", "xouter"],
-                "fieldperp_global_yind": -1,
-            },
+            (1, ["xinner", "xouter"], -1),
             # outer divertor leg
-            {
-                "i": 2,
-                "boundaries": ["xinner", "xouter", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
+            (2, ["xinner", "xouter", "yupper"], -1),
         ]
         dumps = []
-        for p in dump_params:
+        for i, boundaries, fieldperp_yind in dump_params:
             dumps.append(
                 create_dump_file(
                     tmpdir=tmp_path,
                     rng=rng,
                     grid_info=grid_info,
-                    **p,
+                    i=i,
+                    boundaries=boundaries,
+                    fieldperp_global_yind=fieldperp_yind,
                 )
             )
 
@@ -601,32 +509,22 @@ class TestCollect:
 
         dump_params = [
             # inner divertor leg
-            {
-                "i": 0,
-                "boundaries": ["xinner", "xouter", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
+            (0, ["xinner", "xouter", "ylower"], -1),
             # core
-            {
-                "i": 1,
-                "boundaries": ["xinner", "xouter"],
-                "fieldperp_global_yind": -1,
-            },
+            (1, ["xinner", "xouter"], -1),
             # outer divertor leg
-            {
-                "i": 2,
-                "boundaries": ["xinner", "xouter", "yupper"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
+            (2, ["xinner", "xouter", "yupper"], fieldperp_global_yind),
         ]
         dumps = []
-        for p in dump_params:
+        for i, boundaries, fieldperp_yind in dump_params:
             dumps.append(
                 create_dump_file(
                     tmpdir=tmp_path,
                     rng=rng,
                     grid_info=grid_info,
-                    **p,
+                    i=i,
+                    boundaries=boundaries,
+                    fieldperp_global_yind=fieldperp_yind,
                 )
             )
 
@@ -663,32 +561,22 @@ class TestCollect:
 
         dump_params = [
             # inner divertor leg
-            {
-                "i": 0,
-                "boundaries": ["xinner", "xouter", "ylower"],
-                "fieldperp_global_yind": 2,
-            },
+            (0, ["xinner", "xouter", "ylower"], 2),
             # core
-            {
-                "i": 1,
-                "boundaries": ["xinner", "xouter"],
-                "fieldperp_global_yind": 7,
-            },
+            (1, ["xinner", "xouter"], 7),
             # outer divertor leg
-            {
-                "i": 2,
-                "boundaries": ["xinner", "xouter", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
+            (2, ["xinner", "xouter", "yupper"], -1),
         ]
         dumps = []
-        for p in dump_params:
+        for i, boundaries, fieldperp_yind in dump_params:
             dumps.append(
                 create_dump_file(
                     tmpdir=tmp_path,
                     rng=rng,
                     grid_info=grid_info,
-                    **p,
+                    i=i,
+                    boundaries=boundaries,
+                    fieldperp_global_yind=fieldperp_yind,
                 )
             )
 
@@ -726,32 +614,22 @@ class TestCollect:
 
         dump_params = [
             # inner divertor leg
-            {
-                "i": 0,
-                "boundaries": ["xinner", "xouter", "ylower"],
-                "fieldperp_global_yind": 7,
-            },
+            (0, ["xinner", "xouter", "ylower"], 7),
             # core
-            {
-                "i": 1,
-                "boundaries": ["xinner", "xouter"],
-                "fieldperp_global_yind": 7,
-            },
+            (1, ["xinner", "xouter"], 7),
             # outer divertor leg
-            {
-                "i": 2,
-                "boundaries": ["xinner", "xouter", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
+            (2, ["xinner", "xouter", "yupper"], -1),
         ]
         dumps = []
-        for p in dump_params:
+        for i, boundaries, fieldperp_yind in dump_params:
             dumps.append(
                 create_dump_file(
                     tmpdir=tmp_path,
                     rng=rng,
                     grid_info=grid_info,
-                    **p,
+                    i=i,
+                    boundaries=boundaries,
+                    fieldperp_global_yind=fieldperp_yind,
                 )
             )
 
@@ -786,152 +664,46 @@ class TestCollect:
 
         dump_params = [
             # inner divertor leg
-            {
-                "i": 0,
-                "boundaries": ["xinner", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 1,
-                "boundaries": ["ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 2,
-                "boundaries": ["xouter", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 3,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 4,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 5,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 6,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 7,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 8,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
+            (0, ["xinner", "ylower"], -1),
+            (1, ["ylower"], -1),
+            (2, ["xouter", "ylower"], -1),
+            (3, ["xinner"], -1),
+            (4, [], -1),
+            (5, ["xouter"], -1),
+            (6, ["xinner"], -1),
+            (7, [], -1),
+            (8, ["xouter"], -1),
             # core
-            {
-                "i": 9,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 10,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 11,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 12,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
-            {
-                "i": 13,
-                "boundaries": [],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
-            {
-                "i": 14,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
-            {
-                "i": 15,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 16,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 17,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
+            (9, ["xinner"], -1),
+            (10, [], -1),
+            (11, ["xouter"], -1),
+            (12, ["xinner"], fieldperp_global_yind),
+            (13, [], fieldperp_global_yind),
+            (14, ["xouter"], fieldperp_global_yind),
+            (15, ["xinner"], -1),
+            (16, [], -1),
+            (17, ["xouter"], -1),
             # outer divertor leg
-            {
-                "i": 18,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 19,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 20,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 21,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 22,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 23,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 24,
-                "boundaries": ["xinner", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 25,
-                "boundaries": ["yupper"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 26,
-                "boundaries": ["xouter", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
+            (18, ["xinner"], -1),
+            (19, [], -1),
+            (20, ["xouter"], -1),
+            (21, ["xinner"], -1),
+            (22, [], -1),
+            (23, ["xouter"], -1),
+            (24, ["xinner", "yupper"], -1),
+            (25, ["yupper"], -1),
+            (26, ["xouter", "yupper"], -1),
         ]
         dumps = []
-        for p in dump_params:
+        for i, boundaries, fieldperp_yind in dump_params:
             dumps.append(
                 create_dump_file(
                     tmpdir=tmp_path,
                     rng=rng,
                     grid_info=grid_info,
-                    **p,
+                    i=i,
+                    boundaries=boundaries,
+                    fieldperp_global_yind=fieldperp_yind,
                 )
             )
 
@@ -1324,152 +1096,46 @@ class TestCollect:
 
         dump_params = [
             # inner divertor leg
-            {
-                "i": 0,
-                "boundaries": ["xinner", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 1,
-                "boundaries": ["ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 2,
-                "boundaries": ["xouter", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 3,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 4,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 5,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 6,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 7,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 8,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
+            (0, ["xinner", "ylower"], -1),
+            (1, ["ylower"], -1),
+            (2, ["xouter", "ylower"], -1),
+            (3, ["xinner"], -1),
+            (4, [], -1),
+            (5, ["xouter"], -1),
+            (6, ["xinner"], -1),
+            (7, [], -1),
+            (8, ["xouter"], -1),
             # core
-            {
-                "i": 9,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 10,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 11,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 12,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
-            {
-                "i": 13,
-                "boundaries": [],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
-            {
-                "i": 14,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
-            {
-                "i": 15,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 16,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 17,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
+            (9, ["xinner"], -1),
+            (10, [], -1),
+            (11, ["xouter"], -1),
+            (12, ["xinner"], fieldperp_global_yind),
+            (13, [], fieldperp_global_yind),
+            (14, ["xouter"], fieldperp_global_yind),
+            (15, ["xinner"], -1),
+            (16, [], -1),
+            (17, ["xouter"], -1),
             # outer divertor leg
-            {
-                "i": 18,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 19,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 20,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 21,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 22,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 23,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 24,
-                "boundaries": ["xinner", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 25,
-                "boundaries": ["yupper"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 26,
-                "boundaries": ["xouter", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
+            (18, ["xinner"], -1),
+            (19, [], -1),
+            (20, ["xouter"], -1),
+            (21, ["xinner"], -1),
+            (22, [], -1),
+            (23, ["xouter"], -1),
+            (24, ["xinner", "yupper"], -1),
+            (25, ["yupper"], -1),
+            (26, ["xouter", "yupper"], -1),
         ]
         dumps = []
-        for p in dump_params:
+        for i, boundaries, fieldperp_yind in dump_params:
             dumps.append(
                 create_dump_file(
                     tmpdir=tmp_path,
                     rng=rng,
                     grid_info=grid_info,
-                    **p,
+                    i=i,
+                    boundaries=boundaries,
+                    fieldperp_global_yind=fieldperp_yind,
                 )
             )
 
@@ -1507,50 +1173,28 @@ class TestCollect:
 
         dump_params = [
             # inner, lower divertor leg
-            {
-                "i": 0,
-                "boundaries": ["xinner", "xouter", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
+            (0, ["xinner", "xouter", "ylower"], -1),
             # inner core
-            {
-                "i": 1,
-                "boundaries": ["xinner", "xouter"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
+            (1, ["xinner", "xouter"], fieldperp_global_yind),
             # inner, upper divertor leg
-            {
-                "i": 2,
-                "boundaries": ["xinner", "xouter", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
+            (2, ["xinner", "xouter", "yupper"], -1),
             # outer, upper divertor leg
-            {
-                "i": 3,
-                "boundaries": ["xinner", "xouter", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
+            (3, ["xinner", "xouter", "ylower"], -1),
             # outer core
-            {
-                "i": 4,
-                "boundaries": ["xinner", "xouter"],
-                "fieldperp_global_yind": -1,
-            },
+            (4, ["xinner", "xouter"], -1),
             # outer, lower divertor leg
-            {
-                "i": 5,
-                "boundaries": ["xinner", "xouter", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
+            (5, ["xinner", "xouter", "yupper"], -1),
         ]
         dumps = []
-        for p in dump_params:
+        for i, boundaries, fieldperp_yind in dump_params:
             dumps.append(
                 create_dump_file(
                     tmpdir=tmp_path,
                     rng=rng,
                     grid_info=grid_info,
-                    **p,
+                    i=i,
+                    boundaries=boundaries,
+                    fieldperp_global_yind=fieldperp_yind,
                 )
             )
 
@@ -1586,290 +1230,76 @@ class TestCollect:
 
         dump_params = [
             # inner, lower divertor leg
-            {
-                "i": 0,
-                "boundaries": ["xinner", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 1,
-                "boundaries": ["ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 2,
-                "boundaries": ["xouter", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 3,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 4,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 5,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 6,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 7,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 8,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
+            (0, ["xinner", "ylower"], -1),
+            (1, ["ylower"], -1),
+            (2, ["xouter", "ylower"], -1),
+            (3, ["xinner"], -1),
+            (4, [], -1),
+            (5, ["xouter"], -1),
+            (6, ["xinner"], -1),
+            (7, [], -1),
+            (8, ["xouter"], -1),
             # inner core
-            {
-                "i": 9,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 10,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 11,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 12,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
-            {
-                "i": 13,
-                "boundaries": [],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
-            {
-                "i": 14,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
-            {
-                "i": 15,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 16,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 17,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
+            (9, ["xinner"], -1),
+            (10, [], -1),
+            (11, ["xouter"], -1),
+            (12, ["xinner"], fieldperp_global_yind),
+            (13, [], fieldperp_global_yind),
+            (14, ["xouter"], fieldperp_global_yind),
+            (15, ["xinner"], -1),
+            (16, [], -1),
+            (17, ["xouter"], -1),
             # inner, upper divertor leg
-            {
-                "i": 18,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 19,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 20,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 21,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 22,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 23,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 24,
-                "boundaries": ["xinner", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 25,
-                "boundaries": ["yupper"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 26,
-                "boundaries": ["xouter", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
+            (18, ["xinner"], -1),
+            (19, [], -1),
+            (20, ["xouter"], -1),
+            (21, ["xinner"], -1),
+            (22, [], -1),
+            (23, ["xouter"], -1),
+            (24, ["xinner", "yupper"], -1),
+            (25, ["yupper"], -1),
+            (26, ["xouter", "yupper"], -1),
             # outer, upper divertor leg
-            {
-                "i": 27,
-                "boundaries": ["xinner", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 28,
-                "boundaries": ["ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 29,
-                "boundaries": ["xouter", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 30,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 31,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 32,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 33,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 34,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 35,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
+            (27, ["xinner", "ylower"], -1),
+            (28, ["ylower"], -1),
+            (29, ["xouter", "ylower"], -1),
+            (30, ["xinner"], -1),
+            (31, [], -1),
+            (32, ["xouter"], -1),
+            (33, ["xinner"], -1),
+            (34, [], -1),
+            (35, ["xouter"], -1),
             # outer core
-            {
-                "i": 36,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 37,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 38,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 39,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 40,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 41,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 42,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 43,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 44,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
+            (36, ["xinner"], -1),
+            (37, [], -1),
+            (38, ["xouter"], -1),
+            (39, ["xinner"], -1),
+            (40, [], -1),
+            (41, ["xouter"], -1),
+            (42, ["xinner"], -1),
+            (43, [], -1),
+            (44, ["xouter"], -1),
             # outer, lower divertor leg
-            {
-                "i": 45,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 46,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 47,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 48,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 49,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 50,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 51,
-                "boundaries": ["xinner", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 52,
-                "boundaries": ["yupper"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 53,
-                "boundaries": ["xouter", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
+            (45, ["xinner"], -1),
+            (46, [], -1),
+            (47, ["xouter"], -1),
+            (48, ["xinner"], -1),
+            (49, [], -1),
+            (50, ["xouter"], -1),
+            (51, ["xinner", "yupper"], -1),
+            (52, ["yupper"], -1),
+            (53, ["xouter", "yupper"], -1),
         ]
         dumps = []
-        for p in dump_params:
+        for i, boundaries, fieldperp_yind in dump_params:
             dumps.append(
                 create_dump_file(
                     tmpdir=tmp_path,
                     rng=rng,
                     grid_info=grid_info,
-                    **p,
+                    i=i,
+                    boundaries=boundaries,
+                    fieldperp_global_yind=fieldperp_yind,
                 )
             )
 
@@ -1902,50 +1332,28 @@ class TestCollect:
 
         dump_params = [
             # inner, lower divertor leg
-            {
-                "i": 0,
-                "boundaries": ["xinner", "xouter", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
+            (0, ["xinner", "xouter", "ylower"], -1),
             # inner core
-            {
-                "i": 1,
-                "boundaries": ["xinner", "xouter"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
+            (1, ["xinner", "xouter"], fieldperp_global_yind),
             # inner, upper divertor leg
-            {
-                "i": 2,
-                "boundaries": ["xinner", "xouter", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
+            (2, ["xinner", "xouter", "yupper"], -1),
             # outer, upper divertor leg
-            {
-                "i": 3,
-                "boundaries": ["xinner", "xouter", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
+            (3, ["xinner", "xouter", "ylower"], -1),
             # outer core
-            {
-                "i": 4,
-                "boundaries": ["xinner", "xouter"],
-                "fieldperp_global_yind": -1,
-            },
+            (4, ["xinner", "xouter"], -1),
             # outer, lower divertor leg
-            {
-                "i": 5,
-                "boundaries": ["xinner", "xouter", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
+            (5, ["xinner", "xouter", "yupper"], -1),
         ]
         dumps = []
-        for p in dump_params:
+        for i, boundaries, fieldperp_yind in dump_params:
             dumps.append(
                 create_dump_file(
                     tmpdir=tmp_path,
                     rng=rng,
                     grid_info=grid_info,
-                    **p,
+                    i=i,
+                    boundaries=boundaries,
+                    fieldperp_global_yind=fieldperp_yind,
                 )
             )
 
@@ -1983,290 +1391,76 @@ class TestCollect:
 
         dump_params = [
             # inner, lower divertor leg
-            {
-                "i": 0,
-                "boundaries": ["xinner", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 1,
-                "boundaries": ["ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 2,
-                "boundaries": ["xouter", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 3,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 4,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 5,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 6,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 7,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 8,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
+            (0, ["xinner", "ylower"], -1),
+            (1, ["ylower"], -1),
+            (2, ["xouter", "ylower"], -1),
+            (3, ["xinner"], -1),
+            (4, [], -1),
+            (5, ["xouter"], -1),
+            (6, ["xinner"], -1),
+            (7, [], -1),
+            (8, ["xouter"], -1),
             # inner core
-            {
-                "i": 9,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 10,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 11,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 12,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
-            {
-                "i": 13,
-                "boundaries": [],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
-            {
-                "i": 14,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
-            {
-                "i": 15,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 16,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 17,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
+            (9, ["xinner"], -1),
+            (10, [], -1),
+            (11, ["xouter"], -1),
+            (12, ["xinner"], fieldperp_global_yind),
+            (13, [], fieldperp_global_yind),
+            (14, ["xouter"], fieldperp_global_yind),
+            (15, ["xinner"], -1),
+            (16, [], -1),
+            (17, ["xouter"], -1),
             # inner, upper divertor leg
-            {
-                "i": 18,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 19,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 20,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 21,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 22,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 23,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 24,
-                "boundaries": ["xinner", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 25,
-                "boundaries": ["yupper"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 26,
-                "boundaries": ["xouter", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
+            (18, ["xinner"], -1),
+            (19, [], -1),
+            (20, ["xouter"], -1),
+            (21, ["xinner"], -1),
+            (22, [], -1),
+            (23, ["xouter"], -1),
+            (24, ["xinner", "yupper"], -1),
+            (25, ["yupper"], -1),
+            (26, ["xouter", "yupper"], -1),
             # outer, upper divertor leg
-            {
-                "i": 27,
-                "boundaries": ["xinner", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 28,
-                "boundaries": ["ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 29,
-                "boundaries": ["xouter", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 30,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 31,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 32,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 33,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 34,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 35,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
+            (27, ["xinner", "ylower"], -1),
+            (28, ["ylower"], -1),
+            (29, ["xouter", "ylower"], -1),
+            (30, ["xinner"], -1),
+            (31, [], -1),
+            (32, ["xouter"], -1),
+            (33, ["xinner"], -1),
+            (34, [], -1),
+            (35, ["xouter"], -1),
             # outer core
-            {
-                "i": 36,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 37,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 38,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 39,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 40,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 41,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 42,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 43,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 44,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
+            (36, ["xinner"], -1),
+            (37, [], -1),
+            (38, ["xouter"], -1),
+            (39, ["xinner"], -1),
+            (40, [], -1),
+            (41, ["xouter"], -1),
+            (42, ["xinner"], -1),
+            (43, [], -1),
+            (44, ["xouter"], -1),
             # outer, lower divertor leg
-            {
-                "i": 45,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 46,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 47,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 48,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 49,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 50,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 51,
-                "boundaries": ["xinner", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 52,
-                "boundaries": ["yupper"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 53,
-                "boundaries": ["xouter", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
+            (45, ["xinner"], -1),
+            (46, [], -1),
+            (47, ["xouter"], -1),
+            (48, ["xinner"], -1),
+            (49, [], -1),
+            (50, ["xouter"], -1),
+            (51, ["xinner", "yupper"], -1),
+            (52, ["yupper"], -1),
+            (53, ["xouter", "yupper"], -1),
         ]
         dumps = []
-        for p in dump_params:
+        for i, boundaries, fieldperp_yind in dump_params:
             dumps.append(
                 create_dump_file(
                     tmpdir=tmp_path,
                     rng=rng,
                     grid_info=grid_info,
-                    **p,
+                    i=i,
+                    boundaries=boundaries,
+                    fieldperp_global_yind=fieldperp_yind,
                 )
             )
 
@@ -2316,290 +1510,76 @@ class TestCollect:
 
         dump_params = [
             # inner, lower divertor leg
-            {
-                "i": 0,
-                "boundaries": ["xinner", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 1,
-                "boundaries": ["ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 2,
-                "boundaries": ["xouter", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 3,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 4,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 5,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 6,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 7,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 8,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
+            (0, ["xinner", "ylower"], -1),
+            (1, ["ylower"], -1),
+            (2, ["xouter", "ylower"], -1),
+            (3, ["xinner"], -1),
+            (4, [], -1),
+            (5, ["xouter"], -1),
+            (6, ["xinner"], -1),
+            (7, [], -1),
+            (8, ["xouter"], -1),
             # inner core
-            {
-                "i": 9,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 10,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 11,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 12,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
-            {
-                "i": 13,
-                "boundaries": [],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
-            {
-                "i": 14,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": fieldperp_global_yind,
-            },
-            {
-                "i": 15,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 16,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 17,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
+            (9, ["xinner"], -1),
+            (10, [], -1),
+            (11, ["xouter"], -1),
+            (12, ["xinner"], fieldperp_global_yind),
+            (13, [], fieldperp_global_yind),
+            (14, ["xouter"], fieldperp_global_yind),
+            (15, ["xinner"], -1),
+            (16, [], -1),
+            (17, ["xouter"], -1),
             # inner, upper divertor leg
-            {
-                "i": 18,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 19,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 20,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 21,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 22,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 23,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 24,
-                "boundaries": ["xinner", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 25,
-                "boundaries": ["yupper"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 26,
-                "boundaries": ["xouter", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
+            (18, ["xinner"], -1),
+            (19, [], -1),
+            (20, ["xouter"], -1),
+            (21, ["xinner"], -1),
+            (22, [], -1),
+            (23, ["xouter"], -1),
+            (24, ["xinner", "yupper"], -1),
+            (25, ["yupper"], -1),
+            (26, ["xouter", "yupper"], -1),
             # outer, upper divertor leg
-            {
-                "i": 27,
-                "boundaries": ["xinner", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 28,
-                "boundaries": ["ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 29,
-                "boundaries": ["xouter", "ylower"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 30,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 31,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 32,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 33,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 34,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 35,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
+            (27, ["xinner", "ylower"], -1),
+            (28, ["ylower"], -1),
+            (29, ["xouter", "ylower"], -1),
+            (30, ["xinner"], -1),
+            (31, [], -1),
+            (32, ["xouter"], -1),
+            (33, ["xinner"], -1),
+            (34, [], -1),
+            (35, ["xouter"], -1),
             # outer core
-            {
-                "i": 36,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 37,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 38,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 39,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 40,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 41,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 42,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 43,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 44,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
+            (36, ["xinner"], -1),
+            (37, [], -1),
+            (38, ["xouter"], -1),
+            (39, ["xinner"], -1),
+            (40, [], -1),
+            (41, ["xouter"], -1),
+            (42, ["xinner"], -1),
+            (43, [], -1),
+            (44, ["xouter"], -1),
             # outer, lower divertor leg
-            {
-                "i": 45,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 46,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 47,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 48,
-                "boundaries": ["xinner"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 49,
-                "boundaries": [],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 50,
-                "boundaries": ["xouter"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 51,
-                "boundaries": ["xinner", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 52,
-                "boundaries": ["yupper"],
-                "fieldperp_global_yind": -1,
-            },
-            {
-                "i": 53,
-                "boundaries": ["xouter", "yupper"],
-                "fieldperp_global_yind": -1,
-            },
+            (45, ["xinner"], -1),
+            (46, [], -1),
+            (47, ["xouter"], -1),
+            (48, ["xinner"], -1),
+            (49, [], -1),
+            (50, ["xouter"], -1),
+            (51, ["xinner", "yupper"], -1),
+            (52, ["yupper"], -1),
+            (53, ["xouter", "yupper"], -1),
         ]
         dumps = []
-        for p in dump_params:
+        for i, boundaries, fieldperp_yind in dump_params:
             dumps.append(
                 create_dump_file(
                     tmpdir=tmp_path,
                     rng=rng,
                     grid_info=grid_info,
-                    **p,
+                    i=i,
+                    boundaries=boundaries,
+                    fieldperp_global_yind=fieldperp_yind,
                 )
             )
 
