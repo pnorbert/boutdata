@@ -1185,7 +1185,6 @@ class BoutOutputs(object):
                 # Send None to terminate worker process cleanly
                 connection.send(None)
                 worker.join()
-                worker.close()
                 connection.close()
 
     def keys(self):
