@@ -1606,8 +1606,8 @@ class BoutOutputs(object):
 
         else:
             # Get local ranges
-            ystart = self.yind.start - self.pe_yind * self.mysub + self.myg
-            ystop = self.yind.stop - self.pe_yind * self.mysub + self.myg
+            ystart = self.yind.start - pe_yind * self.mysub + self.myg
+            ystop = self.yind.stop - pe_yind * self.mysub + self.myg
 
             if (ystart >= (self.mysub + self.myg)) or (ystop <= self.myg):
                 inrange = False  # Y out of range
@@ -1650,8 +1650,8 @@ class BoutOutputs(object):
 
         else:
             # Get local ranges
-            xstart = self.xind.start - self.pe_xind * self.mxsub + self.mxg
-            xstop = self.xind.stop - self.pe_xind * self.mxsub + self.mxg
+            xstart = self.xind.start - pe_xind * self.mxsub + self.mxg
+            xstop = self.xind.stop - pe_xind * self.mxsub + self.mxg
 
             if (xstart >= (self.mxsub + self.mxg)) or (xstop <= self.mxg):
                 inrange = False  # X out of range
