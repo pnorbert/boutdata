@@ -1485,7 +1485,9 @@ class BoutOutputs(object):
             global_slices.append(0)
         global_slices = tuple(global_slices)
 
-        return BoutArray(self._shared_buffer[global_slices].copy(), attributes=var_attributes)
+        return BoutArray(
+            self._shared_buffer[global_slices].copy(), attributes=var_attributes
+        )
 
     def _collect_from_one_proc(
         self, i, datafile, varname, *, shared_result, is_fieldperp
@@ -1746,9 +1748,7 @@ class BoutOutputs(object):
     def _worker_function(self, connection, proc_list, shared_buffer_raw):
         data_files = [DataFile(self._file_list[i]) for i in proc_list]
         dim_sizes = tuple(self.sizes[d] for d in ("t", "x", "y", "z"))
-        shared_buffer = numpy.reshape(
-            numpy.frombuffer(shared_buffer_raw), dim_sizes
-        )
+        shared_buffer = numpy.reshape(numpy.frombuffer(shared_buffer_raw), dim_sizes)
         while True:
             args = connection.recv()
             if args is None:
