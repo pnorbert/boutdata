@@ -1428,7 +1428,18 @@ class BoutOutputs(object):
 
         if not ("x" in dimensions or "y" in dimensions or "z" in dimensions):
             # No spatial dependence - read without using workers to preserve type
-            return BoutArray(self._root_file.read(varname), attributes=var_attributes)
+            if "t" in dimensions:
+                return BoutArray(
+                    self._root_file.read(
+                        varname, ranges=[self.tind] + (len(dimensions) - 1) * [None]
+                    ),
+                    attributes=var_attributes,
+                )
+            else:
+                # No time or space dimensions, so no slicing
+                return BoutArray(
+                    self._root_file.read(varname), attributes=var_attributes
+                )
 
         is_fieldperp = dimensions in (("t", "x", "z"), ("x", "z"))
 
