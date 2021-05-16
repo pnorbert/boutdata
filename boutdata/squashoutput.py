@@ -188,6 +188,9 @@ def squashoutput(
             var = None
             gc.collect()
 
+    del outputs
+    gc.collect()
+
     if delete:
         if append:
             os.remove(oldfile)
