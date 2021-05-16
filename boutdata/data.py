@@ -1456,7 +1456,6 @@ class BoutOutputs(object):
                             "Multiple global y-indices found for FieldPerp"
                         )
                     yindex_global = temp_yindex
-                    temp_fieldperp_yproc = i // self.nxpe
                     if (
                         fieldperp_yproc is not None
                         and fieldperp_yproc != temp_fieldperp_yproc
@@ -1731,7 +1730,7 @@ class BoutOutputs(object):
             )
 
         if is_fieldperp:
-            f_attributes = data_file.attributes(varname)
+            f_attributes = datafile.attributes(varname)
             temp_yindex = f_attributes["yindex_global"]
             if temp_yindex < 0:
                 # No data for FieldPerp on this processor
@@ -1740,7 +1739,7 @@ class BoutOutputs(object):
         shared_result[global_slices] = datafile.read(varname, ranges=local_slices)
 
         if is_fieldperp:
-            return temp_yindex, var_attributes
+            return temp_yindex, f_attributes
 
         return None, None
 
