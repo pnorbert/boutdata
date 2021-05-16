@@ -1180,10 +1180,13 @@ class BoutOutputs(object):
 
     def __del__(self):
         if self._parallel is not False:
-            for worker, _ in self._workers:
-                worker.terminate()
+            self._root_file.close()
+            for worker, connection in self._workers:
+                # Send None to terminate worker process cleanly
+                connection.send(None)
                 worker.join()
                 worker.close()
+                connection.close()
 
     def keys(self):
         """Return a list of available variable names
@@ -1748,7 +1751,15 @@ class BoutOutputs(object):
             numpy.frombuffer(shared_buffer_raw), dim_sizes
         )
         while True:
-            varname, is_fieldperp = connection.recv()
+            args = connection.recv()
+            if args is None:
+                # Terminate process cleanly
+                for f in data_files:
+                    f.close()
+                connection.close()
+                return 0
+
+            varname, is_fieldperp = args
 
             yindex_global = None
             fieldperp_yproc = None
