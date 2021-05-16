@@ -1169,16 +1169,12 @@ class BoutOutputs(object):
                     p for p in range(filenum, filenum + files_per_proc[i])
                 )
                 filenum = filenum + files_per_proc[i]
-                self._workers.append(
-                    (
-                        Process(
-                            target=self._worker_function,
-                            args=(child_connection, proc_list, self._shared_buffer_raw),
-                        ),
-                        parent_connection,
-                    )
+                worker = Process(
+                    target=self._worker_function,
+                    args=(child_connection, proc_list, self._shared_buffer_raw),
                 )
-                self._workers[-1][0].start()
+                worker.start()
+                self._workers.append((worker, parent_connection))
 
         self._DataFileCache = None
 
