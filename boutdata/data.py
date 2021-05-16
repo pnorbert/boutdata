@@ -1452,14 +1452,20 @@ class BoutOutputs(object):
                     # (unique) yindex_global
                     if yindex_global is not None and yindex_global != temp_yindex:
                         raise ValueError(
-                            "Multiple global y-indices found for FieldPerp"
+                            "Found FieldPerp {} at different global y-indices, {} and "
+                            "{}".format(varname, temp_yindex, yindex_global)
                         )
                     yindex_global = temp_yindex
                     if (
                         fieldperp_yproc is not None
                         and fieldperp_yproc != temp_fieldperp_yproc
                     ):
-                        raise ValueError("FieldPerp found at multiple yproc indices")
+                        raise ValueError(
+                            "Found FieldPerp {} on different y-processor indices, {} "
+                            "and {}".format(
+                                varname, fieldperp_yproc, temp_fieldperp_yproc
+                            )
+                        )
                     fieldperp_yproc = temp_fieldperp_yproc
                     var_attributes = temp_var_attributes
 
@@ -1777,13 +1783,15 @@ class BoutOutputs(object):
                         # and check they are unique
                         if yindex_global is not None and yindex_global != temp_yindex:
                             raise ValueError(
-                                "Multiple global y-indices found for FieldPerp"
+                                "Found FieldPerp {} at different global y-indices, {} "
+                                "and {}".format(varname, temp_yindex, yindex_global)
                             )
                         yindex_global = temp_yindex
                         pe_yind = i // self.nxpe
                         if fieldperp_yproc is not None and fieldperp_yproc != pe_yind:
                             raise ValueError(
-                                "FieldPerp found at multiple yproc indices"
+                                "Found FieldPerp {} on different y-processor indices, "
+                                "{} and {}".format(varname, fieldperp_yproc, pe_yind)
                             )
                         fieldperp_yproc = pe_yind
                         var_attributes = temp_var_attributes
