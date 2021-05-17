@@ -1672,6 +1672,9 @@ class BoutOutputs(object):
             if xstop > self.mxsub + self.mxg:
                 xstop = self.mxg + self.mxsub
 
+        if not inrange:
+            return None, None  # Don't need this file
+
         local_slices = []
         if "t" in dimensions:
             local_slices.append(self.tind)
@@ -1720,9 +1723,6 @@ class BoutOutputs(object):
         else:
             global_slices.append(0)
         global_slices = tuple(global_slices)
-
-        if not inrange:
-            return None, None  # Don't need this file
 
         if self._info:
             sys.stdout.write(
