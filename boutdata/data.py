@@ -1070,68 +1070,11 @@ class BoutOutputs(object):
             elif self.grid_info["npes"] > len(self._file_list):
                 print("WARNING: Some files missing. Expected " + str(grid_info["npes"]))
 
-        # Private variables
+        # Initialise private variables
         if self._caching:
-            from collections import OrderedDict
-
-            self._datacache = OrderedDict()
-            if self._caching is not True:
-                # Track the size of _datacache and limit it to a maximum of _caching
-                try:
-                    # Check that _caching is a number of some sort
-                    float(self._caching)
-                except ValueError:
-                    raise ValueError(
-                        "BoutOutputs: Invalid value for caching argument. Caching should be either a number (giving the maximum size of the cache in GB), True for unlimited size or False for no caching."
-                    )
-                self._datacachesize = 0
-                self._datacachemaxsize = self._caching * 1.0e9
-
+            self._init_caching()
         if self._parallel is not False:
-            if self._parallel is True or self._parallel == 0:
-                self._parallel = determineNumberOfCPUs()
-            if not isinstance(self._parallel, int) or self._parallel <= 0:
-                raise ValueError(
-                    "Passed or found inconsistent value %i for number of processes",
-                    self._parallel,
-                )
-
-            if self._parallel > self.grid_info["npes"]:
-                # Using current self._parallel, some workers would have no work
-                self._parallel = self.grid_info["npes"]
-
-            # Open the 0'th file so we can read scalars without the worker processes
-            self._root_file = DataFile(self._file_list[0])
-
-            # Need to initialise all workers with a shared memory buffer to write to
-            dim_sizes = tuple(self.grid_info["sizes"][d] for d in ("t", "x", "y", "z"))
-            self._shared_buffer_raw = RawArray("d", int(numpy.prod(dim_sizes)))
-            self._shared_buffer = numpy.reshape(
-                numpy.frombuffer(self._shared_buffer_raw), dim_sizes
-            )
-
-            # Work out which files to assign to which workers
-            min_files_per_proc = int(self.grid_info["npes"]) // self._parallel
-            extra_files = int(self.grid_info["npes"]) % self._parallel
-            files_per_proc = [min_files_per_proc] * (self._parallel - extra_files) + [
-                min_files_per_proc + 1
-            ] * extra_files
-            # self._workers is a list of pairs of (worker, connection)
-            self._workers = []
-            filenum = 0
-            for i in range(self._parallel):
-                parent_connection, child_connection = Pipe()
-                proc_list = tuple(
-                    p for p in range(filenum, filenum + files_per_proc[i])
-                )
-                filenum = filenum + files_per_proc[i]
-                worker = Process(
-                    target=self._worker_function,
-                    args=(child_connection, proc_list, self._shared_buffer_raw),
-                )
-                worker.start()
-                self._workers.append((worker, parent_connection))
-
+            self._init_parallel()
         self._DataFileCache = None
 
     def __del__(self):
@@ -1142,6 +1085,75 @@ class BoutOutputs(object):
                 connection.send(None)
                 worker.join()
                 connection.close()
+
+    def _init_caching(self):
+        """
+        Initialise private members used for caching of data variables
+        """
+        from collections import OrderedDict
+
+        self._datacache = OrderedDict()
+        if self._caching is not True:
+            # Track the size of _datacache and limit it to a maximum of _caching
+            try:
+                # Check that _caching is a number of some sort
+                float(self._caching)
+            except ValueError:
+                raise ValueError(
+                    "BoutOutputs: Invalid value for caching argument. Caching should "
+                    "be either a number (giving the maximum size of the cache in GB), "
+                    "True for unlimited size or False for no caching."
+                )
+            self._datacachesize = 0
+            self._datacachemaxsize = self._caching * 1.0e9
+
+    def _init_parallel(self):
+        """
+        Initialise private members used for parallel reading
+        """
+        if self._parallel is True or self._parallel == 0:
+            self._parallel = determineNumberOfCPUs()
+        if not isinstance(self._parallel, int) or self._parallel <= 0:
+            raise ValueError(
+                "Passed or found inconsistent value %i for number of processes",
+                self._parallel,
+            )
+
+        if self._parallel > self.grid_info["npes"]:
+            # Using current self._parallel, some workers would have no work
+            self._parallel = self.grid_info["npes"]
+
+        # Open the 0'th file so we can read scalars without the worker processes
+        self._root_file = DataFile(self._file_list[0])
+
+        # Need to initialise all workers with a shared memory buffer to write to
+        dim_sizes = tuple(self.grid_info["sizes"][d] for d in ("t", "x", "y", "z"))
+        self._shared_buffer_raw = RawArray("d", int(numpy.prod(dim_sizes)))
+        self._shared_buffer = numpy.reshape(
+            numpy.frombuffer(self._shared_buffer_raw), dim_sizes
+        )
+
+        # Work out which files to assign to which workers
+        min_files_per_proc = int(self.grid_info["npes"]) // self._parallel
+        extra_files = int(self.grid_info["npes"]) % self._parallel
+        files_per_proc = [min_files_per_proc] * (self._parallel - extra_files) + [
+            min_files_per_proc + 1
+        ] * extra_files
+        # self._workers is a list of pairs of (worker, connection)
+        self._workers = []
+        filenum = 0
+        for i in range(self._parallel):
+            parent_connection, child_connection = Pipe()
+            proc_list = tuple(
+                p for p in range(filenum, filenum + files_per_proc[i])
+            )
+            filenum = filenum + files_per_proc[i]
+            worker = Process(
+                target=self._worker_function,
+                args=(child_connection, proc_list, self._shared_buffer_raw),
+            )
+            worker.start()
+            self._workers.append((worker, parent_connection))
 
     def keys(self):
         """Return a list of available variable names"""
