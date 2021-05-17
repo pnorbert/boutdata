@@ -1687,14 +1687,14 @@ class BoutOutputs(object):
         local_slices = tuple(local_slices)
 
         if self._xguards:
-            xgstart = xstart + pe_xind * self.mxsub
-            xgstop = xstop + pe_xind * self.mxsub
+            xgstart = xstart + pe_xind * self.mxsub - self.xind.start
+            xgstop = xstop + pe_xind * self.mxsub - self.xind.start
         else:
-            xgstart = xstart + pe_xind * self.mxsub - self.mxg
-            xgstop = xstop + pe_xind * self.mxsub - self.mxg
+            xgstart = xstart + pe_xind * self.mxsub - self.mxg - self.xind.start
+            xgstop = xstop + pe_xind * self.mxsub - self.mxg - self.xind.start
         if self._yguards:
-            ygstart = ystart + pe_yind * self.mysub
-            ygstop = ystop + pe_yind * self.mysub
+            ygstart = ystart + pe_yind * self.mysub - self.yind.start
+            ygstop = ystop + pe_yind * self.mysub - self.yind.start
             if (
                 self.yproc_upper_target is not None
                 and pe_yind > self.yproc_upper_target
@@ -1702,8 +1702,8 @@ class BoutOutputs(object):
                 ygstart = ygstart + 2 * self.myg
                 ygstop = ygstop + 2 * self.myg
         else:
-            ygstart = ystart + pe_yind * self.mysub - self.myg
-            ygstop = ystop + pe_yind * self.mysub - self.myg
+            ygstart = ystart + pe_yind * self.mysub - self.myg - self.yind.start
+            ygstop = ystop + pe_yind * self.mysub - self.myg - self.yind.start
 
         global_slices = []
         if "t" in dimensions:
