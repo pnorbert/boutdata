@@ -933,13 +933,27 @@ class BoutOutputs(object):
         Switch for creation of a cache of DataFile objects to be
         passed to collect so that DataFiles do not need to be
         re-opened to read each variable (default: True)
+    info : bool, optional
+        Print information about grid and data loading? (default: False)
+    xguards : bool, optional
+        Collect X boundary guard cells? (default: True)
+        (Set to True to be consistent with the definition of nx)
+    yguards : bool or "include_upper", optional
+        Collect Y boundary guard cells? (default: False)
+        If yguards=="include_upper" the y-boundary cells from the upper (second) target
+        are also included.
+    xind, yind, zind, tind : int, slice or list of int, optional
+        Range of X, Y, Z or time indices to collect. Either a single
+        index to collect, a list containing [start, end] (inclusive
+        end), or a slice object (usual python indexing). Default is to
+        fetch all indices
     parallel : bool or int, default False
         If set to True or 0, use the multiprocessing library to read data in parallel
         with the maximum number of available processors. If set to an int, use that many
         processes.
 
     **kwargs
-        keyword arguments that are passed through to _caching_collect()
+        keyword arguments that are passed through to collect()
 
     Examples
     --------
@@ -1352,18 +1366,18 @@ class BoutOutputs(object):
                 npes, path=backupdir, nxpe=nxpe, output=self._path, mxg=mxg, myg=myg
             )
 
-    def _collect(self, *args, **kwargs):
+    def _collect(self, varname):
         """Wrapper for collect to pass self._DataFileCache if necessary.
 
         """
         if self._parallel:
-            return self._collect_parallel(*args, **kwargs)
+            return self._collect_parallel(varname)
 
         if self._DataFileCaching and self._DataFileCache is None:
             # Need to create the cache
             self._DataFileCache = create_cache(self._path, self._prefix)
         return collect(
-            *args,
+            varname,
             datafile_cache=self._DataFileCache,
             path=self._path,
             prefix=self._prefix,
@@ -1374,10 +1388,20 @@ class BoutOutputs(object):
             xind=self.xind,
             yind=self.yind,
             zind=self.zind,
-            **kwargs,
+            **self._kwargs,
         )
 
-    def _collect_parallel(self, varname, strict=False, tind_auto=False):
+    def _collect_parallel(self, varname):
+        tind_auto = self._kwargs.get("tind_auto", False)
+        strict = self._kwargs.get("strict", False)
+        unsupported_kwargs = [k for k in self._kwargs if k not in ("tind_auto",
+            "strict")]
+        if unsupported_kwargs:
+            raise ValueError(
+                "kwargs " + str(unsupported_kwargs) + " are not supported when "
+                "parallel is not False"
+            )
+
         if tind_auto:
             raise ValueError("tind_auto not supported when parallel=True")
 
@@ -1539,7 +1563,7 @@ class BoutOutputs(object):
 
         if self._caching:
             if name not in self._datacache.keys():
-                item = self._collect(name, **self._kwargs)
+                item = self._collect(name)
                 if self._caching is not True:
                     itemsize = item.nbytes
                     if itemsize > self._datacachemaxsize:
@@ -1555,10 +1579,7 @@ class BoutOutputs(object):
                 return self._datacache[name]
         else:
             # Collect the data from the repository
-            data = self._collect(
-                name,
-                **self._kwargs,
-            )
+            data = self._collect(name)
             return data
 
     def _removeFirstFromCache(self):
