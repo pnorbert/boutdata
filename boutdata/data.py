@@ -17,7 +17,7 @@ from boutdata.collect import (
     collect,
     create_cache,
     findVar,
-    _convert_to_nice_slice,
+    _get_grid_info,
     _collect_from_one_proc,
 )
 from boututils.boutarray import BoutArray
@@ -1018,108 +1018,57 @@ class BoutOutputs(object):
         if len(self._file_list) == 0:
             raise ValueError("ERROR: No data files found")
 
-        # Available variables
-        self.varNames = []
-        self.attributes = {}
-        self.dimensions = {}
-        self.evolvingVariableNames = []
-
         with DataFile(latest_file) as f:
-            self.nt = len(f.read("t_array"))
-            mz = int(f.read("MZ"))
-            self.mxg = int(f.read("MXG"))
-            self.myg = int(f.read("MYG"))
-            self.is_doublenull = f.read("jyseps2_1") != f.read("jyseps1_2")
-            self.ny_inner = int(f.read("ny_inner"))
-            self.nxpe = int(f.read("NXPE"))
-            self.nype = int(f.read("NYPE"))
-            self.npes = self.nxpe * self.nype
-            self.mxsub = int(f.read("MXSUB"))
-            self.mysub = int(f.read("MYSUB"))
-
-            # Get the version of BOUT++ (should be > 0.6 for NetCDF anyway)
-            try:
-                version = f["BOUT_VERSION"]
-            except KeyError:
-                print("BOUT++ version : Pre-0.2")
-                version = 0
-            if version < 3.5:
-                # Remove extra point
-                self.nz = mz - 1
-            else:
-                self.nz = mz
-
-            if self._xguards:
-                self.nx = self.nxpe * self.mxsub + 2 * self.mxg
-            else:
-                self.nx = self.nxpe * self.mxsub
-
-            if self._yguards:
-                self.ny = self.mysub * self.nype + 2 * self.myg
-                if self._yguards == "include_upper" and self.is_doublenull:
-                    # Simulation has a second (upper) target, with a second set of y-boundary
-                    # points
-                    self.ny = self.ny + 2 * self.myg
-                    self.yproc_upper_target = self.ny_inner // self.mysub - 1
-                    if self.ny_inner % self.mysub != 0:
-                        raise ValueError(
-                            "Trying to keep upper boundary cells but mysub={} does not "
-                            "divide ny_inner={}".format(self.mysub, self.ny_inner)
-                        )
-                else:
-                    self.yproc_upper_target = None
-            else:
-                self.ny = self.mysub * self.nype
-                self.yproc_upper_target = None
-
-            self.xind = _convert_to_nice_slice(xind, self.nx, "xind")
-            self.yind = _convert_to_nice_slice(yind, self.ny, "yind")
-            self.zind = _convert_to_nice_slice(zind, self.nz, "zind")
-            self.tind = _convert_to_nice_slice(tind, self.nt, "tind")
-
-            xsize = self.xind.stop - self.xind.start
-            ysize = self.yind.stop - self.yind.start
-            zsize = int(
-                numpy.ceil(float(self.zind.stop - self.zind.start) / self.zind.step)
-            )
-            tsize = int(
-                numpy.ceil(float(self.tind.stop - self.tind.start) / self.tind.step)
+            self.grid_info, self.tind, self.xind, self.yind, self.zind = _get_grid_info(
+                f,
+                xguards=self._xguards,
+                yguards=self._yguards,
+                tind=tind,
+                xind=xind,
+                yind=yind,
+                zind=zind,
+                all_vars_info=True,
             )
 
-            # Map between dimension names and output size
-            self.sizes = {"x": xsize, "y": ysize, "z": zsize, "t": tsize}
-
-            if len(self._file_list) != self.npes:
-                alwayswarn("Too many data files, reading most recent ones")
-            if len(self._file_list) != self.npes and self.npes == 1:
-                # single output file
-                # do like this to catch, e.g. either 'BOUT.dmp.nc' or 'BOUT.dmp.0.nc'
-                self._file_list = [latest_file]
-            else:
-                # Re-create self._file_list so that it is sorted
-                self._file_list = [
-                    os.path.join(
-                        path, self._prefix + "." + str(i) + "." + self._suffix
-                    )
-                    for i in range(self.npes)
-                ]
-
-            # Get variable names
-            self.varNames = f.keys()
-            for name in f.keys():
-                self.attributes[name] = f.attributes(name)
-                dimensions = f.dimensions(name)
-                self.dimensions[name] = dimensions
-                if name != "t_array" and "t" in dimensions:
-                    self.evolvingVariableNames.append(name)
+        if len(self._file_list) != self.grid_info["npes"]:
+            alwayswarn("Too many data files, reading most recent ones")
+        if (
+            len(self._file_list) != self.grid_info["npes"]
+            and self.grid_info["npes"] == 1
+        ):
+            # single output file
+            # do like this to catch, e.g. either 'BOUT.dmp.nc' or 'BOUT.dmp.0.nc'
+            self._file_list = [latest_file]
+        else:
+            # Re-create self._file_list so that it is sorted
+            self._file_list = [
+                os.path.join(path, self._prefix + "." + str(i) + "." + self._suffix)
+                for i in range(self.grid_info["npes"])
+            ]
 
         if self._info:
-            print("mxsub = %d mysub = %d mz = %d\n" % (self.mxsub, self.mysub, self.nz))
-            print("nxpe = %d, nype = %d, npe = %d\n" % (self.nxpe, self.nype, self.npe))
-            if self.npe < len(self._file_list):
-                print("WARNING: More files than expected (" + str(npe) + ")")
-            elif self.npe > len(self._file_list):
-                print("WARNING: Some files missing. Expected " + str(npe))
+            print(
+                "mxsub = %d mysub = %d mz = %d\n"
+                % (
+                    self.grid_info["mxsub"],
+                    self.grid_info["mysub"],
+                    self.grid_info["nz"],
+                )
+            )
+            print(
+                "nxpe = %d, nype = %d, npes = %d\n"
+                % (
+                    self.grid_info["nxpe"],
+                    self.grid_info["nype"],
+                    self.grid_info["npes"],
+                )
+            )
+            if self.grid_info["npes"] < len(self._file_list):
+                print(
+                    "WARNING: More files than expected (" + str(grid_info["npes"]) + ")"
+                )
+            elif self.grid_info["npes"] > len(self._file_list):
+                print("WARNING: Some files missing. Expected " + str(grid_info["npes"]))
 
         # Private variables
         if self._caching:
@@ -1147,23 +1096,23 @@ class BoutOutputs(object):
                     self._parallel,
                 )
 
-            if self._parallel > self.npes:
+            if self._parallel > self.grid_info["npes"]:
                 # Using current self._parallel, some workers would have no work
-                self._parallel = self.npes
+                self._parallel = self.grid_info["npes"]
 
             # Open the 0'th file so we can read scalars without the worker processes
             self._root_file = DataFile(self._file_list[0])
 
             # Need to initialise all workers with a shared memory buffer to write to
-            dim_sizes = tuple(self.sizes[d] for d in ("t", "x", "y", "z"))
+            dim_sizes = tuple(self.grid_info["sizes"][d] for d in ("t", "x", "y", "z"))
             self._shared_buffer_raw = RawArray("d", int(numpy.prod(dim_sizes)))
             self._shared_buffer = numpy.reshape(
                 numpy.frombuffer(self._shared_buffer_raw), dim_sizes
             )
 
             # Work out which files to assign to which workers
-            min_files_per_proc = int(self.npes) // self._parallel
-            extra_files = int(self.npes) % self._parallel
+            min_files_per_proc = int(self.grid_info["npes"]) // self._parallel
+            extra_files = int(self.grid_info["npes"]) % self._parallel
             files_per_proc = [min_files_per_proc] * (self._parallel - extra_files) + [
                 min_files_per_proc + 1
             ] * extra_files
@@ -1195,16 +1144,12 @@ class BoutOutputs(object):
                 connection.close()
 
     def keys(self):
-        """Return a list of available variable names
-
-        """
-        return self.varNames
+        """Return a list of available variable names"""
+        return self.grid_info["varNames"]
 
     def evolvingVariables(self):
-        """Return a list of names of time-evolving variables
-
-        """
-        return self.evolvingVariableNames
+        """Return a list of names of time-evolving variables"""
+        return self.grid_info["evolvingVariableNames"]
 
     def redistribute(self, npes, nxpe=None, mxg=2, myg=2, include_restarts=True):
         """Create a new set of dump files for npes processors.
@@ -1430,8 +1375,8 @@ class BoutOutputs(object):
             else:
                 varname = findVar(varname, self.keys())
 
-        dimensions = self.dimensions[varname]
-        var_attributes = self.attributes[varname]
+        dimensions = self.grid_info["dimensions"][varname]
+        var_attributes = self.grid_info["attributes"][varname]
 
         if not ("x" in dimensions or "y" in dimensions or "z" in dimensions):
             # No spatial dependence - read without using workers to preserve type
@@ -1458,7 +1403,6 @@ class BoutOutputs(object):
 
         yindex_global = None
         fieldperp_yproc = None
-        var_attributes = self.attributes[varname]
 
         for worker, connection in self._workers:
             temp_yindex, temp_fieldperp_yproc, temp_var_attributes = connection.recv()
@@ -1514,7 +1458,7 @@ class BoutOutputs(object):
 
     def _worker_function(self, connection, proc_list, shared_buffer_raw):
         data_files = [DataFile(self._file_list[i]) for i in proc_list]
-        dim_sizes = tuple(self.sizes[d] for d in ("t", "x", "y", "z"))
+        dim_sizes = tuple(self.grid_info["sizes"][d] for d in ("t", "x", "y", "z"))
         shared_buffer = numpy.reshape(numpy.frombuffer(shared_buffer_raw), dim_sizes)
         while True:
             args = connection.recv()
@@ -1538,20 +1482,14 @@ class BoutOutputs(object):
                     varname,
                     result=shared_buffer,
                     is_fieldperp=is_fieldperp,
-                    dimensions=self.dimensions[varname],
+                    grid_info=self.grid_info,
+                    dimensions=self.grid_info["dimensions"][varname],
                     tind=self.tind,
                     xind=self.xind,
                     yind=self.yind,
                     zind=self.zind,
-                    nxpe=self.nxpe,
-                    nype=self.nype,
-                    mxsub=self.mxsub,
-                    mysub=self.mysub,
-                    mxg=self.mxg,
-                    myg=self.myg,
                     xguards=self._xguards,
                     yguards=self._yguards,
-                    yproc_upper_target=self.yproc_upper_target,
                     info=self._info,
                     parallel_read=True,
                 )
@@ -1565,7 +1503,7 @@ class BoutOutputs(object):
                                 "and {}".format(varname, temp_yindex, yindex_global)
                             )
                         yindex_global = temp_yindex
-                        pe_yind = i // self.nxpe
+                        pe_yind = i // self.grid_info["nxpe"]
                         if fieldperp_yproc is not None and fieldperp_yproc != pe_yind:
                             raise ValueError(
                                 "Found FieldPerp {} on different y-processor indices, "

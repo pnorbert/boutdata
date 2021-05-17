@@ -283,8 +283,11 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
 
     # Read data from the first file
     f = getDataFile(0)
+    grid_info, tind, xind, yind, zind = _get_grid_info(
+        f, xguards=xguards, yguards=yguards, tind=tind, xind=xind, yind=yind, zind=zind
+    )
 
-    if varname not in f.keys():
+    if varname not in grid_info["varNames"]:
         if strict:
             raise ValueError("Variable '{}' not found".format(varname))
         else:
@@ -307,100 +310,27 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
     if ndims > 4:
         raise ValueError("ERROR: Too many dimensions")
 
-    def load_and_check(varname):
-        var = f.read(varname)
-        if var is None:
-            raise ValueError("Missing " + varname + " variable")
-        return var
-
-    mxsub = load_and_check("MXSUB")
-    mysub = load_and_check("MYSUB")
-    mz = load_and_check("MZ")
-    mxg = load_and_check("MXG")
-    myg = load_and_check("MYG")
-    t_array = f.read("t_array")
-    if t_array is None:
-        nt = 1
-        t_array = np.zeros(1)
-    else:
-        try:
-            nt = len(t_array)
-        except TypeError:
-            # t_array is not an array here, which probably means it was a
-            # one-element array and has been read as a scalar.
-            nt = 1
-        if tind_auto:
-            for i in range(nfiles):
-                t_array_ = getDataFile(i).read("t_array")
-                nt = min(len(t_array_), nt)
+    if tind_auto:
+        nt = grid_info["nt"]
+        for i in range(1, nfiles):
+            t_array_ = getDataFile(i).read("t_array")
+            nt = min(len(t_array_), nt)
+        grid_info["nt"] = nt
 
     if info:
-        print("mxsub = %d mysub = %d mz = %d\n" % (mxsub, mysub, mz))
+        print(
+            "mxsub = %d mysub = %d mz = %d\n"
+            % (grid_info["mxsub"], grid_info["mysub"], grid_info["nz"])
+        )
 
-    # Get the version of BOUT++ (should be > 0.6 for NetCDF anyway)
-    try:
-        version = f["BOUT_VERSION"]
-    except KeyError:
-        print("BOUT++ version : Pre-0.2")
-        version = 0
-    if version < 3.5:
-        # Remove extra point
-        nz = mz-1
-    else:
-        nz = mz
-
-    # Fallback to sensible (?) defaults
-    try:
-        nxpe = f["NXPE"]
-    except KeyError:
-        nxpe = 1
-        print("NXPE not found, setting to {}".format(nxpe))
-    try:
-        nype = f["NYPE"]
-    except KeyError:
-        nype = nfiles
-        print("NYPE not found, setting to {}".format(nype))
-
-    npe = nxpe * nype
-    if info:
-        print("nxpe = %d, nype = %d, npe = %d\n" % (nxpe, nype, npe))
-        if npe < nfiles:
-            print("WARNING: More files than expected (" + str(npe) + ")")
-        elif npe > nfiles:
-            print("WARNING: Some files missing. Expected " + str(npe))
-
-    if xguards:
-        nx = nxpe * mxsub + 2*mxg
-    else:
-        nx = nxpe * mxsub
-
-    if yguards:
-        ny = mysub * nype + 2*myg
-        if yguards == "include_upper" and f["jyseps2_1"] != f["jyseps1_2"]:
-            # Simulation has a second (upper) target, with a second set of y-boundary
-            # points
-            ny = ny + 2*myg
-            ny_inner = f["ny_inner"]
-            yproc_upper_target = ny_inner // mysub - 1
-            if f["ny_inner"] % mysub != 0:
-                raise ValueError("Trying to keep upper boundary cells but "
-                                 "mysub={} does not divide ny_inner={}"
-                                 .format(mysub, ny_inner))
-        else:
-            yproc_upper_target = None
-    else:
-        ny = mysub * nype
-        yproc_upper_target = None
-
-    xind = _convert_to_nice_slice(xind, nx, "xind")
-    yind = _convert_to_nice_slice(yind, ny, "yind")
-    zind = _convert_to_nice_slice(zind, nz, "zind")
-    tind = _convert_to_nice_slice(tind, nt, "tind")
-
-    xsize = xind.stop - xind.start
-    ysize = yind.stop - yind.start
-    zsize = int(np.ceil(float(zind.stop - zind.start)/zind.step))
-    tsize = int(np.ceil(float(tind.stop - tind.start)/tind.step))
+        print(
+            "nxpe = %d, nype = %d, npes = %d\n"
+            % (grid_info["nxpe"], grid_info["nype"], grid_info["npes"])
+        )
+        if grid_info["npes"] < nfiles:
+            print("WARNING: More files than expected (" + str(grid_info["npes"]) + ")")
+        elif grid_info["npes"] > nfiles:
+            print("WARNING: Some files missing. Expected " + str(grid_info["npes"]))
 
     if not any(dim in dimensions for dim in ('x', 'y', 'z')):
         # Not a Field (i.e. no spatial dependence) so only read from the 0'th file
@@ -424,11 +354,8 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
         # close the DataFile if we are not keeping it in a cache
         f.close()
 
-    # Map between dimension names and output size
-    sizes = {'x': xsize, 'y': ysize, 'z': zsize, 't': tsize}
-
     # Create a list with size of each dimension
-    ddims = [sizes[d] for d in dimensions]
+    ddims = [grid_info["sizes"][d] for d in dimensions]
 
     # Create the data array
     data = np.zeros(ddims)
@@ -441,7 +368,7 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
     else:
         is_fieldperp = False
 
-    for i in range(npe):
+    for i in range(grid_info["npes"]):
         f = getDataFile(i)
         temp_yindex, temp_f_attributes = _collect_from_one_proc(
             i,
@@ -450,19 +377,13 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
             result=data,
             is_fieldperp=is_fieldperp,
             dimensions=dimensions,
+            grid_info=grid_info,
             tind=tind,
             xind=xind,
             yind=yind,
             zind=zind,
-            nxpe=nxpe,
-            nype=nype,
-            mxsub=mxsub,
-            mysub=mysub,
-            mxg=mxg,
-            myg=myg,
             xguards=xguards,
             yguards=(yguards is not False),
-            yproc_upper_target=yproc_upper_target,
             info=info,
         )
         if is_fieldperp:
@@ -475,7 +396,7 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
                         "and {}".format(varname, temp_yindex, yindex_global)
                     )
                 yindex_global = temp_yindex
-                pe_yind = i // nxpe
+                pe_yind = i // grid_info["nxpe"]
                 if fieldperp_yproc is not None and fieldperp_yproc != pe_yind:
                     raise ValueError(
                         "Found FieldPerp {} on different y-processor indices, "
@@ -507,13 +428,6 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
                 "Incorrect dimensions " + str(dimensions) + " applying steps in collect"
             )
 
-    # Force the precision of arrays of dimension>1
-    if ndims > 1:
-        try:
-            data = data.astype(t_array.dtype, copy=False)
-        except TypeError:
-            data = data.astype(t_array.dtype)
-
     # Finished looping over all files
     if info:
         sys.stdout.write("\n")
@@ -527,20 +441,14 @@ def _collect_from_one_proc(
     *,
     result,
     is_fieldperp,
+    grid_info,
     dimensions,
     tind,
     xind,
     yind,
     zind,
-    nxpe,
-    nype,
-    mxsub,
-    mysub,
-    mxg,
-    myg,
     xguards,
     yguards,
-    yproc_upper_target,
     info,
     parallel_read=False,
 ):
@@ -560,6 +468,8 @@ def _collect_from_one_proc(
         Array in which to put the data
     is_fieldperp : bool
         Is this variable a FieldPerp?
+    grid_info : dict
+        dict of grid parameters
     dimensions : tuple of str
         Dimensions of the variable
     tind : slice
@@ -570,24 +480,10 @@ def _collect_from_one_proc(
         Slice for y-dimension
     zind : slice
         Slice for z-dimension
-    nxpe : int
-        Number of processors in the x-direction
-    nype : int
-        Number of processors in the y-direction
-    mxsub : int
-        Number of grid cells in the x-direction on a single processor
-    mysub : int
-        Number of grid cells in the y-direction on a single processor
-    mxg : int
-        Number of guard cells in the x-direction
-    myg : int
-        Number of guard cells in the y-direction
     xguards : bool
         Include x-boundary cells at either side of the global grid?
     yguards : bool
         Include y-boundary cells at either end of the global grid?
-    yproc_upper_target : int or None
-        y-index of the processor which has an 'upper target' at its lower y-boundary.
 
     Returns
     -------
@@ -625,6 +521,14 @@ def _collect_from_one_proc(
             # No time or space dimensions, so no slicing
             result[...] = datafile.read(varname)
         return None, None
+
+    nxpe = grid_info["nxpe"]
+    nype = grid_info["nype"]
+    mxsub = grid_info["mxsub"]
+    mysub = grid_info["mysub"]
+    mxg = grid_info["mxg"]
+    myg = grid_info["myg"]
+    yproc_upper_target = grid_info["yproc_upper_target"]
 
     # Get X and Y processor indices
     pe_yind = i // nxpe
@@ -813,6 +717,135 @@ def _collect_from_one_proc(
         return temp_yindex, f_attributes
 
     return None, None
+
+
+def _get_grid_info(f, *, xguards, yguards, tind, xind, yind, zind, all_vars_info=False):
+    """Get the grid info from an open DataFile
+
+    Parameters
+    ----------
+    f : DataFile
+        File to read grid info from
+    xguards : bool
+        Keeping x boundaries?
+    yguards : bool or "include_upper"
+        Keeping y boundaries?
+    tind : int, sequence of int or slice
+        Slice for t-dimension
+    xind : int, sequence of int or slice
+        Slice for x-dimension
+    yind : int, sequence of int or slice
+        Slice for y-dimension
+    zind : int, sequence of int or slice
+        Slice for z-dimension
+    all_vars_info : bool, default False
+        Load extra info on names, dimensions and attributes of all variables.
+    """
+
+    def load_and_check(varname):
+        var = f.read(varname)
+        if var is None:
+            raise ValueError("Missing " + varname + " variable")
+        return var
+
+    mz = int(load_and_check("MZ"))
+
+    # Get the version of BOUT++ (should be > 0.6 for NetCDF anyway)
+    try:
+        version = f["BOUT_VERSION"]
+    except KeyError:
+        print("BOUT++ version : Pre-0.2")
+        version = 0
+
+    mxg = int(load_and_check("MXG"))
+    myg = int(load_and_check("MYG"))
+    mxsub = int(load_and_check("MXSUB"))
+    mysub = int(load_and_check("MYSUB"))
+    try:
+        nxpe = int(f["NXPE"])
+    except KeyError:
+        nxpe = 1
+        print("NXPE not found, setting to {}".format(nxpe))
+    try:
+        nype = int(f["NYPE"])
+    except KeyError:
+        nype = nfiles
+        print("NYPE not found, setting to {}".format(nype))
+    ny_inner = int(load_and_check("ny_inner"))
+    is_doublenull = load_and_check("jyseps2_1") != load_and_check("jyseps1_2")
+
+    nt = len(load_and_check("t_array"))
+    nx = nxpe * mxsub + 2 * mxg if xguards else nxpe * mxsub
+
+    if yguards:
+        ny = mysub * nype + 2 * myg
+        if yguards == "include_upper" and is_doublenull:
+            # Simulation has a second (upper) target, with a second set of y-boundary
+            # points
+            ny = ny + 2 * myg
+            yproc_upper_target = ny_inner // mysub - 1
+            if ny_inner % mysub != 0:
+                raise ValueError(
+                    "Trying to keep upper boundary cells but mysub={} does not "
+                    "divide ny_inner={}".format(mysub, ny_inner)
+                )
+        else:
+            yproc_upper_target = None
+    else:
+        ny = mysub * nype
+        yproc_upper_target = None
+
+    nz = mz - 1 if version < 3.5 else mz
+
+    tind = _convert_to_nice_slice(tind, nt, "tind")
+    xind = _convert_to_nice_slice(xind, nx, "xind")
+    yind = _convert_to_nice_slice(yind, ny, "yind")
+    zind = _convert_to_nice_slice(zind, nz, "zind")
+
+    xsize = xind.stop - xind.start
+    ysize = yind.stop - yind.start
+    zsize = int(np.ceil(float(zind.stop - zind.start) / zind.step))
+    tsize = int(np.ceil(float(tind.stop - tind.start) / tind.step))
+
+    # Map between dimension names and output size
+    sizes = {"x": xsize, "y": ysize, "z": zsize, "t": tsize}
+
+    varNames = f.keys()
+
+    result = {
+        "is_doublenull": is_doublenull,
+        "mxg": mxg,
+        "mxsub": mxsub,
+        "myg": myg,
+        "mysub": mysub,
+        "nt": nt,
+        "npes": nxpe * nype,
+        "nx": nx,
+        "nxpe": nxpe,
+        "ny": ny,
+        "ny_inner": ny_inner,
+        "nype": nype,
+        "nz": nz,
+        "sizes": sizes,
+        "varNames": varNames,
+        "yproc_upper_target": yproc_upper_target,
+    }
+
+    if all_vars_info:
+        attributes = {}
+        dimensions = {}
+        evolvingVariableNames = []
+        for name in varNames:
+            attributes[name] = f.attributes(name)
+            var_dimensions = f.dimensions(name)
+            dimensions[name] = var_dimensions
+            if name != "t_array" and "t" in var_dimensions:
+                evolvingVariableNames.append(name)
+        result["attributes"] = attributes
+        result["dimensions"] = dimensions
+        result["evolvingVariableNames"] = evolvingVariableNames
+
+    return result, tind, xind, yind, zind
 
 
 def attributes(varname, path=".", prefix="BOUT.dmp"):
