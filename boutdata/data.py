@@ -13,7 +13,13 @@ import re
 
 from multiprocessing import Process, Pipe, RawArray
 
-from boutdata.collect import collect, create_cache, findVar, _convert_to_nice_slice
+from boutdata.collect import (
+    collect,
+    create_cache,
+    findVar,
+    _convert_to_nice_slice,
+    _collect_from_one_proc,
+)
 from boututils.boutarray import BoutArray
 from boututils.boutwarnings import alwayswarn
 from boututils.datafile import DataFile
@@ -1064,6 +1070,7 @@ class BoutOutputs(object):
                     self.yproc_upper_target = None
             else:
                 self.ny = self.mysub * self.nype
+                self.yproc_upper_target = None
 
             self.xind = _convert_to_nice_slice(xind, self.nx, "xind")
             self.yind = _convert_to_nice_slice(yind, self.ny, "yind")
@@ -1505,262 +1512,6 @@ class BoutOutputs(object):
             self._shared_buffer[global_slices].copy(), attributes=var_attributes
         )
 
-    def _collect_from_one_proc(
-        self, i, datafile, varname, *, shared_result, is_fieldperp
-    ):
-        """Read part of a variable from one processor
-
-        For use in _collect_parallel()
-
-        Parameters
-        ----------
-        i : int
-            Processor number being read from
-        datafile : DataFile
-            File to read from
-        varname : str
-            Name of variable to read
-        shared_result : numpy.Array
-            Array in which to put the data
-        is_fieldperp : bool
-            Is this variable a FieldPerp?
-
-        Returns
-        -------
-        temp_yindex, var_attributes
-        """
-        dimensions = self.dimensions[varname]
-        ndims = len(dimensions)
-
-        # ndims is 0 for reals, and 1 for f.ex. t_array
-        if ndims == 0:
-            if i != 0:
-                # Only read scalars from file 0
-                return None, None
-
-            # Just read from file
-            shared_result[...] = datafile.read(varname)
-            return None, None
-
-        if ndims > 4:
-            raise ValueError("ERROR: Too many dimensions")
-
-        if not any(dim in dimensions for dim in ("x", "y", "z")):
-            if i != 0:
-                return None, None
-
-            # Not a Field (i.e. no spatial dependence) so only read from the 0'th file
-            if "t" in dimensions:
-                if not dimensions[0] == "t":
-                    # 't' should be the first dimension in the list if present
-                    raise ValueError(
-                        varname
-                        + " has a 't' dimension, but it is not the first dimension "
-                        "in dimensions=" + str(dimensions)
-                    )
-                shared_result[:] = datafile.read(
-                    varname, ranges=[self.tind] + (ndims - 1) * [None]
-                )
-            else:
-                # No time or space dimensions, so no slicing
-                shared_result[...] = datafile.read(varname)
-            return None, None
-
-        # Get X and Y processor indices
-        pe_yind = i // self.nxpe
-        pe_xind = i % self.nxpe
-
-        inrange = True
-
-        if self._yguards:
-            # Get local ranges
-            ystart = self.yind.start - pe_yind * self.mysub
-            ystop = self.yind.stop - pe_yind * self.mysub
-
-            # Check lower y boundary
-            if pe_yind == 0:
-                # Keeping inner boundary
-                if ystop <= 0:
-                    inrange = False
-                if ystart < 0:
-                    ystart = 0
-            else:
-                if ystop < self.myg - 1:
-                    inrange = False
-                if ystart < self.myg:
-                    ystart = self.myg
-            # and lower y boundary at upper target
-            if (
-                self.yproc_upper_target is not None
-                and pe_yind - 1 == self.yproc_upper_target
-            ):
-                ystart = ystart - self.myg
-
-            # Upper y boundary
-            if pe_yind == (self.nype - 1):
-                # Keeping outer boundary
-                if ystart >= (self.mysub + 2 * self.myg):
-                    inrange = False
-                if ystop > (self.mysub + 2 * self.myg):
-                    ystop = self.mysub + 2 * self.myg
-            else:
-                if ystart >= (self.mysub + self.myg):
-                    inrange = False
-                if ystop > (self.mysub + self.myg):
-                    ystop = self.mysub + self.myg
-            # upper y boundary at upper target
-            if (
-                self.yproc_upper_target is not None
-                and pe_yind == self.yproc_upper_target
-            ):
-                ystop = ystop + self.myg
-
-        else:
-            # Get local ranges
-            ystart = self.yind.start - pe_yind * self.mysub + self.myg
-            ystop = self.yind.stop - pe_yind * self.mysub + self.myg
-
-            if (ystart >= (self.mysub + self.myg)) or (ystop <= self.myg):
-                inrange = False  # Y out of range
-
-            if ystart < self.myg:
-                ystart = self.myg
-            if ystop > self.mysub + self.myg:
-                ystop = self.myg + self.mysub
-
-        if self._xguards:
-            # Get local ranges
-            xstart = self.xind.start - pe_xind * self.mxsub
-            xstop = self.xind.stop - pe_xind * self.mxsub
-
-            # Check lower x boundary
-            if pe_xind == 0:
-                # Keeping inner boundary
-                if xstop <= 0:
-                    inrange = False
-                if xstart < 0:
-                    xstart = 0
-            else:
-                if xstop <= self.mxg:
-                    inrange = False
-                if xstart < self.mxg:
-                    xstart = self.mxg
-
-            # Upper x boundary
-            if pe_xind == (self.nxpe - 1):
-                # Keeping outer boundary
-                if xstart >= (self.mxsub + 2 * self.mxg):
-                    inrange = False
-                if xstop > (self.mxsub + 2 * self.mxg):
-                    xstop = self.mxsub + 2 * self.mxg
-            else:
-                if xstart >= (self.mxsub + self.mxg):
-                    inrange = False
-                if xstop > (self.mxsub + self.mxg):
-                    xstop = self.mxsub + self.mxg
-
-        else:
-            # Get local ranges
-            xstart = self.xind.start - pe_xind * self.mxsub + self.mxg
-            xstop = self.xind.stop - pe_xind * self.mxsub + self.mxg
-
-            if (xstart >= (self.mxsub + self.mxg)) or (xstop <= self.mxg):
-                inrange = False  # X out of range
-
-            if xstart < self.mxg:
-                xstart = self.mxg
-            if xstop > self.mxsub + self.mxg:
-                xstop = self.mxg + self.mxsub
-
-        if not inrange:
-            return None, None  # Don't need this file
-
-        local_slices = []
-        if "t" in dimensions:
-            local_slices.append(self.tind)
-        if "x" in dimensions:
-            local_slices.append(slice(xstart, xstop))
-        if "y" in dimensions:
-            local_slices.append(slice(ystart, ystop))
-        if "z" in dimensions:
-            local_slices.append(self.zind)
-        local_slices = tuple(local_slices)
-
-        if self._xguards:
-            xgstart = xstart + pe_xind * self.mxsub - self.xind.start
-            xgstop = xstop + pe_xind * self.mxsub - self.xind.start
-        else:
-            xgstart = xstart + pe_xind * self.mxsub - self.mxg - self.xind.start
-            xgstop = xstop + pe_xind * self.mxsub - self.mxg - self.xind.start
-        if self._yguards:
-            ygstart = ystart + pe_yind * self.mysub - self.yind.start
-            ygstop = ystop + pe_yind * self.mysub - self.yind.start
-            if (
-                self.yproc_upper_target is not None
-                and pe_yind > self.yproc_upper_target
-            ):
-                ygstart = ygstart + 2 * self.myg
-                ygstop = ygstop + 2 * self.myg
-        else:
-            ygstart = ystart + pe_yind * self.mysub - self.myg - self.yind.start
-            ygstop = ystop + pe_yind * self.mysub - self.myg - self.yind.start
-
-        global_slices = []
-        if "t" in dimensions:
-            global_slices.append(slice(None))
-        else:
-            global_slices.append(0)
-        if "x" in dimensions:
-            global_slices.append(slice(xgstart, xgstop))
-        else:
-            global_slices.append(0)
-        if "y" in dimensions:
-            global_slices.append(slice(ygstart, ygstop))
-        else:
-            global_slices.append(0)
-        if "z" in dimensions:
-            global_slices.append(slice(None))
-        else:
-            global_slices.append(0)
-        global_slices = tuple(global_slices)
-
-        if self._info:
-            sys.stdout.write(
-                "\rReading from "
-                + i
-                + ": ["
-                + str(xstart)
-                + "-"
-                + str(xstop - 1)
-                + "]["
-                + str(ystart)
-                + "-"
-                + str(ystop - 1)
-                + "] -> ["
-                + str(xgstart)
-                + "-"
-                + str(xgstop - 1)
-                + "]["
-                + str(ygstart)
-                + "-"
-                + str(ygstop - 1)
-                + "]\n"
-            )
-
-        if is_fieldperp:
-            f_attributes = datafile.attributes(varname)
-            temp_yindex = f_attributes["yindex_global"]
-            if temp_yindex < 0:
-                # No data for FieldPerp on this processor
-                return None, None
-
-        shared_result[global_slices] = datafile.read(varname, ranges=local_slices)
-
-        if is_fieldperp:
-            return temp_yindex, f_attributes
-
-        return None, None
-
     def _worker_function(self, connection, proc_list, shared_buffer_raw):
         data_files = [DataFile(self._file_list[i]) for i in proc_list]
         dim_sizes = tuple(self.sizes[d] for d in ("t", "x", "y", "z"))
@@ -1781,12 +1532,28 @@ class BoutOutputs(object):
             var_attributes = None
 
             for i, f in zip(proc_list, data_files):
-                temp_yindex, temp_var_attributes = self._collect_from_one_proc(
+                temp_yindex, temp_var_attributes = _collect_from_one_proc(
                     i,
                     f,
                     varname,
-                    shared_result=shared_buffer,
+                    result=shared_buffer,
                     is_fieldperp=is_fieldperp,
+                    dimensions=self.dimensions[varname],
+                    tind=self.tind,
+                    xind=self.xind,
+                    yind=self.yind,
+                    zind=self.zind,
+                    nxpe=self.nxpe,
+                    nype=self.nype,
+                    mxsub=self.mxsub,
+                    mysub=self.mysub,
+                    mxg=self.mxg,
+                    myg=self.myg,
+                    xguards=self._xguards,
+                    yguards=self._yguards,
+                    yproc_upper_target=self.yproc_upper_target,
+                    info=self._info,
+                    parallel_read=True,
                 )
                 if is_fieldperp:
                     if temp_yindex is not None:

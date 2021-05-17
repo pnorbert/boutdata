@@ -390,6 +390,7 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
             yproc_upper_target = None
     else:
         ny = mysub * nype
+        yproc_upper_target = None
 
     xind = _convert_to_nice_slice(xind, nx, "xind")
     yind = _convert_to_nice_slice(yind, ny, "yind")
@@ -433,233 +434,55 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
     data = np.zeros(ddims)
 
     if dimensions == ('t', 'x', 'z') or dimensions == ('x', 'z'):
+        is_fieldperp = True
         yindex_global = None
         # The pe_yind that this FieldPerp is going to be read from
         fieldperp_yproc = None
+    else:
+        is_fieldperp = False
 
     for i in range(npe):
-        # Get X and Y processor indices
-        pe_yind = int(i/nxpe)
-        pe_xind = i % nxpe
-
-        inrange = True
-
-        if yguards:
-            # Get local ranges
-            ystart = yind.start - pe_yind*mysub
-            ystop = yind.stop - pe_yind*mysub
-
-            # Check lower y boundary
-            if pe_yind == 0:
-                # Keeping inner boundary
-                if ystop <= 0:
-                    inrange = False
-                if ystart < 0:
-                    ystart = 0
-            else:
-                if ystop < myg-1:
-                    inrange = False
-                if ystart < myg:
-                    ystart = myg
-            # and lower y boundary at upper target
-            if yproc_upper_target is not None and pe_yind - 1 == yproc_upper_target:
-                ystart = ystart - myg
-
-            # Upper y boundary
-            if pe_yind == (nype - 1):
-                # Keeping outer boundary
-                if ystart >= (mysub + 2*myg):
-                    inrange = False
-                if ystop > (mysub + 2*myg):
-                    ystop = (mysub + 2*myg)
-            else:
-                if ystart >= (mysub + myg):
-                    inrange = False
-                if ystop > (mysub + myg):
-                    ystop = (mysub + myg)
-            # upper y boundary at upper target
-            if yproc_upper_target is not None and pe_yind == yproc_upper_target:
-                ystop = ystop + myg
-
-            # Calculate global indices
-            ygstart = ystart + pe_yind * mysub
-            ygstop = ystop + pe_yind * mysub
-
-            if yproc_upper_target is not None and pe_yind > yproc_upper_target:
-                ygstart = ygstart + 2*myg
-                ygstop = ygstop + 2*myg
-
-        else:
-            # Get local ranges
-            ystart = yind.start - pe_yind*mysub + myg
-            ystop = yind.stop - pe_yind*mysub + myg
-
-            if (ystart >= (mysub + myg)) or (ystop <= myg):
-                inrange = False  # Y out of range
-
-            if ystart < myg:
-                ystart = myg
-            if ystop > mysub + myg:
-                ystop = myg + mysub
-
-            # Calculate global indices
-            ygstart = ystart + pe_yind * mysub - myg
-            ygstop = ystop + pe_yind * mysub - myg
-
-        if xguards:
-            # Get local ranges
-            xstart = xind.start - pe_xind*mxsub
-            xstop = xind.stop - pe_xind*mxsub
-
-            # Check lower x boundary
-            if pe_xind == 0:
-                # Keeping inner boundary
-                if xstop <= 0:
-                    inrange = False
-                if xstart < 0:
-                    xstart = 0
-            else:
-                if xstop <= mxg:
-                    inrange = False
-                if xstart < mxg:
-                    xstart = mxg
-
-            # Upper x boundary
-            if pe_xind == (nxpe - 1):
-                # Keeping outer boundary
-                if xstart >= (mxsub + 2*mxg):
-                    inrange = False
-                if xstop > (mxsub + 2*mxg):
-                    xstop = (mxsub + 2*mxg)
-            else:
-                if xstart >= (mxsub + mxg):
-                    inrange = False
-                if xstop > (mxsub + mxg):
-                    xstop = (mxsub+mxg)
-
-            # Calculate global indices
-            xgstart = xstart + pe_xind * mxsub
-            xgstop = xstop + pe_xind * mxsub
-
-        else:
-            # Get local ranges
-            xstart = xind.start - pe_xind*mxsub + mxg
-            xstop = xind.stop - pe_xind*mxsub + mxg
-
-            if (xstart >= (mxsub + mxg)) or (xstop <= mxg):
-                inrange = False  # X out of range
-
-            if xstart < mxg:
-                xstart = mxg
-            if xstop > mxsub + mxg:
-                xstop = mxg + mxsub
-
-            # Calculate global indices
-            xgstart = xstart + pe_xind * mxsub - mxg
-            xgstop = xstop + pe_xind * mxsub - mxg
-
-        # Number of local values
-        nx_loc = xstop - xstart
-        ny_loc = ystop - ystart
-
-        if not inrange:
-            continue  # Don't need this file
-
-        if info:
-            sys.stdout.write("\rReading from " + file_list[i] + ": [" +
-                             str(xstart) + "-" + str(xstop-1) + "][" +
-                             str(ystart) + "-" + str(ystop-1) + "] -> [" +
-                             str(xgstart) + "-" + str(xgstop-1) + "][" +
-                             str(ygstart) + "-" + str(ygstop-1) + "]")
-
         f = getDataFile(i)
-
-        if dimensions == ('t', 'x', 'y', 'z'):
-            d = f.read(varname, ranges=[tind,
-                                        slice(xstart, xstop),
-                                        slice(ystart, ystop),
-                                        zind])
-            data[:, (xgstart-xind.start):(xgstart-xind.start+nx_loc),
-                 (ygstart-yind.start):(ygstart-yind.start+ny_loc), :] = d
-        elif dimensions == ('x', 'y', 'z'):
-            d = f.read(varname, ranges=[slice(xstart, xstop),
-                                        slice(ystart, ystop),
-                                        zind])
-            data[(xgstart-xind.start):(xgstart-xind.start+nx_loc),
-                 (ygstart-yind.start):(ygstart-yind.start+ny_loc), :] = d
-        elif dimensions == ('t', 'x', 'y'):
-            d = f.read(varname, ranges=[tind,
-                                        slice(xstart, xstop),
-                                        slice(ystart, ystop)])
-            data[:, (xgstart-xind.start):(xgstart-xind.start+nx_loc),
-                 (ygstart-yind.start):(ygstart-yind.start+ny_loc)] = d
-        elif dimensions == ('t', 'x', 'z'):
-            # FieldPerp should only be defined on processors which contain its yindex_global
-            f_attributes = f.attributes(varname)
-            temp_yindex = f_attributes["yindex_global"]
-
-            if temp_yindex >= 0:
-                if yindex_global is None:
-                    yindex_global = temp_yindex
-
-                    # we have found a file with containing the FieldPerp, get the attributes from here
-                    var_attributes = f_attributes
-                if temp_yindex != yindex_global:
+        temp_yindex, temp_f_attributes = _collect_from_one_proc(
+            i,
+            f,
+            varname,
+            result=data,
+            is_fieldperp=is_fieldperp,
+            dimensions=dimensions,
+            tind=tind,
+            xind=xind,
+            yind=yind,
+            zind=zind,
+            nxpe=nxpe,
+            nype=nype,
+            mxsub=mxsub,
+            mysub=mysub,
+            mxg=mxg,
+            myg=myg,
+            xguards=xguards,
+            yguards=(yguards is not False),
+            yproc_upper_target=yproc_upper_target,
+            info=info,
+        )
+        if is_fieldperp:
+            if temp_yindex is not None:
+                # Found actual data for a FieldPerp, so update FieldPerp properties
+                # and check they are unique
+                if yindex_global is not None and yindex_global != temp_yindex:
                     raise ValueError(
-                        "Found FieldPerp {} at different global y-indices, {} and {}"
-                        .format(varname, temp_yindex, yindex_global)
+                        "Found FieldPerp {} at different global y-indices, {} "
+                        "and {}".format(varname, temp_yindex, yindex_global)
                     )
-
-            if temp_yindex >= 0:
-                # Check we only read from one pe_yind
-                if not (fieldperp_yproc is None or fieldperp_yproc == pe_yind):
+                yindex_global = temp_yindex
+                pe_yind = i // nxpe
+                if fieldperp_yproc is not None and fieldperp_yproc != pe_yind:
                     raise ValueError(
-                        "Found FieldPerp {} on different y-processor indices, {} and {}"
-                        .format(varname, fieldperp_yproc, pe_yind)
+                        "Found FieldPerp {} on different y-processor indices, "
+                        "{} and {}".format(varname, fieldperp_yproc, pe_yind)
                     )
-
                 fieldperp_yproc = pe_yind
-
-                d = f.read(varname, ranges=[tind,
-                                            slice(xstart, xstop),
-                                            zind])
-                data[:, (xgstart-xind.start):(xgstart-xind.start+nx_loc), :] = d
-        elif dimensions == ('x', 'y'):
-            d = f.read(varname, ranges=[slice(xstart, xstop),
-                                        slice(ystart, ystop)])
-            data[(xgstart-xind.start):(xgstart-xind.start+nx_loc),
-                 (ygstart-yind.start):(ygstart-yind.start+ny_loc)] = d
-        elif dimensions == ('x', 'z'):
-            # FieldPerp should only be defined on processors which contain its yindex_global
-            f_attributes = f.attributes(varname)
-            temp_yindex = f_attributes["yindex_global"]
-
-            if temp_yindex >= 0:
-                if yindex_global is None:
-                    yindex_global = temp_yindex
-
-                    # we have found a file with containing the FieldPerp, get the attributes from here
-                    var_attributes = f_attributes
-                if temp_yindex != yindex_global:
-                    raise ValueError(
-                        "Found FieldPerp {} at different global y-indices, {} and {}"
-                        .format(varname, temp_yindex, yindex_global)
-                    )
-
-            if temp_yindex >= 0:
-                # Check we only read from one pe_yind
-                if not (fieldperp_yproc is None or fieldperp_yproc == pe_yind):
-                    raise ValueError(
-                        "Found FieldPerp {} on different y-processor indices, {} and {}"
-                        .format(varname, fieldperp_yproc, pe_yind)
-                    )
-
-                fieldperp_yproc = pe_yind
-
-                d = f.read(varname, ranges=[slice(xstart, xstop), zind])
-                data[(xgstart-xind.start):(xgstart-xind.start+nx_loc), :] = d
-        else:
-            raise ValueError('Incorrect dimensions '+str(dimensions)+' in collect')
+                var_attributes = temp_f_attributes
 
         if datafile_cache is None:
             # close the DataFile if we are not keeping it in a cache
@@ -667,20 +490,22 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
 
     # if a step was requested in x or y, need to apply it here
     if xind.step is not None or yind.step is not None:
-        if dimensions == ('t', 'x', 'y', 'z'):
-            data = data[:, ::xind.step, ::yind.step]
-        elif dimensions == ('x', 'y', 'z'):
-            data = data[::xind.step, ::yind.step, :]
-        elif dimensions == ('t', 'x', 'y'):
-            data = data[:, ::xind.step, ::yind.step]
-        elif dimensions == ('t', 'x', 'z'):
-            data = data[:, ::xind.step, :]
-        elif dimensions == ('x', 'y'):
-            data = data[::xind.step, ::yind.step]
-        elif dimensions == ('x', 'z'):
-            data = data[::xind.step, :]
+        if dimensions == ("t", "x", "y", "z"):
+            data = data[:, :: xind.step, :: yind.step]
+        elif dimensions == ("x", "y", "z"):
+            data = data[:: xind.step, :: yind.step, :]
+        elif dimensions == ("t", "x", "y"):
+            data = data[:, :: xind.step, :: yind.step]
+        elif dimensions == ("t", "x", "z"):
+            data = data[:, :: xind.step, :]
+        elif dimensions == ("x", "y"):
+            data = data[:: xind.step, :: yind.step]
+        elif dimensions == ("x", "z"):
+            data = data[:: xind.step, :]
         else:
-            raise ValueError('Incorrect dimensions '+str(dimensions)+' applying steps in collect')
+            raise ValueError(
+                "Incorrect dimensions " + str(dimensions) + " applying steps in collect"
+            )
 
     # Force the precision of arrays of dimension>1
     if ndims > 1:
@@ -693,6 +518,301 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
     if info:
         sys.stdout.write("\n")
     return BoutArray(data, attributes=var_attributes)
+
+
+def _collect_from_one_proc(
+    i,
+    datafile,
+    varname,
+    *,
+    result,
+    is_fieldperp,
+    dimensions,
+    tind,
+    xind,
+    yind,
+    zind,
+    nxpe,
+    nype,
+    mxsub,
+    mysub,
+    mxg,
+    myg,
+    xguards,
+    yguards,
+    yproc_upper_target,
+    info,
+    parallel_read=False,
+):
+    """Read part of a variable from one processor
+
+    For use in _collect_parallel()
+
+    Parameters
+    ----------
+    i : int
+        Processor number being read from
+    datafile : DataFile
+        File to read from
+    varname : str
+        Name of variable to read
+    result : numpy.Array
+        Array in which to put the data
+    is_fieldperp : bool
+        Is this variable a FieldPerp?
+    dimensions : tuple of str
+        Dimensions of the variable
+    tind : slice
+        Slice for t-dimension
+    xind : slice
+        Slice for x-dimension
+    yind : slice
+        Slice for y-dimension
+    zind : slice
+        Slice for z-dimension
+    nxpe : int
+        Number of processors in the x-direction
+    nype : int
+        Number of processors in the y-direction
+    mxsub : int
+        Number of grid cells in the x-direction on a single processor
+    mysub : int
+        Number of grid cells in the y-direction on a single processor
+    mxg : int
+        Number of guard cells in the x-direction
+    myg : int
+        Number of guard cells in the y-direction
+    xguards : bool
+        Include x-boundary cells at either side of the global grid?
+    yguards : bool
+        Include y-boundary cells at either end of the global grid?
+    yproc_upper_target : int or None
+        y-index of the processor which has an 'upper target' at its lower y-boundary.
+
+    Returns
+    -------
+    temp_yindex, var_attributes
+    """
+    ndims = len(dimensions)
+
+    # ndims is 0 for reals, and 1 for f.ex. t_array
+    if ndims == 0:
+        if i != 0:
+            # Only read scalars from file 0
+            return None, None
+
+        # Just read from file
+        result[...] = datafile.read(varname)
+        return None, None
+
+    if ndims > 4:
+        raise ValueError("ERROR: Too many dimensions")
+
+    if not any(dim in dimensions for dim in ("x", "y", "z")):
+        if i != 0:
+            return None, None
+
+        # Not a Field (i.e. no spatial dependence) so only read from the 0'th file
+        if "t" in dimensions:
+            if not dimensions[0] == "t":
+                # 't' should be the first dimension in the list if present
+                raise ValueError(
+                    varname + " has a 't' dimension, but it is not the first dimension "
+                    "in dimensions=" + str(dimensions)
+                )
+            result[:] = datafile.read(varname, ranges=[tind] + (ndims - 1) * [None])
+        else:
+            # No time or space dimensions, so no slicing
+            result[...] = datafile.read(varname)
+        return None, None
+
+    # Get X and Y processor indices
+    pe_yind = i // nxpe
+    pe_xind = i % nxpe
+
+    inrange = True
+
+    if yguards:
+        # Get local ranges
+        ystart = yind.start - pe_yind * mysub
+        ystop = yind.stop - pe_yind * mysub
+
+        # Check lower y boundary
+        if pe_yind == 0:
+            # Keeping inner boundary
+            if ystop <= 0:
+                inrange = False
+            if ystart < 0:
+                ystart = 0
+        else:
+            if ystop < myg - 1:
+                inrange = False
+            if ystart < myg:
+                ystart = myg
+        # and lower y boundary at upper target
+        if yproc_upper_target is not None and pe_yind - 1 == yproc_upper_target:
+            ystart = ystart - myg
+
+        # Upper y boundary
+        if pe_yind == (nype - 1):
+            # Keeping outer boundary
+            if ystart >= (mysub + 2 * myg):
+                inrange = False
+            if ystop > (mysub + 2 * myg):
+                ystop = mysub + 2 * myg
+        else:
+            if ystart >= (mysub + myg):
+                inrange = False
+            if ystop > (mysub + myg):
+                ystop = mysub + myg
+        # upper y boundary at upper target
+        if yproc_upper_target is not None and pe_yind == yproc_upper_target:
+            ystop = ystop + myg
+
+    else:
+        # Get local ranges
+        ystart = yind.start - pe_yind * mysub + myg
+        ystop = yind.stop - pe_yind * mysub + myg
+
+        if (ystart >= (mysub + myg)) or (ystop <= myg):
+            inrange = False  # Y out of range
+
+        if ystart < myg:
+            ystart = myg
+        if ystop > mysub + myg:
+            ystop = myg + mysub
+
+    if xguards:
+        # Get local ranges
+        xstart = xind.start - pe_xind * mxsub
+        xstop = xind.stop - pe_xind * mxsub
+
+        # Check lower x boundary
+        if pe_xind == 0:
+            # Keeping inner boundary
+            if xstop <= 0:
+                inrange = False
+            if xstart < 0:
+                xstart = 0
+        else:
+            if xstop <= mxg:
+                inrange = False
+            if xstart < mxg:
+                xstart = mxg
+
+        # Upper x boundary
+        if pe_xind == (nxpe - 1):
+            # Keeping outer boundary
+            if xstart >= (mxsub + 2 * mxg):
+                inrange = False
+            if xstop > (mxsub + 2 * mxg):
+                xstop = mxsub + 2 * mxg
+        else:
+            if xstart >= (mxsub + mxg):
+                inrange = False
+            if xstop > (mxsub + mxg):
+                xstop = mxsub + mxg
+
+    else:
+        # Get local ranges
+        xstart = xind.start - pe_xind * mxsub + mxg
+        xstop = xind.stop - pe_xind * mxsub + mxg
+
+        if (xstart >= (mxsub + mxg)) or (xstop <= mxg):
+            inrange = False  # X out of range
+
+        if xstart < mxg:
+            xstart = mxg
+        if xstop > mxsub + mxg:
+            xstop = mxg + mxsub
+
+    if not inrange:
+        return None, None  # Don't need this file
+
+    local_slices = []
+    if "t" in dimensions:
+        local_slices.append(tind)
+    if "x" in dimensions:
+        local_slices.append(slice(xstart, xstop))
+    if "y" in dimensions:
+        local_slices.append(slice(ystart, ystop))
+    if "z" in dimensions:
+        local_slices.append(zind)
+    local_slices = tuple(local_slices)
+
+    if xguards:
+        xgstart = xstart + pe_xind * mxsub - xind.start
+        xgstop = xstop + pe_xind * mxsub - xind.start
+    else:
+        xgstart = xstart + pe_xind * mxsub - mxg - xind.start
+        xgstop = xstop + pe_xind * mxsub - mxg - xind.start
+    if yguards:
+        ygstart = ystart + pe_yind * mysub - yind.start
+        ygstop = ystop + pe_yind * mysub - yind.start
+        if yproc_upper_target is not None and pe_yind > yproc_upper_target:
+            ygstart = ygstart + 2 * myg
+            ygstop = ygstop + 2 * myg
+    else:
+        ygstart = ystart + pe_yind * mysub - myg - yind.start
+        ygstop = ystop + pe_yind * mysub - myg - yind.start
+
+    # When reading in parallel, we are always reading into a 4-dimensional shared array.
+    # Otherwise, reading into an array with the same dimensions as the variable.
+    global_slices = []
+    if "t" in dimensions:
+        global_slices.append(slice(None))
+    elif parallel_read:
+        global_slices.append(0)
+    if "x" in dimensions:
+        global_slices.append(slice(xgstart, xgstop))
+    elif parallel_read:
+        global_slices.append(0)
+    if "y" in dimensions:
+        global_slices.append(slice(ygstart, ygstop))
+    elif parallel_read:
+        global_slices.append(0)
+    if "z" in dimensions:
+        global_slices.append(slice(None))
+    elif parallel_read:
+        global_slices.append(0)
+    global_slices = tuple(global_slices)
+
+    if info:
+        sys.stdout.write(
+            "\rReading from "
+            + str(i)
+            + ": ["
+            + str(xstart)
+            + "-"
+            + str(xstop - 1)
+            + "]["
+            + str(ystart)
+            + "-"
+            + str(ystop - 1)
+            + "] -> ["
+            + str(xgstart)
+            + "-"
+            + str(xgstop - 1)
+            + "]["
+            + str(ygstart)
+            + "-"
+            + str(ygstop - 1)
+            + "]\n"
+        )
+
+    if is_fieldperp:
+        f_attributes = datafile.attributes(varname)
+        temp_yindex = f_attributes["yindex_global"]
+        if temp_yindex < 0:
+            # No data for FieldPerp on this processor
+            return None, None
+
+    result[global_slices] = datafile.read(varname, ranges=local_slices)
+
+    if is_fieldperp:
+        return temp_yindex, f_attributes
+
+    return None, None
 
 
 def attributes(varname, path=".", prefix="BOUT.dmp"):
