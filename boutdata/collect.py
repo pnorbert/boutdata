@@ -189,95 +189,21 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
             return DataFile(file_list[i])
 
     if parallel:
-        if info:
-            print("Single (parallel) data file")
-
-        f = getDataFile(0)
-
-        if varname not in f.keys():
-            if strict:
-                raise ValueError("Variable '{}' not found".format(varname))
-            else:
-                varname = findVar(varname, f.list())
-
-        dimensions = f.dimensions(varname)
-
-        try:
-            mxg = f["MXG"]
-        except KeyError:
-            mxg = 0
-            print("MXG not found, setting to {}".format(mxg))
-        try:
-            myg = f["MYG"]
-        except KeyError:
-            myg = 0
-            print("MYG not found, setting to {}".format(myg))
-
-        if xguards:
-            nx = f["nx"]
-        else:
-            nx = f["nx"] - 2*mxg
-        if yguards:
-            ny = f["ny"] + 2*myg
-            if yguards == "include_upper" and f["jyseps2_1"] != f["jyseps1_2"]:
-                # Simulation has a second (upper) target, with a second set of y-boundary
-                # points
-                ny = ny + 2*myg
-        else:
-            ny = f["ny"]
-        nz = f["MZ"]
-        t_array = f.read("t_array")
-        if t_array is None:
-            nt = 1
-            t_array = np.zeros(1)
-        else:
-            try:
-                nt = len(t_array)
-            except TypeError:
-                # t_array is not an array here, which probably means it was a
-                # one-element array and has been read as a scalar.
-                nt = 1
-
-        xind = _convert_to_nice_slice(xind, nx, "xind")
-        yind = _convert_to_nice_slice(yind, ny, "yind")
-        zind = _convert_to_nice_slice(zind, nz, "zind")
-        tind = _convert_to_nice_slice(tind, nt, "tind")
-
-        if not xguards:
-            xind = slice(xind.start+mxg, xind.stop+mxg, xind.step)
-        if not yguards:
-            yind = slice(yind.start+myg, yind.stop+myg, yind.step)
-
-        if dimensions == ():
-            ranges = []
-        elif dimensions == ('t',):
-            ranges = [tind]
-        elif dimensions == ('x', 'y'):
-            # Field2D
-            ranges = [xind, yind]
-        elif dimensions == ('x', 'z'):
-            # FieldPerp
-            ranges = [xind, zind]
-        elif dimensions == ('t', 'x', 'y'):
-            # evolving Field2D
-            ranges = [tind, xind, yind]
-        elif dimensions == ('t', 'x', 'z'):
-            # evolving FieldPerp
-            ranges = [tind, xind, zind]
-        elif dimensions == ('x', 'y', 'z'):
-            # Field3D
-            ranges = [xind, yind, zind]
-        elif dimensions == ('t', 'x', 'y', 'z'):
-            # evolving Field3D
-            ranges = [tind, xind, yind, zind]
-        else:
-            # Not a Field, so do not support slicing.
-            # For example, may be a string.
-            ranges = None
-
-        data = f.read(varname, ranges)
-        var_attributes = f.attributes(varname)
-        return BoutArray(data, attributes=var_attributes)
+        return _collect_from_single_file(
+            getDataFile(0),
+            varname,
+            xind,
+            yind,
+            zind,
+            tind,
+            path,
+            yguards,
+            xguards,
+            info,
+            prefix,
+            strict,
+            datafile_cache,
+        )
 
     nfiles = len(file_list)
 
@@ -431,6 +357,123 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
     # Finished looping over all files
     if info:
         sys.stdout.write("\n")
+    return BoutArray(data, attributes=var_attributes)
+
+
+def _collect_from_single_file(
+    f,
+    varname,
+    xind,
+    yind,
+    zind,
+    tind,
+    path,
+    yguards,
+    xguards,
+    info,
+    prefix,
+    strict,
+    datafile_cache,
+):
+    """
+    Collect data from a single file
+
+    Single file may be created by parallel writing saving all BOUT++ output to a single
+    file, or by squashoutput() 'squashing' data from one file per processor into a
+    single file.
+
+    Parameters
+    ----------
+    f : DataFile
+        Single file to read data from
+    For description of remaining arguments, see docstring of collect().
+    """
+    if info:
+        print("Single (parallel) data file")
+
+    if varname not in f.keys():
+        if strict:
+            raise ValueError("Variable '{}' not found".format(varname))
+        else:
+            varname = findVar(varname, f.list())
+
+    dimensions = f.dimensions(varname)
+
+    try:
+        mxg = f["MXG"]
+    except KeyError:
+        mxg = 0
+        print("MXG not found, setting to {}".format(mxg))
+    try:
+        myg = f["MYG"]
+    except KeyError:
+        myg = 0
+        print("MYG not found, setting to {}".format(myg))
+
+    if xguards:
+        nx = f["nx"]
+    else:
+        nx = f["nx"] - 2 * mxg
+    if yguards:
+        ny = f["ny"] + 2 * myg
+        if yguards == "include_upper" and f["jyseps2_1"] != f["jyseps1_2"]:
+            # Simulation has a second (upper) target, with a second set of y-boundary
+            # points
+            ny = ny + 2 * myg
+    else:
+        ny = f["ny"]
+    nz = f["MZ"]
+    t_array = f.read("t_array")
+    if t_array is None:
+        nt = 1
+        t_array = np.zeros(1)
+    else:
+        try:
+            nt = len(t_array)
+        except TypeError:
+            # t_array is not an array here, which probably means it was a
+            # one-element array and has been read as a scalar.
+            nt = 1
+
+    xind = _convert_to_nice_slice(xind, nx, "xind")
+    yind = _convert_to_nice_slice(yind, ny, "yind")
+    zind = _convert_to_nice_slice(zind, nz, "zind")
+    tind = _convert_to_nice_slice(tind, nt, "tind")
+
+    if not xguards:
+        xind = slice(xind.start + mxg, xind.stop + mxg, xind.step)
+    if not yguards:
+        yind = slice(yind.start + myg, yind.stop + myg, yind.step)
+
+    if dimensions == ():
+        ranges = []
+    elif dimensions == ("t",):
+        ranges = [tind]
+    elif dimensions == ("x", "y"):
+        # Field2D
+        ranges = [xind, yind]
+    elif dimensions == ("x", "z"):
+        # FieldPerp
+        ranges = [xind, zind]
+    elif dimensions == ("t", "x", "y"):
+        # evolving Field2D
+        ranges = [tind, xind, yind]
+    elif dimensions == ("t", "x", "z"):
+        # evolving FieldPerp
+        ranges = [tind, xind, zind]
+    elif dimensions == ("x", "y", "z"):
+        # Field3D
+        ranges = [xind, yind, zind]
+    elif dimensions == ("t", "x", "y", "z"):
+        # evolving Field3D
+        ranges = [tind, xind, yind, zind]
+    else:
+        # Not a Field, so do not support slicing.
+        # For example, may be a string.
+        ranges = None
+
+    data = f.read(varname, ranges)
+    var_attributes = f.attributes(varname)
     return BoutArray(data, attributes=var_attributes)
 
 
