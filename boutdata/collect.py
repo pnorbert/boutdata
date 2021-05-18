@@ -536,99 +536,12 @@ def _collect_from_one_proc(
 
     inrange = True
 
-    if yguards:
-        # Get local ranges
-        ystart = yind.start - pe_yind * mysub
-        ystop = yind.stop - pe_yind * mysub
-
-        # Check lower y boundary
-        if pe_yind == 0:
-            # Keeping inner boundary
-            if ystop <= 0:
-                inrange = False
-            if ystart < 0:
-                ystart = 0
-        else:
-            if ystop < myg - 1:
-                inrange = False
-            if ystart < myg:
-                ystart = myg
-        # and lower y boundary at upper target
-        if yproc_upper_target is not None and pe_yind - 1 == yproc_upper_target:
-            ystart = ystart - myg
-
-        # Upper y boundary
-        if pe_yind == (nype - 1):
-            # Keeping outer boundary
-            if ystart >= (mysub + 2 * myg):
-                inrange = False
-            if ystop > (mysub + 2 * myg):
-                ystop = mysub + 2 * myg
-        else:
-            if ystart >= (mysub + myg):
-                inrange = False
-            if ystop > (mysub + myg):
-                ystop = mysub + myg
-        # upper y boundary at upper target
-        if yproc_upper_target is not None and pe_yind == yproc_upper_target:
-            ystop = ystop + myg
-
-    else:
-        # Get local ranges
-        ystart = yind.start - pe_yind * mysub + myg
-        ystop = yind.stop - pe_yind * mysub + myg
-
-        if (ystart >= (mysub + myg)) or (ystop <= myg):
-            inrange = False  # Y out of range
-
-        if ystart < myg:
-            ystart = myg
-        if ystop > mysub + myg:
-            ystop = myg + mysub
-
-    if xguards:
-        # Get local ranges
-        xstart = xind.start - pe_xind * mxsub
-        xstop = xind.stop - pe_xind * mxsub
-
-        # Check lower x boundary
-        if pe_xind == 0:
-            # Keeping inner boundary
-            if xstop <= 0:
-                inrange = False
-            if xstart < 0:
-                xstart = 0
-        else:
-            if xstop <= mxg:
-                inrange = False
-            if xstart < mxg:
-                xstart = mxg
-
-        # Upper x boundary
-        if pe_xind == (nxpe - 1):
-            # Keeping outer boundary
-            if xstart >= (mxsub + 2 * mxg):
-                inrange = False
-            if xstop > (mxsub + 2 * mxg):
-                xstop = mxsub + 2 * mxg
-        else:
-            if xstart >= (mxsub + mxg):
-                inrange = False
-            if xstop > (mxsub + mxg):
-                xstop = mxsub + mxg
-
-    else:
-        # Get local ranges
-        xstart = xind.start - pe_xind * mxsub + mxg
-        xstop = xind.stop - pe_xind * mxsub + mxg
-
-        if (xstart >= (mxsub + mxg)) or (xstop <= mxg):
-            inrange = False  # X out of range
-
-        if xstart < mxg:
-            xstart = mxg
-        if xstop > mxsub + mxg:
-            xstop = mxg + mxsub
+    xstart, xstop, xgstart, xgstop, inrange = _get_x_range(
+        xguards, xind, pe_xind, nxpe, mxsub, mxg, inrange
+    )
+    ystart, ystop, ygstart, ygstop, inrange = _get_y_range(
+        yguards, yind, pe_yind, nype, yproc_upper_target, mysub, myg, inrange
+    )
 
     if not inrange:
         return None, None  # Don't need this file
@@ -643,22 +556,6 @@ def _collect_from_one_proc(
     if "z" in dimensions:
         local_slices.append(zind)
     local_slices = tuple(local_slices)
-
-    if xguards:
-        xgstart = xstart + pe_xind * mxsub - xind.start
-        xgstop = xstop + pe_xind * mxsub - xind.start
-    else:
-        xgstart = xstart + pe_xind * mxsub - mxg - xind.start
-        xgstop = xstop + pe_xind * mxsub - mxg - xind.start
-    if yguards:
-        ygstart = ystart + pe_yind * mysub - yind.start
-        ygstop = ystop + pe_yind * mysub - yind.start
-        if yproc_upper_target is not None and pe_yind > yproc_upper_target:
-            ygstart = ygstart + 2 * myg
-            ygstop = ygstop + 2 * myg
-    else:
-        ygstart = ystart + pe_yind * mysub - myg - yind.start
-        ygstop = ystop + pe_yind * mysub - myg - yind.start
 
     # When reading in parallel, we are always reading into a 4-dimensional shared array.
     # Otherwise, reading into an array with the same dimensions as the variable.
@@ -717,6 +614,198 @@ def _collect_from_one_proc(
         return temp_yindex, f_attributes
 
     return None, None
+
+
+def _get_x_range(xguards, xind, pe_xind, nxpe, mxsub, mxg, inrange):
+    """
+    Get local ranges of x-indices
+
+    Parameters
+    ----------
+    xguards : bool
+        Include x-boundaries?
+    xind : slice
+        Global slice to apply to x-dimension
+    pe_xind : int
+        x-index of the processor
+    nxpe : int
+        Number of processors in the x-direction
+    mxsub : int
+        Number of grid cells (excluding guard cells) in the x-direction on a single
+        procssor
+    mxg : int
+        Number of guard cells in the x-direction
+    inrange : bool
+        Does the processor have data to read?
+
+    Returns
+    -------
+    xstart : int
+        Local x-index to start reading
+    xstop : int
+        Local x-index to stop reading
+    xgstart : int
+        Global x-index to start putting data
+    xgstop : int
+        Global x-index to stop putting data
+    inrange : bool
+        Updated version of inrange - changed to False if this processor has no data to
+        read
+    """
+    # Local ranges
+    if xguards:
+        xstart = xind.start - pe_xind * mxsub
+        xstop = xind.stop - pe_xind * mxsub
+
+        # Check lower x boundary
+        if pe_xind == 0:
+            # Keeping inner boundary
+            if xstop <= 0:
+                inrange = False
+            if xstart < 0:
+                xstart = 0
+        else:
+            if xstop <= mxg:
+                inrange = False
+            if xstart < mxg:
+                xstart = mxg
+
+        # Upper x boundary
+        if pe_xind == (nxpe - 1):
+            # Keeping outer boundary
+            if xstart >= (mxsub + 2 * mxg):
+                inrange = False
+            if xstop > (mxsub + 2 * mxg):
+                xstop = mxsub + 2 * mxg
+        else:
+            if xstart >= (mxsub + mxg):
+                inrange = False
+            if xstop > (mxsub + mxg):
+                xstop = mxsub + mxg
+
+    else:
+        xstart = xind.start - pe_xind * mxsub + mxg
+        xstop = xind.stop - pe_xind * mxsub + mxg
+
+        if (xstart >= (mxsub + mxg)) or (xstop <= mxg):
+            inrange = False  # X out of range
+
+        if xstart < mxg:
+            xstart = mxg
+        if xstop > mxsub + mxg:
+            xstop = mxg + mxsub
+
+    # Global ranges
+    if xguards:
+        xgstart = xstart + pe_xind * mxsub - xind.start
+        xgstop = xstop + pe_xind * mxsub - xind.start
+    else:
+        xgstart = xstart + pe_xind * mxsub - mxg - xind.start
+        xgstop = xstop + pe_xind * mxsub - mxg - xind.start
+
+    return xstart, xstop, xgstart, xgstop, inrange
+
+
+def _get_y_range(yguards, yind, pe_yind, nype, yproc_upper_target, mysub, myg, inrange):
+    """
+    Get local ranges of y-indices
+
+    Parameters
+    ----------
+    yguards : bool
+        Include y-boundaries?
+    yind : slice
+        Global slice to apply to y-dimension
+    pe_yind : int
+        y-index of the processor
+    nype : int
+        Number of processors in the y-direction
+    yproc_upper_target : int or None
+        Index of processor whose lower y-boundary is the upper target, if there is an
+        upper target
+    mysub : int
+        Number of grid cells (excluding guard cells) in the y-direction on a single
+        procssor
+    myg : int
+        Number of guard cells in the y-direction
+    inrange : bool
+        Does the processor have data to read?
+
+    Returns
+    -------
+    ystart : int
+        Local y-index to start reading
+    ystop : int
+        Local y-index to stop reading
+    ygstart : int
+        Global y-index to start putting data
+    ygstop : int
+        Global y-index to stop putting data
+    inrange : bool
+        Updated version of inrange - changed to False if this processor has no data to
+        read
+    """
+    # Local ranges
+    if yguards:
+        ystart = yind.start - pe_yind * mysub
+        ystop = yind.stop - pe_yind * mysub
+
+        # Check lower y boundary
+        if pe_yind == 0:
+            # Keeping inner boundary
+            if ystop <= 0:
+                inrange = False
+            if ystart < 0:
+                ystart = 0
+        else:
+            if ystop < myg - 1:
+                inrange = False
+            if ystart < myg:
+                ystart = myg
+        # and lower y boundary at upper target
+        if yproc_upper_target is not None and pe_yind - 1 == yproc_upper_target:
+            ystart = ystart - myg
+
+        # Upper y boundary
+        if pe_yind == (nype - 1):
+            # Keeping outer boundary
+            if ystart >= (mysub + 2 * myg):
+                inrange = False
+            if ystop > (mysub + 2 * myg):
+                ystop = mysub + 2 * myg
+        else:
+            if ystart >= (mysub + myg):
+                inrange = False
+            if ystop > (mysub + myg):
+                ystop = mysub + myg
+        # upper y boundary at upper target
+        if yproc_upper_target is not None and pe_yind == yproc_upper_target:
+            ystop = ystop + myg
+
+    else:
+        ystart = yind.start - pe_yind * mysub + myg
+        ystop = yind.stop - pe_yind * mysub + myg
+
+        if (ystart >= (mysub + myg)) or (ystop <= myg):
+            inrange = False  # Y out of range
+
+        if ystart < myg:
+            ystart = myg
+        if ystop > mysub + myg:
+            ystop = myg + mysub
+
+    # Global ranges
+    if yguards:
+        ygstart = ystart + pe_yind * mysub - yind.start
+        ygstop = ystop + pe_yind * mysub - yind.start
+        if yproc_upper_target is not None and pe_yind > yproc_upper_target:
+            ygstart = ygstart + 2 * myg
+            ygstop = ygstop + 2 * myg
+    else:
+        ygstart = ystart + pe_yind * mysub - myg - yind.start
+        ygstop = ystop + pe_yind * mysub - myg - yind.start
+
+    return ystart, ystop, ygstart, ygstop, inrange
 
 
 def _get_grid_info(f, *, xguards, yguards, tind, xind, yind, zind, all_vars_info=False):
