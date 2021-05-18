@@ -17,8 +17,9 @@ from boutdata.collect import (
     collect,
     create_cache,
     findVar,
-    _get_grid_info,
+    _check_fieldperp_attributes,
     _collect_from_one_proc,
+    _get_grid_info,
 )
 from boututils.boutarray import BoutArray
 from boututils.boutwarnings import alwayswarn
@@ -1443,29 +1444,19 @@ class BoutOutputs(object):
         for worker, connection in self._workers:
             temp_yindex, temp_fieldperp_yproc, temp_var_attributes = connection.recv()
             if is_fieldperp:
-                if temp_yindex is not None:
-                    # Found actual data for a FieldPerp, so update FieldPerp properties
-                    # and check they are unique
-                    # FieldPerp should only be defined on processors which contain its
-                    # (unique) yindex_global
-                    if yindex_global is not None and yindex_global != temp_yindex:
-                        raise ValueError(
-                            "Found FieldPerp {} at different global y-indices, {} and "
-                            "{}".format(varname, temp_yindex, yindex_global)
-                        )
-                    yindex_global = temp_yindex
-                    if (
-                        fieldperp_yproc is not None
-                        and fieldperp_yproc != temp_fieldperp_yproc
-                    ):
-                        raise ValueError(
-                            "Found FieldPerp {} on different y-processor indices, {} "
-                            "and {}".format(
-                                varname, fieldperp_yproc, temp_fieldperp_yproc
-                            )
-                        )
-                    fieldperp_yproc = temp_fieldperp_yproc
-                    var_attributes = temp_var_attributes
+                (
+                    yindex_global,
+                    fieldperp_yproc,
+                    var_attributes,
+                ) = _check_fieldperp_attributes(
+                    varname,
+                    yindex_global,
+                    temp_yindex,
+                    temp_fieldperp_yproc,
+                    fieldperp_yproc,
+                    var_attributes,
+                    temp_var_attributes,
+                )
 
         global_slices = []
         if "t" in dimensions:
@@ -1530,23 +1521,19 @@ class BoutOutputs(object):
                     parallel_read=True,
                 )
                 if is_fieldperp:
-                    if temp_yindex is not None:
-                        # Found actual data for a FieldPerp, so update FieldPerp properties
-                        # and check they are unique
-                        if yindex_global is not None and yindex_global != temp_yindex:
-                            raise ValueError(
-                                "Found FieldPerp {} at different global y-indices, {} "
-                                "and {}".format(varname, temp_yindex, yindex_global)
-                            )
-                        yindex_global = temp_yindex
-                        pe_yind = i // self.grid_info["nxpe"]
-                        if fieldperp_yproc is not None and fieldperp_yproc != pe_yind:
-                            raise ValueError(
-                                "Found FieldPerp {} on different y-processor indices, "
-                                "{} and {}".format(varname, fieldperp_yproc, pe_yind)
-                            )
-                        fieldperp_yproc = pe_yind
-                        var_attributes = temp_var_attributes
+                    (
+                        yindex_global,
+                        fieldperp_yproc,
+                        var_attributes,
+                    ) = _check_fieldperp_attributes(
+                        varname,
+                        yindex_global,
+                        temp_yindex,
+                        i // self.grid_info["nxpe"],
+                        fieldperp_yproc,
+                        var_attributes,
+                        temp_var_attributes,
+                    )
 
             connection.send((yindex_global, fieldperp_yproc, var_attributes))
 

@@ -313,24 +313,19 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
             info=info,
         )
         if is_fieldperp:
-            if temp_yindex is not None:
-                # Found actual data for a FieldPerp, so update FieldPerp properties
-                # and check they are unique
-                if yindex_global is not None and yindex_global != temp_yindex:
-                    raise ValueError(
-                        "Found FieldPerp {} at different global y-indices, {} "
-                        "and {}".format(varname, temp_yindex, yindex_global)
-                    )
-                yindex_global = temp_yindex
-                pe_yind = i // grid_info["nxpe"]
-                if fieldperp_yproc is not None and fieldperp_yproc != pe_yind:
-                    raise ValueError(
-                        "Found FieldPerp {} on different y-processor indices, "
-                        "{} and {}".format(varname, fieldperp_yproc, pe_yind)
-                    )
-                fieldperp_yproc = pe_yind
-                var_attributes = temp_f_attributes
-
+            (
+                yindex_global,
+                fieldperp_yproc,
+                var_attributes,
+            ) = _check_fieldperp_attributes(
+                varname,
+                yindex_global,
+                temp_yindex,
+                i // grid_info["nxpe"],
+                fieldperp_yproc,
+                var_attributes,
+                temp_f_attributes,
+            )
         if datafile_cache is None:
             # close the DataFile if we are not keeping it in a cache
             f.close()
@@ -849,6 +844,35 @@ def _get_y_range(yguards, yind, pe_yind, nype, yproc_upper_target, mysub, myg, i
         ygstop = ystop + pe_yind * mysub - myg - yind.start
 
     return ystart, ystop, ygstart, ygstop, inrange
+
+
+def _check_fieldperp_attributes(
+    varname,
+    yindex_global,
+    temp_yindex,
+    pe_yind,
+    fieldperp_yproc,
+    var_attributes,
+    temp_f_attributes,
+):
+    if temp_yindex is not None:
+        # Found actual data for a FieldPerp, so update FieldPerp properties
+        # and check they are unique
+        if yindex_global is not None and yindex_global != temp_yindex:
+            raise ValueError(
+                "Found FieldPerp {} at different global y-indices, {} "
+                "and {}".format(varname, temp_yindex, yindex_global)
+            )
+        yindex_global = temp_yindex
+        if fieldperp_yproc is not None and fieldperp_yproc != pe_yind:
+            raise ValueError(
+                "Found FieldPerp {} on different y-processor indices, "
+                "{} and {}".format(varname, fieldperp_yproc, pe_yind)
+            )
+        fieldperp_yproc = pe_yind
+        var_attributes = temp_f_attributes
+
+    return yindex_global, fieldperp_yproc, var_attributes
 
 
 def _get_grid_info(f, *, xguards, yguards, tind, xind, yind, zind, all_vars_info=False):
