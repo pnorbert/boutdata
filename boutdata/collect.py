@@ -239,8 +239,12 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
     if tind_auto:
         nt = grid_info["nt"]
         for i in range(1, nfiles):
-            t_array_ = getDataFile(i).read("t_array")
+            f = getDataFile(i)
+            t_array_ = f.read("t_array")
             nt = min(len(t_array_), nt)
+            if datafile_cache is None:
+                # close the DataFile if we are not keeping it in a cache
+                f.close()
         grid_info["nt"] = nt
 
     if info:
