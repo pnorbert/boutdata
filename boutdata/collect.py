@@ -903,6 +903,12 @@ def _check_fieldperp_attributes(
     var_attributes,
     temp_f_attributes,
 ):
+    """
+    Check attributes for a FieldPerp from one file. If the FieldPerp was actually
+    written to that file, update the 'global' attributes of the FieldPerp. If data for
+    the FieldPerp has already been found, check that the y-index of the processors is
+    the same and the 'yindex_global' is the same.
+    """
     if temp_yindex is not None:
         # Found actual data for a FieldPerp, so update FieldPerp properties
         # and check they are unique
