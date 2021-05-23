@@ -4,6 +4,7 @@ OMFIT
 
 """
 
+from collections import OrderedDict
 import copy
 import glob
 import io
@@ -1108,8 +1109,6 @@ class BoutOutputs(object):
         """
         Initialise private members used for caching of data variables
         """
-        from collections import OrderedDict
-
         self._datacache = OrderedDict()
         if self._caching is not True:
             # Track the size of _datacache and limit it to a maximum of _caching
