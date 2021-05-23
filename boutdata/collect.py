@@ -328,23 +328,7 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
             f.close()
 
     # if a step was requested in x or y, need to apply it here
-    if xind.step is not None or yind.step is not None:
-        if dimensions == ("t", "x", "y", "z"):
-            data = data[:, :: xind.step, :: yind.step]
-        elif dimensions == ("x", "y", "z"):
-            data = data[:: xind.step, :: yind.step, :]
-        elif dimensions == ("t", "x", "y"):
-            data = data[:, :: xind.step, :: yind.step]
-        elif dimensions == ("t", "x", "z"):
-            data = data[:, :: xind.step, :]
-        elif dimensions == ("x", "y"):
-            data = data[:: xind.step, :: yind.step]
-        elif dimensions == ("x", "z"):
-            data = data[:: xind.step, :]
-        else:
-            raise ValueError(
-                "Incorrect dimensions {} applying steps in collect".format(dimensions)
-            )
+    data = _apply_step(data, dimensions, xind.step, yind.step)
 
     # Finished looping over all files
     if info:
@@ -498,6 +482,41 @@ def _read_scalar(f, varname, dimensions, var_attributes, tind):
         # No time or space dimensions, so no slicing
         data = f.read(varname)
     return BoutArray(data, attributes=var_attributes)
+
+
+def _apply_step(data, dimensions, xstep, ystep):
+    """
+    Apply steps of xind and yind slices to an array
+
+    Parameters
+    ----------
+    data : np.Array
+        Data array to be sliced
+    dimensions : tuple
+        Dimensions of data
+    xstep : int or None
+        Step to apply in the x-direction
+    ystep : int or None
+        Step to apply in the y-direction
+    """
+    if xstep is not None or ystep is not None:
+        if dimensions == ("t", "x", "y", "z"):
+            data = data[:, :: xstep, :: ystep]
+        elif dimensions == ("x", "y", "z"):
+            data = data[:: xstep, :: ystep, :]
+        elif dimensions == ("t", "x", "y"):
+            data = data[:, :: xstep, :: ystep]
+        elif dimensions == ("t", "x", "z"):
+            data = data[:, :: xstep, :]
+        elif dimensions == ("x", "y"):
+            data = data[:: xstep, :: ystep]
+        elif dimensions == ("x", "z"):
+            data = data[:: xstep, :]
+        else:
+            raise ValueError(
+                "Incorrect dimensions {} applying steps in collect".format(dimensions)
+            )
+    return data
 
 
 def _collect_from_one_proc(
