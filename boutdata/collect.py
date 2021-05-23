@@ -267,21 +267,11 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
 
     if not any(dim in dimensions for dim in ('x', 'y', 'z')):
         # Not a Field (i.e. no spatial dependence) so only read from the 0'th file
-        if 't' in dimensions:
-            if not dimensions[0] == 't':
-                # 't' should be the first dimension in the list if present
-                raise ValueError(
-                    "{} has a 't' dimension, but it is not the first dimension "
-                    "in dimensions={}".format(varname, dimensions)
-                )
-            data = f.read(varname, ranges = [tind] + (ndims - 1) * [None])
-        else:
-            # No time or space dimensions, so no slicing
-            data = f.read(varname)
+        result = _read_scalar(f, varname, dimensions, var_attributes, tind)
         if datafile_cache is None:
             # close the DataFile if we are not keeping it in a cache
             f.close()
-        return BoutArray(data, attributes=var_attributes)
+        return result
 
     if datafile_cache is None:
         # close the DataFile if we are not keeping it in a cache
@@ -476,6 +466,37 @@ def _collect_from_single_file(
 
     data = f.read(varname, ranges)
     var_attributes = f.attributes(varname)
+    return BoutArray(data, attributes=var_attributes)
+
+
+def _read_scalar(f, varname, dimensions, var_attributes, tind):
+    """
+    Read a scalar variable from a single file
+
+    Parameters
+    ----------
+    f : DataFile
+        File to read from. This function does *not* close f.
+    varname : str
+        Name of variable to read
+    dimensions : tuple
+        Dimensions of the variable
+    var_attributes : dict
+        Attributes of the variable
+    tind : slice
+        Slice to apply to the t-dimension, if there is one
+    """
+    if 't' in dimensions:
+        if not dimensions[0] == 't':
+            # 't' should be the first dimension in the list if present
+            raise ValueError(
+                "{} has a 't' dimension, but it is not the first dimension "
+                "in dimensions={}".format(varname, dimensions)
+            )
+        data = f.read(varname, ranges = [tind] + (len(dimensions) - 1) * [None])
+    else:
+        # No time or space dimensions, so no slicing
+        data = f.read(varname)
     return BoutArray(data, attributes=var_attributes)
 
 
