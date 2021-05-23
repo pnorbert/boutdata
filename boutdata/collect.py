@@ -539,7 +539,16 @@ def _collect_from_one_proc(
 ):
     """Read part of a variable from one processor
 
-    For use in _collect_parallel()
+    Reads the part of the data from the file output by a single processor. Excludes
+    guard cells used only for communication between processors, but optionally includes
+    boundary cells.
+
+    Result is stored into the global array passed in the 'result'
+    argument - this avoids complicated concatenation of results from multiple
+    processors, and is also more convenient when using a shared memory array to gather
+    results from parallel workers.
+
+    The returned values are used for checks on FieldPerp variables.
 
     Parameters
     ----------
