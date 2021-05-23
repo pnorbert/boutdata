@@ -1063,16 +1063,16 @@ class BoutOutputs(object):
 
         if self._info:
             print(
-                "mxsub = %d mysub = %d mz = %d\n"
-                % (
+                "mxsub = {} mysub = {} mz = {}\n"
+                .format(
                     self.grid_info["mxsub"],
                     self.grid_info["mysub"],
                     self.grid_info["nz"],
                 )
             )
             print(
-                "nxpe = %d, nype = %d, npes = %d\n"
-                % (
+                "nxpe = {}, nype = {}, npes = {}\n"
+                .format(
                     self.grid_info["nxpe"],
                     self.grid_info["nype"],
                     self.grid_info["npes"],
@@ -1080,10 +1080,12 @@ class BoutOutputs(object):
             )
             if self.grid_info["npes"] < len(self._file_list):
                 print(
-                    "WARNING: More files than expected (" + str(grid_info["npes"]) + ")"
+                    "WARNING: More files than expected ({})".format(grid_info["npes"])
                 )
             elif self.grid_info["npes"] > len(self._file_list):
-                print("WARNING: Some files missing. Expected " + str(grid_info["npes"]))
+                print(
+                    "WARNING: Some files missing. Expected {}".format(grid_info["npes"])
+                )
 
         # Initialise private variables
         if self._caching:
@@ -1263,7 +1265,7 @@ class BoutOutputs(object):
             DataFileCache = None
         # read and write the data
         for v in self.varNames:
-            print("processing " + v)
+            print("processing {}".format(v))
             data = collect(
                 v,
                 path=backupdir,
@@ -1302,9 +1304,8 @@ class BoutOutputs(object):
                         # FieldPerp?
                         # check is not perfect, fails if ny=nz
                         raise ValueError(
-                            "Error: Found FieldPerp '"
-                            + v
-                            + "'. This case is not currently handled by BoutOutputs.redistribute()."
+                            "Error: Found FieldPerp '{}'. This case is not currently "
+                            "handled by BoutOutputs.redistribute().".format(v)
                         )
                     outfile.write(
                         v,
@@ -1319,9 +1320,8 @@ class BoutOutputs(object):
                         # evolving Field2D, but this case is not handled
                         # check is not perfect, fails if ny=nx and nx=nt
                         raise ValueError(
-                            "Error: Found evolving Field2D '"
-                            + v
-                            + "'. This case is not currently handled by BoutOutputs.redistribute()."
+                            "Error: Found evolving Field2D '{}'. This case is not "
+                            "currently handled by BoutOutputs.redistribute().".format(v)
                         )
                     outfile.write(
                         v,
@@ -1399,8 +1399,8 @@ class BoutOutputs(object):
             "strict")]
         if unsupported_kwargs:
             raise ValueError(
-                "kwargs " + str(unsupported_kwargs) + " are not supported when "
-                "parallel is not False"
+                "kwargs {} are not supported when parallel is not False"
+                .format(unsupported_kwargs)
             )
 
         if tind_auto:

@@ -38,23 +38,26 @@ def findVar(varname, varlist):
     v = [name for name in varlist if name.lower() == varname.lower()]
     if len(v) == 1:
         # Found case match
-        print("Variable '%s' not found. Using '%s' instead" % (varname, v[0]))
+        print("Variable '{}' not found. Using '{}' instead".format(varname, v[0]))
         return v[0]
     elif len(v) > 1:
-        print("Variable '"+varname +
-              "' not found, and is ambiguous. Could be one of: "+str(v))
-        raise ValueError("Variable '"+varname+"' not found")
+        print(
+            "Variable '{}' not found, and is ambiguous. Could be one of: {}"
+            .format(varname, v)
+        )
+        raise ValueError("Variable '{}' not found".format(varname))
 
     # None found. Check if it's an abbreviation
     v = [name for name in varlist
          if name[:len(varname)].lower() == varname.lower()]
     if len(v) == 1:
-        print("Variable '%s' not found. Using '%s' instead" % (varname, v[0]))
+        print("Variable '{}' not found. Using '{}' instead".format(varname, v[0]))
         return v[0]
-
-    if len(v) > 1:
-        print("Variable '"+varname +
-              "' not found, and is ambiguous. Could be one of: "+str(v))
+    elif len(v) > 1:
+        print(
+            "Variable '{}' not found, and is ambiguous. Could be one of: {}"
+            .format(varname, v)
+        )
     raise ValueError("Variable '"+varname+"' not found")
 
 
@@ -86,7 +89,7 @@ def _convert_to_nice_slice(r, N, name="range"):
     """
 
     if N == 0:
-        raise ValueError("No data available in %s"%name)
+        raise ValueError("No data available in {}".format(name))
     if r is None:
         temp_slice = slice(N)
     elif isinstance(r, slice):
@@ -95,7 +98,7 @@ def _convert_to_nice_slice(r, N, name="range"):
         if r >= N or r <-N:
             # raise out of bounds error as if we'd tried to index the array with r
             # without this, would return an empty array instead
-            raise IndexError(name+" index out of range, value was "+str(r))
+            raise IndexError("{} index out of range, value was {}".format(name, r))
         elif r == -1:
             temp_slice = slice(r, None)
         else:
@@ -249,18 +252,18 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
 
     if info:
         print(
-            "mxsub = %d mysub = %d mz = %d\n"
-            % (grid_info["mxsub"], grid_info["mysub"], grid_info["nz"])
+            "mxsub = {} mysub = {} mz = {}\n"
+            .format(grid_info["mxsub"], grid_info["mysub"], grid_info["nz"])
         )
 
         print(
-            "nxpe = %d, nype = %d, npes = %d\n"
-            % (grid_info["nxpe"], grid_info["nype"], grid_info["npes"])
+            "nxpe = {}, nype = {}, npes = {}\n"
+            .format(grid_info["nxpe"], grid_info["nype"], grid_info["npes"])
         )
         if grid_info["npes"] < nfiles:
-            print("WARNING: More files than expected (" + str(grid_info["npes"]) + ")")
+            print("WARNING: More files than expected ({})".format(grid_info["npes"]))
         elif grid_info["npes"] > nfiles:
-            print("WARNING: Some files missing. Expected " + str(grid_info["npes"]))
+            print("WARNING: Some files missing. Expected {}".format(grid_info["npes"]))
 
     if not any(dim in dimensions for dim in ('x', 'y', 'z')):
         # Not a Field (i.e. no spatial dependence) so only read from the 0'th file
@@ -268,8 +271,8 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
             if not dimensions[0] == 't':
                 # 't' should be the first dimension in the list if present
                 raise ValueError(
-                    varname + " has a 't' dimension, but it is not the first dimension "
-                    "in dimensions=" + str(dimensions)
+                    "{} has a 't' dimension, but it is not the first dimension "
+                    "in dimensions={}".format(varname, dimensions)
                 )
             data = f.read(varname, ranges = [tind] + (ndims - 1) * [None])
         else:
@@ -350,7 +353,7 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
             data = data[:: xind.step, :]
         else:
             raise ValueError(
-                "Incorrect dimensions " + str(dimensions) + " applying steps in collect"
+                "Incorrect dimensions {} applying steps in collect".format(dimensions)
             )
 
     # Finished looping over all files
@@ -555,8 +558,8 @@ def _collect_from_one_proc(
             if not dimensions[0] == "t":
                 # 't' should be the first dimension in the list if present
                 raise ValueError(
-                    varname + " has a 't' dimension, but it is not the first dimension "
-                    "in dimensions=" + str(dimensions)
+                    "{} has a 't' dimension, but it is not the first dimension "
+                    "in dimensions={}".format(varname, dimensions)
                 )
             result[:] = datafile.read(varname, ranges=[tind] + (ndims - 1) * [None])
         else:
@@ -622,25 +625,17 @@ def _collect_from_one_proc(
 
     if info:
         sys.stdout.write(
-            "\rReading from "
-            + str(i)
-            + ": ["
-            + str(xstart)
-            + "-"
-            + str(xstop - 1)
-            + "]["
-            + str(ystart)
-            + "-"
-            + str(ystop - 1)
-            + "] -> ["
-            + str(xgstart)
-            + "-"
-            + str(xgstop - 1)
-            + "]["
-            + str(ygstart)
-            + "-"
-            + str(ygstop - 1)
-            + "]\n"
+            "\rReading from {}: [{}-{}][{}-{}] -> [{}-{}][{}-{}]\n".format(
+                i,
+                xstart,
+                xstop - 1,
+                ystart,
+                ystop - 1,
+                xgstart,
+                xgstop - 1,
+                ygstart,
+                ygstop - 1
+            )
         )
 
     if is_fieldperp:
@@ -905,7 +900,7 @@ def _get_grid_info(f, *, xguards, yguards, tind, xind, yind, zind, all_vars_info
     def load_and_check(varname):
         var = f.read(varname)
         if var is None:
-            raise ValueError("Missing " + varname + " variable")
+            raise ValueError("Missing {} variable".format(varname))
         return var
 
     mz = int(load_and_check("MZ"))
