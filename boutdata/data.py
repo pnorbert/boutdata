@@ -953,8 +953,9 @@ class BoutOutputs(object):
         with the maximum number of available processors. If set to an int, use that many
         processes.
 
-    **kwargs
-        keyword arguments that are passed through to collect()
+    Other parameters
+    ----------------
+    keyword arguments that are passed through to collect()
 
     Examples
     --------
