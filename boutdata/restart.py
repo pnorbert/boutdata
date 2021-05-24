@@ -684,9 +684,6 @@ def redistribute(
                 outfile.write(v, mxg)
             elif v == "MYG":
                 outfile.write(v, myg)
-            elif dimensions == ():
-                # scalar
-                outfile.write(v, data)
             elif dimensions == ('x', 'y'):
                 # Field2D
                 outfile.write(v, get_block(data))
@@ -701,6 +698,9 @@ def redistribute(
             elif dimensions == ('x', 'y', 'z'):
                 # Field3D
                 outfile.write(v, get_block(data))
+            elif not any(d in dimensions for d in ('x', 'y', 'z')):
+                # scalar or other non-spatially-dependent variable
+                outfile.write(v, data)
             else:
                 print(
                     "ERROR: variable found with unexpected dimensions,", dimensions, v)

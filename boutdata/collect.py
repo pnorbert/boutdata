@@ -271,8 +271,9 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
             # evolving Field3D
             ranges = [tind, xind, yind, zind]
         else:
-            raise ValueError("Variable has incorrect dimensions ({})"
-                             .format(dimensions))
+            # Not a Field, so do not support slicing.
+            # For example, may be a string.
+            ranges = None
 
         data = f.read(varname, ranges)
         var_attributes = f.attributes(varname)
@@ -400,11 +401,19 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
     zsize = int(np.ceil(float(zind.stop - zind.start)/zind.step))
     tsize = int(np.ceil(float(tind.stop - tind.start)/tind.step))
 
-    if ndims == 1:
-        if tind is None:
-            data = f.read(varname)
+    if not any(dim in dimensions for dim in ('x', 'y', 'z')):
+        # Not a Field (i.e. no spatial dependence) so only read from the 0'th file
+        if 't' in dimensions:
+            if not dimensions[0] == 't':
+                # 't' should be the first dimension in the list if present
+                raise ValueError(
+                    varname + " has a 't' dimension, but it is not the first dimension "
+                    "in dimensions=" + str(dimensions)
+                )
+            data = f.read(varname, ranges = [tind] + (ndims - 1) * [None])
         else:
-            data = f.read(varname, ranges=[tind])
+            # No time or space dimensions, so no slicing
+            data = f.read(varname)
         if datafile_cache is None:
             # close the DataFile if we are not keeping it in a cache
             f.close()
@@ -595,11 +604,19 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
 
                     # we have found a file with containing the FieldPerp, get the attributes from here
                     var_attributes = f_attributes
-                assert temp_yindex == yindex_global
+                if temp_yindex != yindex_global:
+                    raise ValueError(
+                        "Found FieldPerp {} at different global y-indices, {} and {}"
+                        .format(varname, temp_yindex, yindex_global)
+                    )
 
             if temp_yindex >= 0:
                 # Check we only read from one pe_yind
-                assert fieldperp_yproc is None or fieldperp_yproc == pe_yind
+                if not (fieldperp_yproc is None or fieldperp_yproc == pe_yind):
+                    raise ValueError(
+                        "Found FieldPerp {} on different y-processor indices, {} and {}"
+                        .format(varname, fieldperp_yproc, pe_yind)
+                    )
 
                 fieldperp_yproc = pe_yind
 
@@ -623,11 +640,19 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
 
                     # we have found a file with containing the FieldPerp, get the attributes from here
                     var_attributes = f_attributes
-                assert temp_yindex == yindex_global
+                if temp_yindex != yindex_global:
+                    raise ValueError(
+                        "Found FieldPerp {} at different global y-indices, {} and {}"
+                        .format(varname, temp_yindex, yindex_global)
+                    )
 
             if temp_yindex >= 0:
                 # Check we only read from one pe_yind
-                assert fieldperp_yproc is None or fieldperp_yproc == pe_yind
+                if not (fieldperp_yproc is None or fieldperp_yproc == pe_yind):
+                    raise ValueError(
+                        "Found FieldPerp {} on different y-processor indices, {} and {}"
+                        .format(varname, fieldperp_yproc, pe_yind)
+                    )
 
                 fieldperp_yproc = pe_yind
 

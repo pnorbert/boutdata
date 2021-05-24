@@ -1,6 +1,7 @@
 name: Upload Python Package
 
 on:
+  # Only run when a release is created
   release:
     types: [created]
 

@@ -1,3 +1,5 @@
+# PYTHON_ARGCOMPLETE_OK
+
 """
 Collect all data from BOUT.dmp.* files and create a single output file.
 
@@ -7,17 +9,6 @@ Useful because this discards ghost cell data (that is only useful for debugging)
 and because single files are quicker to download.
 
 """
-
-from boutdata.data import BoutOutputs
-from boututils.datafile import DataFile
-from boututils.boutarray import BoutArray
-import numpy
-import os
-import gc
-import tempfile
-import shutil
-import glob
-
 
 def squashoutput(datadir=".", outputname="BOUT.dmp.nc", format="NETCDF4", tind=None,
                  xind=None, yind=None, zind=None, xguards=True, yguards="include_upper",
@@ -75,6 +66,26 @@ def squashoutput(datadir=".", outputname="BOUT.dmp.nc", format="NETCDF4", tind=N
     delete : bool
         Delete the original files after squashing.
     """
+    from boutdata.data import BoutOutputs
+    from boututils.datafile import DataFile
+    from boututils.boutarray import BoutArray
+    import numpy
+    import os
+    import gc
+    import tempfile
+    import shutil
+    import glob
+
+    try:
+        # If we are using the netCDF4 module (the usual case) set caching to zero, since
+        # each variable is read and written exactly once so caching does not help, only
+        # uses memory - for large data sets, the memory usage may become excessive.
+        from netCDF4 import get_chunk_cache, set_chunk_cache
+    except ImportError:
+        netcdf4_chunk_cache = None
+    else:
+        netcdf4_chunk_cache = get_chunk_cache()
+        set_chunk_cache(0)
 
     fullpath = os.path.join(datadir, outputname)
 
@@ -158,3 +169,76 @@ def squashoutput(datadir=".", outputname="BOUT.dmp.nc", format="NETCDF4", tind=N
             os.remove(f)
         if append:
             os.rmdir(datadir)
+
+    if netcdf4_chunk_cache is not None:
+        # Reset the default chunk_cache size that was changed for squashoutput
+        # Note that get_chunk_cache() returns a tuple, so we have to unpack it when
+        # passing to set_chunk_cache.
+        set_chunk_cache(*netcdf4_chunk_cache)
+
+
+def main():
+    """
+    Call the squashoutput function using arguments from command line - used to provide a
+    command-line executable using setuptools entry_points in setup.py
+    """
+
+    import argparse
+    from sys import exit
+
+    try:
+        import argcomplete
+    except ImportError:
+        argcomplete = None
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description=(
+            __doc__
+            + "\n\n"
+            + squashoutput.__doc__
+            + "\n\nNote: the --tind, --xind, --yind and --zind command line arguments "
+            "are converted\ndirectly to Python slice() objects and so use exclusive "
+            "'stop' values. They can be\npassed up to 3 values: [stop], [start, stop], "
+            "or [start, stop, step]."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    def str_to_bool(string):
+        return string.lower() == "true" or string.lower() == "t"
+
+    def int_or_none(string):
+        try:
+            return int(string)
+        except ValueError:
+            if string.lower() == "none" or string.lower() == "n":
+                return None
+            else:
+                raise
+
+    parser.add_argument("datadir", nargs="?", default=".")
+    parser.add_argument("--outputname", default="BOUT.dmp.nc")
+    parser.add_argument("--tind", type=int_or_none, nargs="*", default=[None])
+    parser.add_argument("--xind", type=int_or_none, nargs="*", default=[None])
+    parser.add_argument("--yind", type=int_or_none, nargs="*", default=[None])
+    parser.add_argument("--zind", type=int_or_none, nargs="*", default=[None])
+    parser.add_argument("-s", "--singleprecision", action="store_true", default=False)
+    parser.add_argument("-c", "--compress", action="store_true", default=False)
+    parser.add_argument("-l", "--complevel", type=int_or_none, default=None)
+    parser.add_argument(
+        "-i", "--least-significant-digit", type=int_or_none, default=None
+    )
+    parser.add_argument("-q", "--quiet", action="store_true", default=False)
+    parser.add_argument("-a", "--append", action="store_true", default=False)
+    parser.add_argument("-d", "--delete", action="store_true", default=False)
+
+    if argcomplete:
+        argcomplete.autocomplete(parser)
+
+    args = parser.parse_args()
+
+    for ind in "txyz":
+        args.__dict__[ind + "ind"] = slice(*args.__dict__[ind + "ind"])
+    # Call the function, using command line arguments
+    squashoutput(**args.__dict__)
