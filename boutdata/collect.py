@@ -624,9 +624,20 @@ def _collect_from_one_proc(
     xstart, xstop, xgstart, xgstop, inrange = _get_x_range(
         xguards, xind, pe_xind, nxpe, mxsub, mxg, inrange
     )
-    ystart, ystop, ygstart, ygstop, inrange = _get_y_range(
-        yguards, yind, pe_yind, nype, yproc_upper_target, mysub, myg, inrange
-    )
+    if is_fieldperp:
+        # FieldPerps do not have a y-dimension, so cannot be sliced in y and should
+        # always be read regardless of the value of yind (so we should not change
+        # inrange by checking the y-range).
+        # ystart, ystop, ygstart and ygstop are set only to avoid errors in 'info'
+        # messages.
+        ystart = 0
+        ystop = 1
+        ygstart = 0
+        ygstop = 1
+    else:
+        ystart, ystop, ygstart, ygstop, inrange = _get_y_range(
+            yguards, yind, pe_yind, nype, yproc_upper_target, mysub, myg, inrange
+        )
 
     if not inrange:
         return None, None  # Don't need this file
