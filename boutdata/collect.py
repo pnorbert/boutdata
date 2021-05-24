@@ -693,6 +693,74 @@ def _collect_from_one_proc(
     return None, None
 
 
+def _check_local_range_lower(start, stop, lower_index, inrange):
+    """
+    Utility function for _get_x_range and _get_y_range. Checks inner or lower edge of
+    local ranges.
+
+    Parameters
+    ----------
+    start : int
+        Initial version of local index where slice starts. Reset to lower_index if
+        smaller than lower_index.
+    stop : int
+        Local index where slice stops.
+    lower_index : int
+        Local index where valid data (including boundaries if necessary) starts on
+        current processor.
+    inrange : bool
+        Initial value of inrange, which is True if data on current processor is within
+        the global range requested. Updated if stop is less than or equal to
+        lower_index.
+
+    Returns
+    -------
+    start : int
+        Updated (if necessary) version of start argument
+    inrange : bool
+        Updated (if necessary) version of inrange argument
+    """
+    if start < lower_index:
+        start = lower_index
+    if stop <= lower_index:
+        inrange = False
+    return start, inrange
+
+
+def _check_local_range_upper(start, stop, upper_index, inrange):
+    """
+    Utility function for _get_x_range and _get_y_range. Checks outer or upper edge of
+    local ranges.
+
+    Parameters
+    ----------
+    start : int
+        Local index where slice starts.
+    stop : int
+        Initial version of local index where slice stops. Reset to upper_index if
+        larger than upper_index.
+    upper_index : int
+        Local index where valid data (including boundaries if necessary) stops on
+        current processor.
+    inrange : bool
+        Initial value of inrange, which is True if data on current processor is within
+        the global range requested. Updated if start is greater than or equal to
+        upper_index.
+
+    Returns
+    -------
+    stop : int
+        Updated (if necessary) version of stop argument
+    inrange : bool
+        Updated (if necessary) version of inrange argument
+    """
+    if start >= upper_index:
+        inrange = False
+    if stop > upper_index:
+        stop = upper_index
+    return stop, inrange
+
+
 def _get_x_range(xguards, xind, pe_xind, nxpe, mxsub, mxg, inrange):
     """
     Get local ranges of x-indices
@@ -737,40 +805,25 @@ def _get_x_range(xguards, xind, pe_xind, nxpe, mxsub, mxg, inrange):
         # Check lower x boundary
         if pe_xind == 0:
             # Keeping inner boundary
-            if xstop <= 0:
-                inrange = False
-            if xstart < 0:
-                xstart = 0
+            xstart, inrange = _check_local_range_lower(xstart, xstop, 0, inrange)
         else:
-            if xstop <= mxg:
-                inrange = False
-            if xstart < mxg:
-                xstart = mxg
+            xstart, inrange = _check_local_range_lower(xstart, xstop, mxg, inrange)
 
         # Upper x boundary
         if pe_xind == (nxpe - 1):
             # Keeping outer boundary
-            if xstart >= (mxsub + 2 * mxg):
-                inrange = False
-            if xstop > (mxsub + 2 * mxg):
-                xstop = mxsub + 2 * mxg
+            xstop, inrange = _check_local_range_upper(
+                xstart, xstop, mxsub + 2 * mxg, inrange
+            )
         else:
-            if xstart >= (mxsub + mxg):
-                inrange = False
-            if xstop > (mxsub + mxg):
-                xstop = mxsub + mxg
+            xstop, inrange = _check_local_range_upper(xstart, xstop, mxsub + mxg, inrange)
 
     else:
         xstart = xind.start - pe_xind * mxsub + mxg
         xstop = xind.stop - pe_xind * mxsub + mxg
 
-        if (xstart >= (mxsub + mxg)) or (xstop <= mxg):
-            inrange = False  # X out of range
-
-        if xstart < mxg:
-            xstart = mxg
-        if xstop > mxsub + mxg:
-            xstop = mxg + mxsub
+        xstart, inrange = _check_local_range_lower(xstart, xstop, mxg, inrange)
+        xstop, inrange = _check_local_range_upper(xstart, xstop, mxsub + mxg, inrange)
 
     # Global ranges
     if xguards:
@@ -830,15 +883,9 @@ def _get_y_range(yguards, yind, pe_yind, nype, yproc_upper_target, mysub, myg, i
         # Check lower y boundary
         if pe_yind == 0:
             # Keeping inner boundary
-            if ystop <= 0:
-                inrange = False
-            if ystart < 0:
-                ystart = 0
+            ystart, inrange = _check_local_range_lower(ystart, ystop, 0, inrange)
         else:
-            if ystop < myg - 1:
-                inrange = False
-            if ystart < myg:
-                ystart = myg
+            ystart, inrange = _check_local_range_lower(ystart, ystop, myg, inrange)
         # and lower y boundary at upper target
         if yproc_upper_target is not None and pe_yind - 1 == yproc_upper_target:
             ystart = ystart - myg
@@ -846,15 +893,13 @@ def _get_y_range(yguards, yind, pe_yind, nype, yproc_upper_target, mysub, myg, i
         # Upper y boundary
         if pe_yind == (nype - 1):
             # Keeping outer boundary
-            if ystart >= (mysub + 2 * myg):
-                inrange = False
-            if ystop > (mysub + 2 * myg):
-                ystop = mysub + 2 * myg
+            ystop, inrange = _check_local_range_upper(
+                ystart, ystop, mysub + 2 * myg, inrange
+            )
         else:
-            if ystart >= (mysub + myg):
-                inrange = False
-            if ystop > (mysub + myg):
-                ystop = mysub + myg
+            ystop, inrange = _check_local_range_upper(
+                ystart, ystop, mysub + myg, inrange
+            )
         # upper y boundary at upper target
         if yproc_upper_target is not None and pe_yind == yproc_upper_target:
             ystop = ystop + myg
@@ -863,13 +908,8 @@ def _get_y_range(yguards, yind, pe_yind, nype, yproc_upper_target, mysub, myg, i
         ystart = yind.start - pe_yind * mysub + myg
         ystop = yind.stop - pe_yind * mysub + myg
 
-        if (ystart >= (mysub + myg)) or (ystop <= myg):
-            inrange = False  # Y out of range
-
-        if ystart < myg:
-            ystart = myg
-        if ystop > mysub + myg:
-            ystop = myg + mysub
+        ystart, inrange = _check_local_range_lower(ystart, ystop, myg, inrange)
+        ystop, inrange = _check_local_range_upper(ystart, ystop, mysub + myg, inrange)
 
     # Global ranges
     if yguards:
