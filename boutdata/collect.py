@@ -664,7 +664,7 @@ def _collect_from_one_proc(
     global_slices = tuple(global_slices)
 
     if info:
-        sys.stdout.write(
+        print(
             "\rReading from {}: [{}-{}][{}-{}] -> [{}-{}][{}-{}]\n".format(
                 i,
                 xstart,
