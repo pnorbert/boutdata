@@ -499,24 +499,15 @@ def _apply_step(data, dimensions, xstep, ystep):
     ystep : int or None
         Step to apply in the y-direction
     """
-    if xstep is not None or ystep is not None:
-        if dimensions == ("t", "x", "y", "z"):
-            data = data[:, :: xstep, :: ystep]
-        elif dimensions == ("x", "y", "z"):
-            data = data[:: xstep, :: ystep, :]
-        elif dimensions == ("t", "x", "y"):
-            data = data[:, :: xstep, :: ystep]
-        elif dimensions == ("t", "x", "z"):
-            data = data[:, :: xstep, :]
-        elif dimensions == ("x", "y"):
-            data = data[:: xstep, :: ystep]
-        elif dimensions == ("x", "z"):
-            data = data[:: xstep, :]
-        else:
-            raise ValueError(
-                "Incorrect dimensions {} applying steps in collect".format(dimensions)
-            )
-    return data
+    slices = [slice(None)] * len(dimensions)
+
+    if "x" in dimensions:
+        slices[dimensions.index("x")] = slice(None, None, xstep)
+
+    if "y" in dimensions:
+        slices[dimensions.index("y")] = slice(None, None, ystep)
+
+    return data[slices]
 
 
 def _collect_from_one_proc(
