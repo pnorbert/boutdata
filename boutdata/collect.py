@@ -507,7 +507,7 @@ def _apply_step(data, dimensions, xstep, ystep):
     if "y" in dimensions:
         slices[dimensions.index("y")] = slice(None, None, ystep)
 
-    return data[slices]
+    return data[tuple(slices)]
 
 
 def _collect_from_one_proc(
