@@ -13,7 +13,8 @@ and because single files are quicker to download.
 def squashoutput(datadir=".", outputname="BOUT.dmp.nc", format="NETCDF4", tind=None,
                  xind=None, yind=None, zind=None, xguards=True, yguards="include_upper",
                  singleprecision=False, compress=False, least_significant_digit=None,
-                 quiet=False, complevel=None, append=False, delete=False):
+                 quiet=False, complevel=None, append=False, delete=False,
+                 tind_auto=False):
     """
     Collect all data from BOUT.dmp.* files and create a single output file.
 
@@ -65,6 +66,9 @@ def squashoutput(datadir=".", outputname="BOUT.dmp.nc", format="NETCDF4", tind=N
         Append to existing squashed file
     delete : bool
         Delete the original files after squashing.
+    tind_auto : bool, optional
+        Read all files, to get the shortest length of time_indices. All data truncated
+        to the shortest length.  Useful if writing got interrupted (default: False)
     """
     from boutdata.data import BoutOutputs
     from boututils.datafile import DataFile
@@ -104,7 +108,8 @@ def squashoutput(datadir=".", outputname="BOUT.dmp.nc", format="NETCDF4", tind=N
 
     # useful object from BOUT pylib to access output data
     outputs = BoutOutputs(datadir, info=False, xguards=xguards,
-                          yguards=yguards, tind=tind, xind=xind, yind=yind, zind=zind)
+                          yguards=yguards, tind=tind, xind=xind, yind=yind, zind=zind,
+                          tind_auto=tind_auto)
     outputvars = outputs.keys()
     # Read a value to cache the files
     outputs[outputvars[0]]
@@ -175,70 +180,3 @@ def squashoutput(datadir=".", outputname="BOUT.dmp.nc", format="NETCDF4", tind=N
         # Note that get_chunk_cache() returns a tuple, so we have to unpack it when
         # passing to set_chunk_cache.
         set_chunk_cache(*netcdf4_chunk_cache)
-
-
-def main():
-    """
-    Call the squashoutput function using arguments from command line - used to provide a
-    command-line executable using setuptools entry_points in setup.py
-    """
-
-    import argparse
-    from sys import exit
-
-    try:
-        import argcomplete
-    except ImportError:
-        argcomplete = None
-
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(
-        description=(
-            __doc__
-            + "\n\n"
-            + squashoutput.__doc__
-            + "\n\nNote: the --tind, --xind, --yind and --zind command line arguments "
-            "are converted\ndirectly to Python slice() objects and so use exclusive "
-            "'stop' values. They can be\npassed up to 3 values: [stop], [start, stop], "
-            "or [start, stop, step]."
-        ),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-
-    def str_to_bool(string):
-        return string.lower() == "true" or string.lower() == "t"
-
-    def int_or_none(string):
-        try:
-            return int(string)
-        except ValueError:
-            if string.lower() == "none" or string.lower() == "n":
-                return None
-            else:
-                raise
-
-    parser.add_argument("datadir", nargs="?", default=".")
-    parser.add_argument("--outputname", default="BOUT.dmp.nc")
-    parser.add_argument("--tind", type=int_or_none, nargs="*", default=[None])
-    parser.add_argument("--xind", type=int_or_none, nargs="*", default=[None])
-    parser.add_argument("--yind", type=int_or_none, nargs="*", default=[None])
-    parser.add_argument("--zind", type=int_or_none, nargs="*", default=[None])
-    parser.add_argument("-s", "--singleprecision", action="store_true", default=False)
-    parser.add_argument("-c", "--compress", action="store_true", default=False)
-    parser.add_argument("-l", "--complevel", type=int_or_none, default=None)
-    parser.add_argument(
-        "-i", "--least-significant-digit", type=int_or_none, default=None
-    )
-    parser.add_argument("-q", "--quiet", action="store_true", default=False)
-    parser.add_argument("-a", "--append", action="store_true", default=False)
-    parser.add_argument("-d", "--delete", action="store_true", default=False)
-
-    if argcomplete:
-        argcomplete.autocomplete(parser)
-
-    args = parser.parse_args()
-
-    for ind in "txyz":
-        args.__dict__[ind + "ind"] = slice(*args.__dict__[ind + "ind"])
-    # Call the function, using command line arguments
-    squashoutput(**args.__dict__)
