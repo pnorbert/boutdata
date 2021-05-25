@@ -1429,6 +1429,12 @@ class BoutOutputs(object):
                 return BoutArray(
                     self._root_file.read(varname), attributes=var_attributes
                 )
+        elif any(dim not in ("t", "x", "y", "z") for dim in dimensions):
+            raise ValueError(
+                "Dimensions {} of {} contain spatial dimensions but also have dimensions "
+                "that are not 't', 'x', 'y' or 'z'. This is not supported by parallel "
+                "reading. Try reading with parallel=False".format(dimensions, varname)
+            )
 
         is_fieldperp = dimensions in (("t", "x", "z"), ("x", "z"))
 
