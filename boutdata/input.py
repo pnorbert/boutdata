@@ -1,7 +1,6 @@
 """Fourier transform data for input to BOUT++
 
 """
-from builtins import range
 
 from numpy.fft import rfft
 from numpy import ndarray

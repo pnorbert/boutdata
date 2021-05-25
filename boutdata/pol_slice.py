@@ -1,6 +1,3 @@
-from __future__ import print_function
-from __future__ import division
-
 from boututils.datafile import DataFile
 import numpy as np
 from scipy.ndimage import map_coordinates

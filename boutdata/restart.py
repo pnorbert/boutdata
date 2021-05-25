@@ -8,10 +8,6 @@ TODO
 
 """
 
-from __future__ import print_function
-from __future__ import division
-from builtins import str, range
-
 import os
 import glob
 

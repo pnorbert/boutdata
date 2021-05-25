@@ -2,8 +2,6 @@
     Method of Manufactured Solutions (MMS)
 
 """
-from __future__ import print_function
-from __future__ import division
 
 from sympy import symbols, cos, sin, diff, sqrt, pi, simplify, trigsimp, Wild
 
