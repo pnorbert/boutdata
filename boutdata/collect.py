@@ -421,32 +421,8 @@ def _collect_from_single_file(
     if not yguards:
         yind = slice(yind.start + myg, yind.stop + myg, yind.step)
 
-    if dimensions == ():
-        ranges = []
-    elif dimensions == ("t",):
-        ranges = [tind]
-    elif dimensions == ("x", "y"):
-        # Field2D
-        ranges = [xind, yind]
-    elif dimensions == ("x", "z"):
-        # FieldPerp
-        ranges = [xind, zind]
-    elif dimensions == ("t", "x", "y"):
-        # evolving Field2D
-        ranges = [tind, xind, yind]
-    elif dimensions == ("t", "x", "z"):
-        # evolving FieldPerp
-        ranges = [tind, xind, zind]
-    elif dimensions == ("x", "y", "z"):
-        # Field3D
-        ranges = [xind, yind, zind]
-    elif dimensions == ("t", "x", "y", "z"):
-        # evolving Field3D
-        ranges = [tind, xind, yind, zind]
-    else:
-        # Not a Field, so do not support slicing.
-        # For example, may be a string.
-        ranges = None
+    dim_ranges = {"t": tind, "x": xind, "y": yind, "z": zind}
+    ranges = [dim_ranges.get(dim, None) for dim in dimensions]
 
     data = f.read(varname, ranges)
     var_attributes = f.attributes(varname)
