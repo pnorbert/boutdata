@@ -4,6 +4,7 @@ OMFIT
 
 """
 
+from collections import OrderedDict
 import copy
 import glob
 import io
@@ -13,7 +14,14 @@ import re
 
 from multiprocessing import Process, Pipe, RawArray
 
-from boutdata.collect import collect, create_cache, findVar, _convert_to_nice_slice
+from boutdata.collect import (
+    collect,
+    create_cache,
+    findVar,
+    _check_fieldperp_attributes,
+    _collect_from_one_proc,
+    _get_grid_info,
+)
 from boututils.boutarray import BoutArray
 from boututils.boutwarnings import alwayswarn
 from boututils.datafile import DataFile
@@ -927,13 +935,28 @@ class BoutOutputs(object):
         Switch for creation of a cache of DataFile objects to be
         passed to collect so that DataFiles do not need to be
         re-opened to read each variable (default: True)
+    info : bool, optional
+        Print information about grid and data loading? (default: False)
+    xguards : bool, optional
+        Collect X boundary guard cells? (default: True)
+        (Set to True to be consistent with the definition of nx)
+    yguards : bool or "include_upper", optional
+        Collect Y boundary guard cells? (default: False)
+        If yguards=="include_upper" the y-boundary cells from the upper (second) target
+        are also included.
+    xind, yind, zind, tind : int, slice or list of int, optional
+        Range of X, Y, Z or time indices to collect. Either a single
+        index to collect, a list containing [start, end] (inclusive
+        end), or a slice object (usual python indexing). Default is to
+        fetch all indices
     parallel : bool or int, default False
         If set to True or 0, use the multiprocessing library to read data in parallel
         with the maximum number of available processors. If set to an int, use that many
         processes.
 
-    **kwargs
-        keyword arguments that are passed through to _caching_collect()
+    Other parameters
+    ----------------
+    keyword arguments that are passed through to collect()
 
     Examples
     --------
@@ -1012,170 +1035,65 @@ class BoutOutputs(object):
         if len(self._file_list) == 0:
             raise ValueError("ERROR: No data files found")
 
-        # Available variables
-        self.varNames = []
-        self.attributes = {}
-        self.dimensions = {}
-        self.evolvingVariableNames = []
-
         with DataFile(latest_file) as f:
-            self.nt = len(f.read("t_array"))
-            mz = int(f.read("MZ"))
-            self.mxg = int(f.read("MXG"))
-            self.myg = int(f.read("MYG"))
-            self.is_doublenull = f.read("jyseps2_1") != f.read("jyseps1_2")
-            self.ny_inner = int(f.read("ny_inner"))
-            self.nxpe = int(f.read("NXPE"))
-            self.nype = int(f.read("NYPE"))
-            self.npes = self.nxpe * self.nype
-            self.mxsub = int(f.read("MXSUB"))
-            self.mysub = int(f.read("MYSUB"))
-
-            # Get the version of BOUT++ (should be > 0.6 for NetCDF anyway)
-            try:
-                version = f["BOUT_VERSION"]
-            except KeyError:
-                print("BOUT++ version : Pre-0.2")
-                version = 0
-            if version < 3.5:
-                # Remove extra point
-                self.nz = mz - 1
-            else:
-                self.nz = mz
-
-            if self._xguards:
-                self.nx = self.nxpe * self.mxsub + 2 * self.mxg
-            else:
-                self.nx = self.nxpe * self.mxsub
-
-            if self._yguards:
-                self.ny = self.mysub * self.nype + 2 * self.myg
-                if self._yguards == "include_upper" and self.is_doublenull:
-                    # Simulation has a second (upper) target, with a second set of y-boundary
-                    # points
-                    self.ny = self.ny + 2 * self.myg
-                    self.yproc_upper_target = self.ny_inner // self.mysub - 1
-                    if self.ny_inner % self.mysub != 0:
-                        raise ValueError(
-                            "Trying to keep upper boundary cells but mysub={} does not "
-                            "divide ny_inner={}".format(self.mysub, self.ny_inner)
-                        )
-                else:
-                    self.yproc_upper_target = None
-            else:
-                self.ny = self.mysub * self.nype
-
-            self.xind = _convert_to_nice_slice(xind, self.nx, "xind")
-            self.yind = _convert_to_nice_slice(yind, self.ny, "yind")
-            self.zind = _convert_to_nice_slice(zind, self.nz, "zind")
-            self.tind = _convert_to_nice_slice(tind, self.nt, "tind")
-
-            xsize = self.xind.stop - self.xind.start
-            ysize = self.yind.stop - self.yind.start
-            zsize = int(
-                numpy.ceil(float(self.zind.stop - self.zind.start) / self.zind.step)
-            )
-            tsize = int(
-                numpy.ceil(float(self.tind.stop - self.tind.start) / self.tind.step)
+            self.grid_info, self.tind, self.xind, self.yind, self.zind = _get_grid_info(
+                f,
+                xguards=self._xguards,
+                yguards=self._yguards,
+                tind=tind,
+                xind=xind,
+                yind=yind,
+                zind=zind,
+                all_vars_info=True,
             )
 
-            # Map between dimension names and output size
-            self.sizes = {"x": xsize, "y": ysize, "z": zsize, "t": tsize}
-
-            if len(self._file_list) != self.npes:
-                alwayswarn("Too many data files, reading most recent ones")
-            if len(self._file_list) != self.npes and self.npes == 1:
-                # single output file
-                # do like this to catch, e.g. either 'BOUT.dmp.nc' or 'BOUT.dmp.0.nc'
-                self._file_list = [latest_file]
-            else:
-                # Re-create self._file_list so that it is sorted
-                self._file_list = [
-                    os.path.join(
-                        path, self._prefix + "." + str(i) + "." + self._suffix
-                    )
-                    for i in range(self.npes)
-                ]
-
-            # Get variable names
-            self.varNames = f.keys()
-            for name in f.keys():
-                self.attributes[name] = f.attributes(name)
-                dimensions = f.dimensions(name)
-                self.dimensions[name] = dimensions
-                if name != "t_array" and "t" in dimensions:
-                    self.evolvingVariableNames.append(name)
+        if len(self._file_list) != self.grid_info["npes"]:
+            alwayswarn("Too many data files, reading most recent ones")
+        if (
+            len(self._file_list) != self.grid_info["npes"]
+            and self.grid_info["npes"] == 1
+        ):
+            # single output file
+            # do like this to catch, e.g. either 'BOUT.dmp.nc' or 'BOUT.dmp.0.nc'
+            self._file_list = [latest_file]
+        else:
+            # Re-create self._file_list so that it is sorted
+            self._file_list = [
+                os.path.join(path, self._prefix + "." + str(i) + "." + self._suffix)
+                for i in range(self.grid_info["npes"])
+            ]
 
         if self._info:
-            print("mxsub = %d mysub = %d mz = %d\n" % (self.mxsub, self.mysub, self.nz))
-            print("nxpe = %d, nype = %d, npe = %d\n" % (self.nxpe, self.nype, self.npe))
-            if self.npe < len(self._file_list):
-                print("WARNING: More files than expected (" + str(npe) + ")")
-            elif self.npe > len(self._file_list):
-                print("WARNING: Some files missing. Expected " + str(npe))
-
-        # Private variables
-        if self._caching:
-            from collections import OrderedDict
-
-            self._datacache = OrderedDict()
-            if self._caching is not True:
-                # Track the size of _datacache and limit it to a maximum of _caching
-                try:
-                    # Check that _caching is a number of some sort
-                    float(self._caching)
-                except ValueError:
-                    raise ValueError(
-                        "BoutOutputs: Invalid value for caching argument. Caching should be either a number (giving the maximum size of the cache in GB), True for unlimited size or False for no caching."
-                    )
-                self._datacachesize = 0
-                self._datacachemaxsize = self._caching * 1.0e9
-
-        if self._parallel is not False:
-            if self._parallel is True or self._parallel == 0:
-                self._parallel = determineNumberOfCPUs()
-            if not isinstance(self._parallel, int) or self._parallel <= 0:
-                raise ValueError(
-                    "Passed or found inconsistent value %i for number of processes",
-                    self._parallel,
+            print(
+                "mxsub = {} mysub = {} mz = {}\n"
+                .format(
+                    self.grid_info["mxsub"],
+                    self.grid_info["mysub"],
+                    self.grid_info["nz"],
                 )
-
-            if self._parallel > self.npes:
-                # Using current self._parallel, some workers would have no work
-                self._parallel = self.npes
-
-            # Open the 0'th file so we can read scalars without the worker processes
-            self._root_file = DataFile(self._file_list[0])
-
-            # Need to initialise all workers with a shared memory buffer to write to
-            dim_sizes = tuple(self.sizes[d] for d in ("t", "x", "y", "z"))
-            self._shared_buffer_raw = RawArray("d", int(numpy.prod(dim_sizes)))
-            self._shared_buffer = numpy.reshape(
-                numpy.frombuffer(self._shared_buffer_raw), dim_sizes
             )
-
-            # Work out which files to assign to which workers
-            min_files_per_proc = int(self.npes) // self._parallel
-            extra_files = int(self.npes) % self._parallel
-            files_per_proc = [min_files_per_proc] * (self._parallel - extra_files) + [
-                min_files_per_proc + 1
-            ] * extra_files
-            # self._workers is a list of pairs of (worker, connection)
-            self._workers = []
-            filenum = 0
-            for i in range(self._parallel):
-                parent_connection, child_connection = Pipe()
-                proc_list = tuple(
-                    p for p in range(filenum, filenum + files_per_proc[i])
+            print(
+                "nxpe = {}, nype = {}, npes = {}\n"
+                .format(
+                    self.grid_info["nxpe"],
+                    self.grid_info["nype"],
+                    self.grid_info["npes"],
                 )
-                filenum = filenum + files_per_proc[i]
-                worker = Process(
-                    target=self._worker_function,
-                    args=(child_connection, proc_list, self._shared_buffer_raw),
+            )
+            if self.grid_info["npes"] < len(self._file_list):
+                print(
+                    "WARNING: More files than expected ({})".format(grid_info["npes"])
                 )
-                worker.start()
-                self._workers.append((worker, parent_connection))
+            elif self.grid_info["npes"] > len(self._file_list):
+                print(
+                    "WARNING: Some files missing. Expected {}".format(grid_info["npes"])
+                )
 
+        # Initialise private variables
+        if self._caching:
+            self._init_caching()
+        if self._parallel is not False:
+            self._init_parallel()
         self._DataFileCache = None
 
     def __del__(self):
@@ -1187,17 +1105,80 @@ class BoutOutputs(object):
                 worker.join()
                 connection.close()
 
-    def keys(self):
-        """Return a list of available variable names
-
+    def _init_caching(self):
         """
-        return self.varNames
+        Initialise private members used for caching of data variables
+        """
+        self._datacache = OrderedDict()
+        if self._caching is not True:
+            # Track the size of _datacache and limit it to a maximum of _caching
+            try:
+                # Check that _caching is a number of some sort
+                float(self._caching)
+            except ValueError:
+                raise ValueError(
+                    "BoutOutputs: Invalid value for caching argument. Caching should "
+                    "be either a number (giving the maximum size of the cache in GB), "
+                    "True for unlimited size or False for no caching."
+                )
+            self._datacachesize = 0
+            self._datacachemaxsize = self._caching * 1.0e9
+
+    def _init_parallel(self):
+        """
+        Initialise private members used for parallel reading
+        """
+        if self._parallel is True or self._parallel == 0:
+            self._parallel = determineNumberOfCPUs()
+        if not isinstance(self._parallel, int) or self._parallel <= 0:
+            raise ValueError(
+                "Passed or found inconsistent value %i for number of processes",
+                self._parallel,
+            )
+
+        if self._parallel > self.grid_info["npes"]:
+            # Using current self._parallel, some workers would have no work
+            self._parallel = self.grid_info["npes"]
+
+        # Open the 0'th file so we can read scalars without the worker processes
+        self._root_file = DataFile(self._file_list[0])
+
+        # Need to initialise all workers with a shared memory buffer to write to
+        dim_sizes = tuple(self.grid_info["sizes"][d] for d in ("t", "x", "y", "z"))
+        self._shared_buffer_raw = RawArray("d", int(numpy.prod(dim_sizes)))
+        self._shared_buffer = numpy.reshape(
+            numpy.frombuffer(self._shared_buffer_raw), dim_sizes
+        )
+
+        # Work out which files to assign to which workers
+        min_files_per_proc = int(self.grid_info["npes"]) // self._parallel
+        extra_files = int(self.grid_info["npes"]) % self._parallel
+        files_per_proc = [min_files_per_proc] * (self._parallel - extra_files) + [
+            min_files_per_proc + 1
+        ] * extra_files
+        # self._workers is a list of pairs of (worker, connection)
+        self._workers = []
+        filenum = 0
+        for i in range(self._parallel):
+            parent_connection, child_connection = Pipe()
+            proc_list = tuple(
+                p for p in range(filenum, filenum + files_per_proc[i])
+            )
+            filenum = filenum + files_per_proc[i]
+            worker = Process(
+                target=self._worker_function,
+                args=(child_connection, proc_list, self._shared_buffer_raw),
+            )
+            worker.start()
+            self._workers.append((worker, parent_connection))
+
+    def keys(self):
+        """Return a list of available variable names"""
+        return self.grid_info["varNames"]
 
     def evolvingVariables(self):
-        """Return a list of names of time-evolving variables
-
-        """
-        return self.evolvingVariableNames
+        """Return a list of names of time-evolving variables"""
+        return self.grid_info["evolvingVariableNames"]
 
     def redistribute(self, npes, nxpe=None, mxg=2, myg=2, include_restarts=True):
         """Create a new set of dump files for npes processors.
@@ -1284,7 +1265,7 @@ class BoutOutputs(object):
             DataFileCache = None
         # read and write the data
         for v in self.varNames:
-            print("processing " + v)
+            print("processing {}".format(v))
             data = collect(
                 v,
                 path=backupdir,
@@ -1323,9 +1304,8 @@ class BoutOutputs(object):
                         # FieldPerp?
                         # check is not perfect, fails if ny=nz
                         raise ValueError(
-                            "Error: Found FieldPerp '"
-                            + v
-                            + "'. This case is not currently handled by BoutOutputs.redistribute()."
+                            "Error: Found FieldPerp '{}'. This case is not currently "
+                            "handled by BoutOutputs.redistribute().".format(v)
                         )
                     outfile.write(
                         v,
@@ -1340,9 +1320,8 @@ class BoutOutputs(object):
                         # evolving Field2D, but this case is not handled
                         # check is not perfect, fails if ny=nx and nx=nt
                         raise ValueError(
-                            "Error: Found evolving Field2D '"
-                            + v
-                            + "'. This case is not currently handled by BoutOutputs.redistribute()."
+                            "Error: Found evolving Field2D '{}'. This case is not "
+                            "currently handled by BoutOutputs.redistribute().".format(v)
                         )
                     outfile.write(
                         v,
@@ -1388,18 +1367,18 @@ class BoutOutputs(object):
                 npes, path=backupdir, nxpe=nxpe, output=self._path, mxg=mxg, myg=myg
             )
 
-    def _collect(self, *args, **kwargs):
+    def _collect(self, varname):
         """Wrapper for collect to pass self._DataFileCache if necessary.
 
         """
         if self._parallel:
-            return self._collect_parallel(*args, **kwargs)
+            return self._collect_parallel(varname)
 
         if self._DataFileCaching and self._DataFileCache is None:
             # Need to create the cache
             self._DataFileCache = create_cache(self._path, self._prefix)
         return collect(
-            *args,
+            varname,
             datafile_cache=self._DataFileCache,
             path=self._path,
             prefix=self._prefix,
@@ -1410,10 +1389,20 @@ class BoutOutputs(object):
             xind=self.xind,
             yind=self.yind,
             zind=self.zind,
-            **kwargs,
+            **self._kwargs,
         )
 
-    def _collect_parallel(self, varname, strict=False, tind_auto=False):
+    def _collect_parallel(self, varname):
+        tind_auto = self._kwargs.get("tind_auto", False)
+        strict = self._kwargs.get("strict", False)
+        unsupported_kwargs = [k for k in self._kwargs if k not in ("tind_auto",
+            "strict")]
+        if unsupported_kwargs:
+            raise ValueError(
+                "kwargs {} are not supported when parallel is not False"
+                .format(unsupported_kwargs)
+            )
+
         if tind_auto:
             raise ValueError("tind_auto not supported when parallel=True")
 
@@ -1423,8 +1412,8 @@ class BoutOutputs(object):
             else:
                 varname = findVar(varname, self.keys())
 
-        dimensions = self.dimensions[varname]
-        var_attributes = self.attributes[varname]
+        dimensions = self.grid_info["dimensions"][varname]
+        var_attributes = self.grid_info["attributes"][varname]
 
         if not ("x" in dimensions or "y" in dimensions or "z" in dimensions):
             # No spatial dependence - read without using workers to preserve type
@@ -1440,6 +1429,12 @@ class BoutOutputs(object):
                 return BoutArray(
                     self._root_file.read(varname), attributes=var_attributes
                 )
+        elif any(dim not in ("t", "x", "y", "z") for dim in dimensions):
+            raise ValueError(
+                "Dimensions {} of {} contain spatial dimensions but also have dimensions "
+                "that are not 't', 'x', 'y' or 'z'. This is not supported by parallel "
+                "reading. Try reading with parallel=False".format(dimensions, varname)
+            )
 
         is_fieldperp = dimensions in (("t", "x", "z"), ("x", "z"))
 
@@ -1451,34 +1446,23 @@ class BoutOutputs(object):
 
         yindex_global = None
         fieldperp_yproc = None
-        var_attributes = self.attributes[varname]
 
         for worker, connection in self._workers:
             temp_yindex, temp_fieldperp_yproc, temp_var_attributes = connection.recv()
             if is_fieldperp:
-                if temp_yindex is not None:
-                    # Found actual data for a FieldPerp, so update FieldPerp properties
-                    # and check they are unique
-                    # FieldPerp should only be defined on processors which contain its
-                    # (unique) yindex_global
-                    if yindex_global is not None and yindex_global != temp_yindex:
-                        raise ValueError(
-                            "Found FieldPerp {} at different global y-indices, {} and "
-                            "{}".format(varname, temp_yindex, yindex_global)
-                        )
-                    yindex_global = temp_yindex
-                    if (
-                        fieldperp_yproc is not None
-                        and fieldperp_yproc != temp_fieldperp_yproc
-                    ):
-                        raise ValueError(
-                            "Found FieldPerp {} on different y-processor indices, {} "
-                            "and {}".format(
-                                varname, fieldperp_yproc, temp_fieldperp_yproc
-                            )
-                        )
-                    fieldperp_yproc = temp_fieldperp_yproc
-                    var_attributes = temp_var_attributes
+                (
+                    yindex_global,
+                    fieldperp_yproc,
+                    var_attributes,
+                ) = _check_fieldperp_attributes(
+                    varname,
+                    yindex_global,
+                    temp_yindex,
+                    temp_fieldperp_yproc,
+                    fieldperp_yproc,
+                    var_attributes,
+                    temp_var_attributes,
+                )
 
         global_slices = []
         if "t" in dimensions:
@@ -1505,265 +1489,9 @@ class BoutOutputs(object):
             self._shared_buffer[global_slices].copy(), attributes=var_attributes
         )
 
-    def _collect_from_one_proc(
-        self, i, datafile, varname, *, shared_result, is_fieldperp
-    ):
-        """Read part of a variable from one processor
-
-        For use in _collect_parallel()
-
-        Parameters
-        ----------
-        i : int
-            Processor number being read from
-        datafile : DataFile
-            File to read from
-        varname : str
-            Name of variable to read
-        shared_result : numpy.Array
-            Array in which to put the data
-        is_fieldperp : bool
-            Is this variable a FieldPerp?
-
-        Returns
-        -------
-        temp_yindex, var_attributes
-        """
-        dimensions = self.dimensions[varname]
-        ndims = len(dimensions)
-
-        # ndims is 0 for reals, and 1 for f.ex. t_array
-        if ndims == 0:
-            if i != 0:
-                # Only read scalars from file 0
-                return None, None
-
-            # Just read from file
-            shared_result[...] = datafile.read(varname)
-            return None, None
-
-        if ndims > 4:
-            raise ValueError("ERROR: Too many dimensions")
-
-        if not any(dim in dimensions for dim in ("x", "y", "z")):
-            if i != 0:
-                return None, None
-
-            # Not a Field (i.e. no spatial dependence) so only read from the 0'th file
-            if "t" in dimensions:
-                if not dimensions[0] == "t":
-                    # 't' should be the first dimension in the list if present
-                    raise ValueError(
-                        varname
-                        + " has a 't' dimension, but it is not the first dimension "
-                        "in dimensions=" + str(dimensions)
-                    )
-                shared_result[:] = datafile.read(
-                    varname, ranges=[self.tind] + (ndims - 1) * [None]
-                )
-            else:
-                # No time or space dimensions, so no slicing
-                shared_result[...] = datafile.read(varname)
-            return None, None
-
-        # Get X and Y processor indices
-        pe_yind = i // self.nxpe
-        pe_xind = i % self.nxpe
-
-        inrange = True
-
-        if self._yguards:
-            # Get local ranges
-            ystart = self.yind.start - pe_yind * self.mysub
-            ystop = self.yind.stop - pe_yind * self.mysub
-
-            # Check lower y boundary
-            if pe_yind == 0:
-                # Keeping inner boundary
-                if ystop <= 0:
-                    inrange = False
-                if ystart < 0:
-                    ystart = 0
-            else:
-                if ystop < self.myg - 1:
-                    inrange = False
-                if ystart < self.myg:
-                    ystart = self.myg
-            # and lower y boundary at upper target
-            if (
-                self.yproc_upper_target is not None
-                and pe_yind - 1 == self.yproc_upper_target
-            ):
-                ystart = ystart - self.myg
-
-            # Upper y boundary
-            if pe_yind == (self.nype - 1):
-                # Keeping outer boundary
-                if ystart >= (self.mysub + 2 * self.myg):
-                    inrange = False
-                if ystop > (self.mysub + 2 * self.myg):
-                    ystop = self.mysub + 2 * self.myg
-            else:
-                if ystart >= (self.mysub + self.myg):
-                    inrange = False
-                if ystop > (self.mysub + self.myg):
-                    ystop = self.mysub + self.myg
-            # upper y boundary at upper target
-            if (
-                self.yproc_upper_target is not None
-                and pe_yind == self.yproc_upper_target
-            ):
-                ystop = ystop + self.myg
-
-        else:
-            # Get local ranges
-            ystart = self.yind.start - pe_yind * self.mysub + self.myg
-            ystop = self.yind.stop - pe_yind * self.mysub + self.myg
-
-            if (ystart >= (self.mysub + self.myg)) or (ystop <= self.myg):
-                inrange = False  # Y out of range
-
-            if ystart < self.myg:
-                ystart = self.myg
-            if ystop > self.mysub + self.myg:
-                ystop = self.myg + self.mysub
-
-        if self._xguards:
-            # Get local ranges
-            xstart = self.xind.start - pe_xind * self.mxsub
-            xstop = self.xind.stop - pe_xind * self.mxsub
-
-            # Check lower x boundary
-            if pe_xind == 0:
-                # Keeping inner boundary
-                if xstop <= 0:
-                    inrange = False
-                if xstart < 0:
-                    xstart = 0
-            else:
-                if xstop <= self.mxg:
-                    inrange = False
-                if xstart < self.mxg:
-                    xstart = self.mxg
-
-            # Upper x boundary
-            if pe_xind == (self.nxpe - 1):
-                # Keeping outer boundary
-                if xstart >= (self.mxsub + 2 * self.mxg):
-                    inrange = False
-                if xstop > (self.mxsub + 2 * self.mxg):
-                    xstop = self.mxsub + 2 * self.mxg
-            else:
-                if xstart >= (self.mxsub + self.mxg):
-                    inrange = False
-                if xstop > (self.mxsub + self.mxg):
-                    xstop = self.mxsub + self.mxg
-
-        else:
-            # Get local ranges
-            xstart = self.xind.start - pe_xind * self.mxsub + self.mxg
-            xstop = self.xind.stop - pe_xind * self.mxsub + self.mxg
-
-            if (xstart >= (self.mxsub + self.mxg)) or (xstop <= self.mxg):
-                inrange = False  # X out of range
-
-            if xstart < self.mxg:
-                xstart = self.mxg
-            if xstop > self.mxsub + self.mxg:
-                xstop = self.mxg + self.mxsub
-
-        if not inrange:
-            return None, None  # Don't need this file
-
-        local_slices = []
-        if "t" in dimensions:
-            local_slices.append(self.tind)
-        if "x" in dimensions:
-            local_slices.append(slice(xstart, xstop))
-        if "y" in dimensions:
-            local_slices.append(slice(ystart, ystop))
-        if "z" in dimensions:
-            local_slices.append(self.zind)
-        local_slices = tuple(local_slices)
-
-        if self._xguards:
-            xgstart = xstart + pe_xind * self.mxsub - self.xind.start
-            xgstop = xstop + pe_xind * self.mxsub - self.xind.start
-        else:
-            xgstart = xstart + pe_xind * self.mxsub - self.mxg - self.xind.start
-            xgstop = xstop + pe_xind * self.mxsub - self.mxg - self.xind.start
-        if self._yguards:
-            ygstart = ystart + pe_yind * self.mysub - self.yind.start
-            ygstop = ystop + pe_yind * self.mysub - self.yind.start
-            if (
-                self.yproc_upper_target is not None
-                and pe_yind > self.yproc_upper_target
-            ):
-                ygstart = ygstart + 2 * self.myg
-                ygstop = ygstop + 2 * self.myg
-        else:
-            ygstart = ystart + pe_yind * self.mysub - self.myg - self.yind.start
-            ygstop = ystop + pe_yind * self.mysub - self.myg - self.yind.start
-
-        global_slices = []
-        if "t" in dimensions:
-            global_slices.append(slice(None))
-        else:
-            global_slices.append(0)
-        if "x" in dimensions:
-            global_slices.append(slice(xgstart, xgstop))
-        else:
-            global_slices.append(0)
-        if "y" in dimensions:
-            global_slices.append(slice(ygstart, ygstop))
-        else:
-            global_slices.append(0)
-        if "z" in dimensions:
-            global_slices.append(slice(None))
-        else:
-            global_slices.append(0)
-        global_slices = tuple(global_slices)
-
-        if self._info:
-            sys.stdout.write(
-                "\rReading from "
-                + i
-                + ": ["
-                + str(xstart)
-                + "-"
-                + str(xstop - 1)
-                + "]["
-                + str(ystart)
-                + "-"
-                + str(ystop - 1)
-                + "] -> ["
-                + str(xgstart)
-                + "-"
-                + str(xgstop - 1)
-                + "]["
-                + str(ygstart)
-                + "-"
-                + str(ygstop - 1)
-                + "]\n"
-            )
-
-        if is_fieldperp:
-            f_attributes = datafile.attributes(varname)
-            temp_yindex = f_attributes["yindex_global"]
-            if temp_yindex < 0:
-                # No data for FieldPerp on this processor
-                return None, None
-
-        shared_result[global_slices] = datafile.read(varname, ranges=local_slices)
-
-        if is_fieldperp:
-            return temp_yindex, f_attributes
-
-        return None, None
-
     def _worker_function(self, connection, proc_list, shared_buffer_raw):
         data_files = [DataFile(self._file_list[i]) for i in proc_list]
-        dim_sizes = tuple(self.sizes[d] for d in ("t", "x", "y", "z"))
+        dim_sizes = tuple(self.grid_info["sizes"][d] for d in ("t", "x", "y", "z"))
         shared_buffer = numpy.reshape(numpy.frombuffer(shared_buffer_raw), dim_sizes)
         while True:
             args = connection.recv()
@@ -1781,31 +1509,37 @@ class BoutOutputs(object):
             var_attributes = None
 
             for i, f in zip(proc_list, data_files):
-                temp_yindex, temp_var_attributes = self._collect_from_one_proc(
+                temp_yindex, temp_var_attributes = _collect_from_one_proc(
                     i,
                     f,
                     varname,
-                    shared_result=shared_buffer,
+                    result=shared_buffer,
                     is_fieldperp=is_fieldperp,
+                    grid_info=self.grid_info,
+                    dimensions=self.grid_info["dimensions"][varname],
+                    tind=self.tind,
+                    xind=self.xind,
+                    yind=self.yind,
+                    zind=self.zind,
+                    xguards=self._xguards,
+                    yguards=self._yguards,
+                    info=self._info,
+                    parallel_read=True,
                 )
                 if is_fieldperp:
-                    if temp_yindex is not None:
-                        # Found actual data for a FieldPerp, so update FieldPerp properties
-                        # and check they are unique
-                        if yindex_global is not None and yindex_global != temp_yindex:
-                            raise ValueError(
-                                "Found FieldPerp {} at different global y-indices, {} "
-                                "and {}".format(varname, temp_yindex, yindex_global)
-                            )
-                        yindex_global = temp_yindex
-                        pe_yind = i // self.nxpe
-                        if fieldperp_yproc is not None and fieldperp_yproc != pe_yind:
-                            raise ValueError(
-                                "Found FieldPerp {} on different y-processor indices, "
-                                "{} and {}".format(varname, fieldperp_yproc, pe_yind)
-                            )
-                        fieldperp_yproc = pe_yind
-                        var_attributes = temp_var_attributes
+                    (
+                        yindex_global,
+                        fieldperp_yproc,
+                        var_attributes,
+                    ) = _check_fieldperp_attributes(
+                        varname,
+                        yindex_global,
+                        temp_yindex,
+                        i // self.grid_info["nxpe"],
+                        fieldperp_yproc,
+                        var_attributes,
+                        temp_var_attributes,
+                    )
 
             connection.send((yindex_global, fieldperp_yproc, var_attributes))
 
@@ -1822,7 +1556,7 @@ class BoutOutputs(object):
 
         if self._caching:
             if name not in self._datacache.keys():
-                item = self._collect(name, **self._kwargs)
+                item = self._collect(name)
                 if self._caching is not True:
                     itemsize = item.nbytes
                     if itemsize > self._datacachemaxsize:
@@ -1838,10 +1572,7 @@ class BoutOutputs(object):
                 return self._datacache[name]
         else:
             # Collect the data from the repository
-            data = self._collect(
-                name,
-                **self._kwargs,
-            )
+            data = self._collect(name)
             return data
 
     def _removeFirstFromCache(self):

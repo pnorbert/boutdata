@@ -119,7 +119,9 @@ def squashoutput(
 
     if os.path.isfile(fullpath) and not append:
         raise ValueError(
-            fullpath + " already exists. Collect may try to read from this file, which is presumably not desired behaviour.")
+            "{} already exists. Collect may try to read from this file, which is "
+            "presumably not desired behaviour.".format(fullpath)
+        )
 
     # useful object from BOUT pylib to access output data
     outputs = BoutOutputs(
