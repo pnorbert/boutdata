@@ -53,5 +53,5 @@ setuptools.setup(
         "console_scripts": [
             "bout-squashoutput = boutdata.scripts.bout_squashoutput:main",
         ]
-    }
+    },
 )

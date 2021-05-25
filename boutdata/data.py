@@ -258,18 +258,18 @@ class BoutOptions(object):
             else:
                 getattr(parent, attr)[key] = value
 
+        def check_is_section(parent, path):
+            if path in parent and not isinstance(parent[path], BoutOptions):
+                raise TypeError(
+                    "'{}:{}' already exists and is not a section!".format(
+                        parent._name, path
+                    )
+                )
+
         def ensure_sections(parent, path):
             """Make sure all the components of path in parent are sections
             """
             path_parts = path.split(":", maxsplit=1)
-
-            def check_is_section(parent, path):
-                if path in parent and not isinstance(parent[path], BoutOptions):
-                    raise TypeError(
-                        "'{}:{}' already exists and is not a section!".format(
-                            parent._name, path
-                        )
-                    )
 
             if len(path_parts) > 1:
                 new_parent_name, child_name = path_parts
@@ -280,11 +280,52 @@ class BoutOptions(object):
                 check_is_section(parent, path)
                 parent.getSection(path)
 
+        def rename_key(thing, new_name, old_name):
+            """Rename a key in a dict while trying to preserve order, useful for minimising diffs"""
+            return {new_name if k == old_name else k: v for k, v in thing.items()}
+
+        def get_immediate_parent_and_child(path):
+            """Get the immediate parent of path"""
+            parent, _, child = path.rpartition(":")
+            if parent and parent in self:
+                return self[parent], child
+            return self, path
+
         value = self[old_name]
 
         if isinstance(value, BoutOptions):
             # We're moving a section: make sure we don't clobber existing values
             ensure_sections(self, new_name)
+
+            new_parent, new_child = get_immediate_parent_and_child(new_name)
+            old_parent, old_child = get_immediate_parent_and_child(old_name)
+
+            # Did we just add a new section?
+            new_section = len(new_parent[new_child].keys()) == 0
+            # Was it just a change in case?
+            case_change = new_child.lower() == old_child.lower()
+
+            # Renaming a child section just within the same parent section, we can preserve the order
+            if (new_parent is old_parent) and (new_section or case_change):
+                # We just put a new section in, but it will have been
+                # added at the end -- remove it so we can actually put
+                # the new section in the same order as the original
+                if new_section:
+                    new_parent.pop(new_child)
+                new_parent._sections = rename_key(
+                    new_parent._sections, new_child, old_child
+                )
+                new_parent.comments = rename_key(
+                    new_parent.comments, new_child, old_child
+                )
+                new_parent.inline_comments = rename_key(
+                    new_parent.inline_comments, new_child, old_child
+                )
+                new_parent._comment_whitespace = rename_key(
+                    new_parent._comment_whitespace, new_child, old_child
+                )
+                return
+
             # Now we're definitely moving into an existing section, so
             # update values and comments
             for key in value:
@@ -306,6 +347,23 @@ class BoutOptions(object):
                 old_name
             )
         else:
+            new_parent, new_child = get_immediate_parent_and_child(new_name)
+            old_parent, old_child = get_immediate_parent_and_child(old_name)
+
+            # Renaming a child key just within the same parent section, we can preserve the order
+            if new_parent is old_parent:
+                new_parent._keys = rename_key(new_parent._keys, new_child, old_child)
+                new_parent.comments = rename_key(
+                    new_parent.comments, new_child, old_child
+                )
+                new_parent.inline_comments = rename_key(
+                    new_parent.inline_comments, new_child, old_child
+                )
+                new_parent._comment_whitespace = rename_key(
+                    new_parent._comment_whitespace, new_child, old_child
+                )
+                return
+
             _, _, _, comment, inline_comment, comment_whitespace = self._pop_impl(
                 old_name
             )
@@ -428,6 +486,48 @@ class BoutOptions(object):
             self.__str__(section_name, opts[section], f)
 
         return f.getvalue()
+
+    def get_bool(self, name, default=None):
+        """
+        Convert an option value to a bool, in (almost) the same way as BOUT++.
+
+        Warnings
+        --------
+        BOUT++ will convert any option value beginning with "y", "Y", "t", "T" or "1" to
+        True, and any beginning with "n", "N", "f", "F" or "0" to False. Because
+        BoutOptions converts option values to int and float, this method cannot be quite
+        so permissive, and will raise an exception for ints other than 0 and 1 and for
+        floats, which BOUT++ might convert to a bool.
+
+        Parameters
+        ----------
+        name : str
+            The name of the option to read
+        default : bool, optional
+            Value to return if the option is not present. If default is not provided an
+            exception will be raised if the option is not present.
+        """
+        if default is not None and not isinstance(default, bool):
+            raise ValueError(f'default "{default}" is not a bool')
+
+        try:
+            value = self[name]
+        except KeyError:
+            if default is None:
+                raise
+            else:
+                return default
+
+        if value == 1 or (
+            isinstance(value, str) and value.lower() in ("y", "yes", "t", "true")
+        ):
+            return True
+        elif value == 0 or (
+            isinstance(value, str) and value.lower() in ("n", "no", "f", "false")
+        ):
+            return False
+
+        raise ValueError(f"Could not convert {name}={value} to a bool")
 
     def evaluate_scalar(self, name):
         """
@@ -734,7 +834,30 @@ class BoutOptionsFile(BoutOptions):
             ]
         )
 
-    def evaluate(self, name):
+        # Also create staggered versions of the coordinates
+        self.xlow = numpy.linspace(
+            -mxg / (self.nx - 2 * mxg),
+            1.0 + (mxg - 1.0) / (self.nx - 2 * mxg),
+            self.nx,
+        )[:, numpy.newaxis, numpy.newaxis]
+        self.ylow = (
+            2.0
+            * numpy.pi
+            * numpy.linspace(
+                -myg / self.ny,
+                1.0 + (myg - 1.0) / self.ny,
+                self.ny + 2 * myg,
+            )[numpy.newaxis, :, numpy.newaxis]
+        )
+        self.zlow = (
+            2.0
+            * numpy.pi
+            * numpy.linspace(0.0, 1.0 - 1.0 / self.nz, self.nz)[
+                numpy.newaxis, numpy.newaxis, :
+            ]
+        )
+
+    def evaluate(self, name, *, location="CELL_CENTRE"):
         """Evaluate (recursively) expressions
 
         Sections and subsections must be given as part of 'name',
@@ -747,6 +870,13 @@ class BoutOptionsFile(BoutOptions):
             subsections
 
         """
+        possible_locations = ["CELL_CENTRE", "CELL_XLOW", "CELL_YLOW", "CELL_ZLOW"]
+        if location not in possible_locations:
+            raise ValueError(
+                f"Unrecognised location {location}. Should be one of "
+                f"{possible_locations}."
+            )
+
         section = self
         split_name = name.split(":")
         for subsection in split_name[:-1]:
@@ -757,9 +887,13 @@ class BoutOptionsFile(BoutOptions):
         expression = expression.replace("^", "**")
 
         # substitute for x, y and z coordinates
-        for coord in ["x", "y", "z"]:
+        for coord, coord_at_location in [
+            ("x", "x" if location != "CELL_XLOW" else "xlow"),
+            ("y", "y" if location != "CELL_YLOW" else "ylow"),
+            ("z", "z" if location != "CELL_ZLOW" else "zlow"),
+        ]:
             expression = re.sub(
-                r"\b" + coord.lower() + r"\b", "self." + coord, expression
+                r"\b" + coord.lower() + r"\b", "self." + coord_at_location, expression
             )
 
         return eval(expression)

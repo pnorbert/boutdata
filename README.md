@@ -44,3 +44,11 @@ from boutdata import *
 ni = collect("Ni")
 ```
 
+When boutdata is installed as a package (e.g. with pip or conda), a
+command-line program is provided as an interface to squashoutput:
+```
+$ bout-squashoutput
+```
+bout-squashoutput provides tab-completion of arguments if argcomplete is
+installed and activated (see
+[https://kislyuk.github.io/argcomplete/](https://kislyuk.github.io/argcomplete/)).
