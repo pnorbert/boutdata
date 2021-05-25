@@ -834,7 +834,30 @@ class BoutOptionsFile(BoutOptions):
             ]
         )
 
-    def evaluate(self, name):
+        # Also create staggered versions of the coordinates
+        self.xlow = numpy.linspace(
+            -mxg / (self.nx - 2 * mxg),
+            1.0 + (mxg - 1.0) / (self.nx - 2 * mxg),
+            self.nx,
+        )[:, numpy.newaxis, numpy.newaxis]
+        self.ylow = (
+            2.0
+            * numpy.pi
+            * numpy.linspace(
+                -myg / self.ny,
+                1.0 + (myg - 1.0) / self.ny,
+                self.ny + 2 * myg,
+            )[numpy.newaxis, :, numpy.newaxis]
+        )
+        self.zlow = (
+            2.0
+            * numpy.pi
+            * numpy.linspace(0.0, 1.0 - 1.0 / self.nz, self.nz)[
+                numpy.newaxis, numpy.newaxis, :
+            ]
+        )
+
+    def evaluate(self, name, *, location="CELL_CENTRE"):
         """Evaluate (recursively) expressions
 
         Sections and subsections must be given as part of 'name',
@@ -847,6 +870,13 @@ class BoutOptionsFile(BoutOptions):
             subsections
 
         """
+        possible_locations = ["CELL_CENTRE", "CELL_XLOW", "CELL_YLOW", "CELL_ZLOW"]
+        if location not in possible_locations:
+            raise ValueError(
+                f"Unrecognised location {location}. Should be one of "
+                f"{possible_locations}."
+            )
+
         section = self
         split_name = name.split(":")
         for subsection in split_name[:-1]:
@@ -857,9 +887,13 @@ class BoutOptionsFile(BoutOptions):
         expression = expression.replace("^", "**")
 
         # substitute for x, y and z coordinates
-        for coord in ["x", "y", "z"]:
+        for coord, coord_at_location in [
+            ("x", "x" if location != "CELL_XLOW" else "xlow"),
+            ("y", "y" if location != "CELL_YLOW" else "ylow"),
+            ("z", "z" if location != "CELL_ZLOW" else "zlow"),
+        ]:
             expression = re.sub(
-                r"\b" + coord.lower() + r"\b", "self." + coord, expression
+                r"\b" + coord.lower() + r"\b", "self." + coord_at_location, expression
             )
 
         return eval(expression)
