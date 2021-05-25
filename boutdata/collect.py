@@ -618,37 +618,25 @@ def _collect_from_one_proc(
     if not inrange:
         return None, None  # Don't need this file
 
-    local_slices = []
-    if "t" in dimensions:
-        local_slices.append(tind)
-    if "x" in dimensions:
-        local_slices.append(slice(xstart, xstop))
-    if "y" in dimensions:
-        local_slices.append(slice(ystart, ystop))
-    if "z" in dimensions:
-        local_slices.append(zind)
-    local_slices = tuple(local_slices)
+    local_dim_slices = {
+        "t": tind, "x": slice(xstart, xstop), "y": slice(ystart, ystop), "z": zind
+    }
+    local_slices = tuple(local_dim_slices.get(dim, None) for dim in dimensions)
 
-    # When reading in parallel, we are always reading into a 4-dimensional shared array.
-    # Otherwise, reading into an array with the same dimensions as the variable.
-    global_slices = []
-    if "t" in dimensions:
-        global_slices.append(slice(None))
-    elif parallel_read:
-        global_slices.append(0)
-    if "x" in dimensions:
-        global_slices.append(slice(xgstart, xgstop))
-    elif parallel_read:
-        global_slices.append(0)
-    if "y" in dimensions:
-        global_slices.append(slice(ygstart, ygstop))
-    elif parallel_read:
-        global_slices.append(0)
-    if "z" in dimensions:
-        global_slices.append(slice(None))
-    elif parallel_read:
-        global_slices.append(0)
-    global_slices = tuple(global_slices)
+    global_dim_slices = {"x": slice(xgstart, xgstop), "y": slice(ygstart, ygstop)}
+    if parallel_read:
+        # When reading in parallel, we are always reading into a 4-dimensional shared array.
+        # Should not reach this function unless we only have dimensions in
+        # ("t", "x", "y", "z")
+        global_slices = tuple(
+            global_dim_slices.get(dim, slice(None)) if dim in dimensions else 0
+            for dim in ("t", "x", "y", "z")
+        )
+    else:
+        # Otherwise, reading into an array with the same dimensions as the variable.
+        global_slices = tuple(
+            global_dim_slices.get(dim, slice(None)) for dim in dimensions
+        )
 
     if info:
         print(
