@@ -1,10 +1,5 @@
 """ Routines for exchanging data to/from BOUT++ """
 
-try:
-    from builtins import str
-except ImportError:
-    raise ImportError("Please install the future module to use Python 2")
-
 # Import this, as this almost always used when calling this package
 from boutdata.collect import collect, attributes
 
@@ -27,7 +22,7 @@ except PackageNotFoundError:
 
         path = Path(__file__).resolve()
         __version__ = get_version(root="..", relative_to=path)
-    except (ModuleNotFoundError, LookupError) as e:
+    except (ModuleNotFoundError, LookupError):
         # ModuleNotFoundError if setuptools_scm is not installed.
         # LookupError if git is not installed, or the code is not in a git repo even
         # though it has not been installed.

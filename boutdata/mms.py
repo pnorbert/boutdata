@@ -3,7 +3,7 @@
 
 """
 
-from sympy import symbols, cos, sin, diff, sqrt, pi, simplify, trigsimp, Wild
+from sympy import symbols, cos, sin, diff, sqrt, pi, simplify, trigsimp, integrate, Wild
 
 from numpy import arange, zeros
 
@@ -38,6 +38,7 @@ class Metric(object):
 
 
 identity = Metric()
+
 
 # Basic differencing
 def ddt(f):
@@ -173,15 +174,15 @@ def Grad_par(f, metric=identity):
 
 
 def Vpar_Grad_par(v, f, metric=identity):
-    """Parallel advection operator $$v_\parallel \cdot \nabla_\parallel (f)$$"""
+    """Parallel advection operator $$v_\parallel \cdot \nabla_\parallel (f)$$"""  # noqa: E501, W605
     return v * Grad_par(f, metric=metric)
 
 
 def Div_par(f, metric=identity):
     """
     Divergence of magnetic field aligned vector $$v = \hat{b} f
-    \nabla \cdot (\hat{b} f) = 1/J \partial_y (f/B)
-    = B Grad_par(f/B)$$
+    \nabla \cdot (\hat{b} f) = 1/J \partial_y (f/B)               # noqa: W605
+    = B Grad_par(f/B)$$                                           # noqa: W605
     """
     return metric.B * Grad_par(f / metric.B, metric)
 
@@ -550,7 +551,7 @@ class ShapedTokamak(object):
         # NOTE: Approximate calculation
 
         # Distance between flux surface relative to outboard midplane.
-        expansion = (1 - (old_div(ss, rmin)) * cos(y)) / (1 - (ss / rmin))
+        expansion = (1 - (ss / rmin) * cos(y)) / (1 - (ss / rmin))
 
         Bpxy = Bp0 * ((Rmaj + rmin) / Rxy) / expansion
 
@@ -596,6 +597,7 @@ class ShapedTokamak(object):
         output - boututils.datafile object, e.g., an open netCDF file
         MXG, Number of guard cells in the x-direction
         """
+        raise ValueError("Implementation of ShapedTokamak.write is unfinished")
 
         ngx = nx + 2 * MXG
         ngy = ny
@@ -612,7 +614,7 @@ class ShapedTokamak(object):
 
         hthe = zeros([ngx, ngy])
 
-        I = zeros([ngx, ngy])
+        # I = zeros([ngx, ngy])
 
         # Note: This is slow, and could be improved using something like lambdify
         for i, x in enumerate(xarr):
@@ -625,10 +627,10 @@ class ShapedTokamak(object):
 
                 hthe[i, j] = self.hthe.evalf(subs={self.x: x, self.y: y})
 
-            plt.plot(Rxy[i, :], Zxy[i, :])
-        plt.show()
+        # plt.plot(Rxy, Zxy)
+        # plt.show()
 
-        Bxy = sqrt(Btxy ** 2 + Bpxy ** 2)
+        # Bxy = sqrt(Btxy ** 2 + Bpxy ** 2)
 
     def metric(self):
         """

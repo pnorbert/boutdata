@@ -220,7 +220,14 @@ def collect(
     # Read data from the first file
     f = getDataFile(0)
     grid_info, tind, xind, yind, zind = _get_grid_info(
-        f, xguards=xguards, yguards=yguards, tind=tind, xind=xind, yind=yind, zind=zind
+        f,
+        xguards=xguards,
+        yguards=yguards,
+        tind=tind,
+        xind=xind,
+        yind=yind,
+        zind=zind,
+        nfiles=len(file_list),
     )
 
     if varname not in grid_info["varNames"]:
@@ -637,8 +644,8 @@ def _collect_from_one_proc(
 
     global_dim_slices = {"x": slice(xgstart, xgstop), "y": slice(ygstart, ygstop)}
     if parallel_read:
-        # When reading in parallel, we are always reading into a 4-dimensional shared array.
-        # Should not reach this function unless we only have dimensions in
+        # When reading in parallel, we are always reading into a 4-dimensional shared
+        # array.  Should not reach this function unless we only have dimensions in
         # ("t", "x", "y", "z")
         global_slices = tuple(
             global_dim_slices.get(dim, slice(None)) if dim in dimensions else 0
@@ -949,7 +956,9 @@ def _check_fieldperp_attributes(
     return yindex_global, fieldperp_yproc, var_attributes
 
 
-def _get_grid_info(f, *, xguards, yguards, tind, xind, yind, zind, all_vars_info=False):
+def _get_grid_info(
+    f, *, xguards, yguards, tind, xind, yind, zind, nfiles, all_vars_info=False
+):
     """Get the grid info from an open DataFile
 
     Parameters
@@ -968,6 +977,8 @@ def _get_grid_info(f, *, xguards, yguards, tind, xind, yind, zind, all_vars_info
         Slice for y-dimension
     zind : int, sequence of int or slice
         Slice for z-dimension
+    nfiles : int
+        Number of files being read from
     all_vars_info : bool, default False
         Load extra info on names, dimensions and attributes of all variables.
     """
@@ -1162,9 +1173,8 @@ def findFiles(path, prefix):
         if files:
             if file_list_parallel:  # Already had a list of files
                 raise IOError(
-                    "Parallel dump files with both {0} and {1} extensions are present. Do not know which to read.".format(
-                        suffix, test_suffix
-                    )
+                    "Parallel dump files with both {0} and {1} extensions are present. "
+                    "Do not know which to read.".format(suffix_parallel, test_suffix)
                 )
             suffix_parallel = test_suffix
             file_list_parallel = files
@@ -1176,18 +1186,16 @@ def findFiles(path, prefix):
         if files:
             if file_list:  # Already had a list of files
                 raise IOError(
-                    "Dump files with both {0} and {1} extensions are present. Do not know which to read.".format(
-                        suffix, test_suffix
-                    )
+                    "Dump files with both {0} and {1} extensions are present. Do not "
+                    "know which to read.".format(suffix, test_suffix)
                 )
             suffix = test_suffix
             file_list = files
 
     if file_list_parallel and file_list:
         raise IOError(
-            "Both regular (with suffix {0}) and parallel (with suffix {1}) dump files are present. Do not know which to read.".format(
-                suffix_parallel, suffix
-            )
+            "Both regular (with suffix {0}) and parallel (with suffix {1}) dump files "
+            "are present. Do not know which to read.".format(suffix_parallel, suffix)
         )
     elif file_list_parallel:
         return file_list_parallel, True, suffix_parallel
@@ -1215,7 +1223,8 @@ def create_cache(path, prefix):
 
     Returns
     -------
-    namedtuple : (list of str, bool, str, list of :py:obj:`~boututils.datafile.DataFile`)
+    namedtuple : (list of str, bool, str,
+                  list of :py:obj:`~boututils.datafile.DataFile`)
         The cache of DataFiles in a namedtuple along with the file_list,
         and parallel and suffix attributes
 

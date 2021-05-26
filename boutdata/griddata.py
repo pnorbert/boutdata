@@ -276,7 +276,7 @@ def gridcontourf(
     ix2 = grid["ixseps2"]
     try:
         nin = grid["ny_inner"]
-    except:
+    except KeyError:
         nin = j12
 
     nx = grid["nx"]
@@ -300,7 +300,7 @@ def gridcontourf(
             nin = nin[0]
             nx = nx[0]
             ny = ny[0]
-        except:
+        except (TypeError, IndexError):
             pass
 
     R = grid["Rxy"]
@@ -593,7 +593,6 @@ def bout2sonnet(grdname, outf):
         Zxy = g["Zxy"]
         Bpxy = g["Bpxy"]
         Btxy = g["Btxy"]
-        Bxy = g["Bxy"]
 
     # Now iterate over cells in the order Eirene expects
 

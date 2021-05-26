@@ -30,7 +30,7 @@ from boututils.run_wrapper import determineNumberOfCPUs
 # These are imported to be used by 'eval' in
 # BoutOptions.evaluate_scalar() and BoutOptionsFile.evaluate().
 # Change the names to match those used by C++/BOUT++
-from numpy import (
+from numpy import (  # noqa: F401
     pi,
     sin,
     cos,
@@ -289,7 +289,8 @@ class BoutOptions(object):
                 parent.getSection(path)
 
         def rename_key(thing, new_name, old_name):
-            """Rename a key in a dict while trying to preserve order, useful for minimising diffs"""
+            """Rename a key in a dict while trying to preserve order, useful for
+            minimising diffs"""
             return {new_name if k == old_name else k: v for k, v in thing.items()}
 
         def get_immediate_parent_and_child(path):
@@ -313,7 +314,8 @@ class BoutOptions(object):
             # Was it just a change in case?
             case_change = new_child.lower() == old_child.lower()
 
-            # Renaming a child section just within the same parent section, we can preserve the order
+            # Renaming a child section just within the same parent section, we can
+            # preserve the order
             if (new_parent is old_parent) and (new_section or case_change):
                 # We just put a new section in, but it will have been
                 # added at the end -- remove it so we can actually put
@@ -358,7 +360,8 @@ class BoutOptions(object):
             new_parent, new_child = get_immediate_parent_and_child(new_name)
             old_parent, old_child = get_immediate_parent_and_child(old_name)
 
-            # Renaming a child key just within the same parent section, we can preserve the order
+            # Renaming a child key just within the same parent section, we can preserve
+            # the order
             if new_parent is old_parent:
                 new_parent._keys = rename_key(new_parent._keys, new_child, old_child)
                 new_parent.comments = rename_key(
@@ -564,7 +567,8 @@ class BoutOptions(object):
             if re.search(
                 r"(?<!:)\b" + re.escape(nested_name.lower()) + r"\b", expression.lower()
             ):
-                # match nested_name only if not preceded by colon (which indicates more nesting)
+                # match nested_name only if not preceded by colon (which indicates more
+                # nesting)
                 expression = re.sub(
                     r"(?<!:)\b" + re.escape(nested_name.lower()) + r"\b",
                     "(" + self._substitute_expressions(var) + ")",
@@ -1078,6 +1082,7 @@ class BoutOutputs(object):
                 xind=xind,
                 yind=yind,
                 zind=zind,
+                nfiles=len(self._file_list),
                 all_vars_info=True,
             )
 
@@ -1114,11 +1119,15 @@ class BoutOutputs(object):
             )
             if self.grid_info["npes"] < len(self._file_list):
                 print(
-                    "WARNING: More files than expected ({})".format(grid_info["npes"])
+                    "WARNING: More files than expected ({})".format(
+                        self.grid_info["npes"]
+                    )
                 )
             elif self.grid_info["npes"] > len(self._file_list):
                 print(
-                    "WARNING: Some files missing. Expected {}".format(grid_info["npes"])
+                    "WARNING: Some files missing. Expected {}".format(
+                        self.grid_info["npes"]
+                    )
                 )
 
         # Initialise private variables
@@ -1243,14 +1252,8 @@ class BoutOutputs(object):
         old_processor_layout = get_processor_layout(
             DataFile(self._file_list[0]), has_t_dimension=True, mxg=mxg, myg=myg
         )
-        old_nxpe = old_processor_layout.nxpe
-        old_nype = old_processor_layout.nype
-        old_npes = old_processor_layout.npes
-        old_mxsub = old_processor_layout.mxsub
-        old_mysub = old_processor_layout.mysub
         nx = old_processor_layout.nx
         ny = old_processor_layout.ny
-        mz = old_processor_layout.mz
         mxg = old_processor_layout.mxg
         myg = old_processor_layout.myg
 
@@ -1264,7 +1267,8 @@ class BoutOutputs(object):
         mysub = new_processor_layout.mysub
 
         # move existing files to backup directory
-        # don't overwrite backup: os.mkdir will raise exception if directory already exists
+        # don't overwrite backup: os.mkdir will raise exception if directory already
+        # exists
         backupdir = path.join(self._path, "redistribution_backups")
         mkdir(backupdir)
         for f in self._file_list:
@@ -1281,7 +1285,8 @@ class BoutOutputs(object):
                 self._path, this_prefix + str(i) + "." + self._suffix
             )
             if self._suffix.split(".")[-1] in ["nc", "ncdf", "cdl"]:
-                # set format option to DataFile explicitly to avoid creating netCDF3 files, which can only contain up to 2GB of data
+                # set format option to DataFile explicitly to avoid creating netCDF3
+                # files, which can only contain up to 2GB of data
                 outfile_list.append(
                     DataFile(outpath, write=True, create=True, format="NETCDF4")
                 )
@@ -1461,9 +1466,11 @@ class BoutOutputs(object):
                 )
         elif any(dim not in ("t", "x", "y", "z") for dim in dimensions):
             raise ValueError(
-                "Dimensions {} of {} contain spatial dimensions but also have dimensions "
-                "that are not 't', 'x', 'y' or 'z'. This is not supported by parallel "
-                "reading. Try reading with parallel=False".format(dimensions, varname)
+                "Dimensions {} of {} contain spatial dimensions but also have "
+                "dimensions that are not 't', 'x', 'y' or 'z'. This is not supported "
+                "by parallel reading. Try reading with parallel=False".format(
+                    dimensions, varname
+                )
             )
 
         is_fieldperp = dimensions in (("t", "x", "z"), ("x", "z"))

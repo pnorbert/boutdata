@@ -31,8 +31,6 @@ def gen_surface(grid):
         ixseps1 = grid.read("ixseps1")
         ixseps2 = grid.read("ixseps2")
         jyseps1_1 = grid.read("jyseps1_1")
-        jyseps1_2 = grid.read("jyseps1_2")
-        jyseps2_1 = grid.read("jyseps2_1")
         jyseps2_2 = grid.read("jyseps2_2")
 
         if ixseps1 == ixseps2:

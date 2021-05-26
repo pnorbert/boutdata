@@ -97,7 +97,8 @@ def pol_slice(var3d, gridfile, n=1, zangle=0.0, nyInterp=None):
     zm = (z0 - 1 + (nz - 1)) % (nz - 1)
 
     # For some reason numpy imposes a limit of 32 entries to choose
-    # so if nz>32 we have to use a different approach. This limit may change with numpy version
+    # so if nz>32 we have to use a different approach. This limit may change with numpy
+    # version
     if nz >= 32:
         for x in np.arange(nx):
             for y in np.arange(ny):
