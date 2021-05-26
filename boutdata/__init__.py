@@ -10,7 +10,7 @@ from boutdata.collect import collect, attributes
 
 __all__ = ["attributes", "collect", "gen_surface", "pol_slice"]
 
-__name__ = 'boutdata'
+__name__ = "boutdata"
 
 try:
     from importlib.metadata import version, PackageNotFoundError
@@ -24,6 +24,7 @@ except PackageNotFoundError:
     try:
         from setuptools_scm import get_version
         from pathlib import Path
+
         path = Path(__file__).resolve()
         __version__ = get_version(root="..", relative_to=path)
     except (ModuleNotFoundError, LookupError) as e:
@@ -31,6 +32,7 @@ except PackageNotFoundError:
         # LookupError if git is not installed, or the code is not in a git repo even
         # though it has not been installed.
         from warnings import warn
+
         warn(
             "'setuptools_scm' and git are required to get the version number when "
             "running boutdata from the git repo. Please install 'setuptools_scm' and "

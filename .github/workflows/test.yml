@@ -56,3 +56,21 @@ jobs:
         run: |
           pip install codecov
           codecov
+
+  lint:
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.8
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+    - name: Check formatting with black
+      run: |
+        pip install black
+        black --check --diff --color .

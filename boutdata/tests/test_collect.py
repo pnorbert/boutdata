@@ -570,7 +570,7 @@ class TestCollect:
 
     @pytest.mark.parametrize("squash_params", squash_params_list)
     def test_singlenull_min_files_fieldperp_on_two_yproc_different_index(
-        self, tmp_path, squash_params,
+        self, tmp_path, squash_params
     ):
         """
         Check output from a single-null case using the minimum number of processes. This
@@ -626,7 +626,7 @@ class TestCollect:
 
     @pytest.mark.parametrize("squash_params", squash_params_list)
     def test_singlenull_min_files_fieldperp_on_two_yproc_same_index(
-        self, tmp_path, squash_params,
+        self, tmp_path, squash_params
     ):
         """
         Check output from a single-null case using the minimum number of processes. This

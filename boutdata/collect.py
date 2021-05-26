@@ -37,23 +37,24 @@ def findVar(varname, varlist):
         return v[0]
     elif len(v) > 1:
         print(
-            "Variable '{}' not found, and is ambiguous. Could be one of: {}"
-            .format(varname, v)
+            "Variable '{}' not found, and is ambiguous. Could be one of: {}".format(
+                varname, v
+            )
         )
         raise ValueError("Variable '{}' not found".format(varname))
 
     # None found. Check if it's an abbreviation
-    v = [name for name in varlist
-         if name[:len(varname)].lower() == varname.lower()]
+    v = [name for name in varlist if name[: len(varname)].lower() == varname.lower()]
     if len(v) == 1:
         print("Variable '{}' not found. Using '{}' instead".format(varname, v[0]))
         return v[0]
     elif len(v) > 1:
         print(
-            "Variable '{}' not found, and is ambiguous. Could be one of: {}"
-            .format(varname, v)
+            "Variable '{}' not found, and is ambiguous. Could be one of: {}".format(
+                varname, v
+            )
         )
-    raise ValueError("Variable '"+varname+"' not found")
+    raise ValueError("Variable '" + varname + "' not found")
 
 
 def _convert_to_nice_slice(r, N, name="range"):
@@ -90,7 +91,7 @@ def _convert_to_nice_slice(r, N, name="range"):
     elif isinstance(r, slice):
         temp_slice = r
     elif isinstance(r, (int, np.integer)):
-        if r >= N or r <-N:
+        if r >= N or r < -N:
             # raise out of bounds error as if we'd tried to index the array with r
             # without this, would return an empty array instead
             raise IndexError("{} index out of range, value was {}".format(name, r))
@@ -109,13 +110,12 @@ def _convert_to_nice_slice(r, N, name="range"):
         if r2[1] < 0:
             r2[1] = r2[1] + N
         if r2[0] > r2[1]:
-            raise ValueError("{} start ({}) is larger than end ({})"
-                             .format(name, *r2))
+            raise ValueError("{} start ({}) is larger than end ({})".format(name, *r2))
         # Lists uses inclusive end, we need exclusive end
         temp_slice = slice(r2[0], r2[1] + 1)
     elif len(r) == 3:
         # Convert 3 element list to slice object
-        temp_slice = slice(r[0],r[1],r[2])
+        temp_slice = slice(r[0], r[1], r[2])
     else:
         raise ValueError("Couldn't convert {} ('{}') to slice".format(name, r))
 
@@ -123,9 +123,21 @@ def _convert_to_nice_slice(r, N, name="range"):
     return slice(*temp_slice.indices(N))
 
 
-def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
-            yguards=False, xguards=True, info=True, prefix="BOUT.dmp",
-            strict=False, tind_auto=False, datafile_cache=None):
+def collect(
+    varname,
+    xind=None,
+    yind=None,
+    zind=None,
+    tind=None,
+    path=".",
+    yguards=False,
+    xguards=True,
+    info=True,
+    prefix="BOUT.dmp",
+    strict=False,
+    tind_auto=False,
+    datafile_cache=None,
+):
     """Collect a variable from a set of BOUT++ outputs.
 
     Parameters
@@ -247,20 +259,22 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
 
     if info:
         print(
-            "mxsub = {} mysub = {} mz = {}\n"
-            .format(grid_info["mxsub"], grid_info["mysub"], grid_info["nz"])
+            "mxsub = {} mysub = {} mz = {}\n".format(
+                grid_info["mxsub"], grid_info["mysub"], grid_info["nz"]
+            )
         )
 
         print(
-            "nxpe = {}, nype = {}, npes = {}\n"
-            .format(grid_info["nxpe"], grid_info["nype"], grid_info["npes"])
+            "nxpe = {}, nype = {}, npes = {}\n".format(
+                grid_info["nxpe"], grid_info["nype"], grid_info["npes"]
+            )
         )
         if grid_info["npes"] < nfiles:
             print("WARNING: More files than expected ({})".format(grid_info["npes"]))
         elif grid_info["npes"] > nfiles:
             print("WARNING: Some files missing. Expected {}".format(grid_info["npes"]))
 
-    if not any(dim in dimensions for dim in ('x', 'y', 'z')):
+    if not any(dim in dimensions for dim in ("x", "y", "z")):
         # Not a Field (i.e. no spatial dependence) so only read from the 0'th file
         result = _read_scalar(f, varname, dimensions, var_attributes, tind)
         if datafile_cache is None:
@@ -278,7 +292,7 @@ def collect(varname, xind=None, yind=None, zind=None, tind=None, path=".",
     # Create the data array
     data = np.zeros(ddims)
 
-    if dimensions == ('t', 'x', 'z') or dimensions == ('x', 'z'):
+    if dimensions == ("t", "x", "z") or dimensions == ("x", "z"):
         is_fieldperp = True
         yindex_global = None
         # The pe_yind that this FieldPerp is going to be read from
@@ -441,14 +455,14 @@ def _read_scalar(f, varname, dimensions, var_attributes, tind):
     tind : slice
         Slice to apply to the t-dimension, if there is one
     """
-    if 't' in dimensions:
-        if not dimensions[0] == 't':
+    if "t" in dimensions:
+        if not dimensions[0] == "t":
             # 't' should be the first dimension in the list if present
             raise ValueError(
                 "{} has a 't' dimension, but it is not the first dimension "
                 "in dimensions={}".format(varname, dimensions)
             )
-        data = f.read(varname, ranges = [tind] + (len(dimensions) - 1) * [None])
+        data = f.read(varname, ranges=[tind] + (len(dimensions) - 1) * [None])
     else:
         # No time or space dimensions, so no slicing
         data = f.read(varname)
@@ -614,7 +628,10 @@ def _collect_from_one_proc(
         return None, None  # Don't need this file
 
     local_dim_slices = {
-        "t": tind, "x": slice(xstart, xstop), "y": slice(ystart, ystop), "z": zind
+        "t": tind,
+        "x": slice(xstart, xstop),
+        "y": slice(ystart, ystop),
+        "z": zind,
     }
     local_slices = tuple(local_dim_slices.get(dim, None) for dim in dimensions)
 
@@ -644,7 +661,7 @@ def _collect_from_one_proc(
                 xgstart,
                 xgstop - 1,
                 ygstart,
-                ygstop - 1
+                ygstop - 1,
             )
         )
 
@@ -786,7 +803,9 @@ def _get_x_range(xguards, xind, pe_xind, nxpe, mxsub, mxg, inrange):
                 xstart, xstop, mxsub + 2 * mxg, inrange
             )
         else:
-            xstop, inrange = _check_local_range_upper(xstart, xstop, mxsub + mxg, inrange)
+            xstop, inrange = _check_local_range_upper(
+                xstart, xstop, mxsub + mxg, inrange
+            )
 
     else:
         xstart = xind.start - pe_xind * mxsub + mxg
@@ -1139,35 +1158,45 @@ def findFiles(path, prefix):
     file_list_parallel = None
     suffix_parallel = ""
     for test_suffix in suffixes:
-        files = glob.glob(os.path.join(path, prefix+test_suffix))
+        files = glob.glob(os.path.join(path, prefix + test_suffix))
         if files:
             if file_list_parallel:  # Already had a list of files
-                raise IOError("Parallel dump files with both {0} and {1} extensions are present. Do not know which to read.".format(
-                    suffix, test_suffix))
+                raise IOError(
+                    "Parallel dump files with both {0} and {1} extensions are present. Do not know which to read.".format(
+                        suffix, test_suffix
+                    )
+                )
             suffix_parallel = test_suffix
             file_list_parallel = files
 
     file_list = None
     suffix = ""
     for test_suffix in suffixes:
-        files = glob.glob(os.path.join(path, prefix+".*"+test_suffix))
+        files = glob.glob(os.path.join(path, prefix + ".*" + test_suffix))
         if files:
             if file_list:  # Already had a list of files
-                raise IOError("Dump files with both {0} and {1} extensions are present. Do not know which to read.".format(
-                    suffix, test_suffix))
+                raise IOError(
+                    "Dump files with both {0} and {1} extensions are present. Do not know which to read.".format(
+                        suffix, test_suffix
+                    )
+                )
             suffix = test_suffix
             file_list = files
 
     if file_list_parallel and file_list:
-        raise IOError("Both regular (with suffix {0}) and parallel (with suffix {1}) dump files are present. Do not know which to read.".format(
-            suffix_parallel, suffix))
+        raise IOError(
+            "Both regular (with suffix {0}) and parallel (with suffix {1}) dump files are present. Do not know which to read.".format(
+                suffix_parallel, suffix
+            )
+        )
     elif file_list_parallel:
         return file_list_parallel, True, suffix_parallel
     elif file_list:
         # make sure files are in the right order
         nfiles = len(file_list)
-        file_list = [os.path.join(path, prefix+"."+str(i)+suffix)
-                     for i in range(nfiles)]
+        file_list = [
+            os.path.join(path, prefix + "." + str(i) + suffix) for i in range(nfiles)
+        ]
         return file_list, False, suffix
     else:
         raise IOError("ERROR: No data files found in path {0}".format(path))
@@ -1194,8 +1223,10 @@ def create_cache(path, prefix):
 
     # define namedtuple to return as the result
     from collections import namedtuple
+
     datafile_cache_tuple = namedtuple(
-        "datafile_cache", ["file_list", "parallel", "suffix", "datafile_list"])
+        "datafile_cache", ["file_list", "parallel", "suffix", "datafile_list"]
+    )
 
     file_list, parallel, suffix = findFiles(path, prefix)
 
@@ -1203,4 +1234,6 @@ def create_cache(path, prefix):
     for f in file_list:
         cache.append(DataFile(f))
 
-    return datafile_cache_tuple(file_list=file_list, parallel=parallel, suffix=suffix, datafile_list=cache)
+    return datafile_cache_tuple(
+        file_list=file_list, parallel=parallel, suffix=suffix, datafile_list=cache
+    )
