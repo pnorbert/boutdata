@@ -13,11 +13,13 @@ and because single files are quicker to download.
 
 import argparse
 from sys import exit
+
 try:
     import argcomplete
 except ImportError:
     argcomplete = None
 import boutdata.squashoutput as squash
+
 
 def main():
     """

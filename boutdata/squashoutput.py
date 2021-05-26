@@ -10,6 +10,7 @@ and because single files are quicker to download.
 
 """
 
+
 def squashoutput(
     datadir=".",
     outputname="BOUT.dmp.nc",
@@ -153,23 +154,24 @@ def squashoutput(
 
     kwargs = {}
     if compress:
-        kwargs['zlib'] = True
+        kwargs["zlib"] = True
         if least_significant_digit is not None:
-            kwargs['least_significant_digit'] = least_significant_digit
+            kwargs["least_significant_digit"] = least_significant_digit
         if complevel is not None:
-            kwargs['complevel'] = complevel
+            kwargs["complevel"] = complevel
     if append:
         old = DataFile(oldfile)
         # Check if dump on restart was enabled
         # If so, we want to drop the duplicated entry
         cropnew = 0
-        if old['t_array'][-1] == outputs['t_array'][0]:
+        if old["t_array"][-1] == outputs["t_array"][0]:
             cropnew = 1
         # Make sure we don't end up with duplicated data:
-        for ot in old['t_array']:
-            if ot in outputs['t_array'][cropnew:]:
+        for ot in old["t_array"]:
+            if ot in outputs["t_array"][cropnew:]:
                 raise RuntimeError(
-                    "For some reason t_array has some duplicated entries in the new and old file.")
+                    "For some reason t_array has some duplicated entries in the new and old file."
+                )
     # Create single file for output and write data
     with DataFile(fullpath, create=True, write=True, format=format, **kwargs) as f:
         for varname in outputvars:
@@ -179,11 +181,10 @@ def squashoutput(
             var = outputs[varname]
             if append:
                 dims = outputs.dimensions[varname]
-                if 't' in dims:
+                if "t" in dims:
                     var = var[cropnew:, ...]
                     varold = old[varname]
-                    var = BoutArray(numpy.append(
-                        varold, var, axis=0), var.attributes)
+                    var = BoutArray(numpy.append(varold, var, axis=0), var.attributes)
 
             if singleprecision:
                 if not isinstance(var, int):
