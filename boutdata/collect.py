@@ -1195,7 +1195,7 @@ def findFiles(path, prefix):
     if file_list_parallel and file_list:
         raise IOError(
             "Both regular (with suffix {0}) and parallel (with suffix {1}) dump files "
-            "are present. Do not know which to read.".format(suffix_parallel, suffix)
+            "are present. Do not know which to read.".format(suffix, suffix_parallel)
         )
     elif file_list_parallel:
         return file_list_parallel, True, suffix_parallel
