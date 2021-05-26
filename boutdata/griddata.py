@@ -1,7 +1,6 @@
 """Routines for manipulating grid files
 
 """
-from __future__ import print_function
 
 from numpy import ndarray, zeros, concatenate, linspace, amin, amax
 import matplotlib.pyplot as plt

@@ -51,7 +51,7 @@ setuptools.setup(
     ],
     entry_points={
         "console_scripts": [
-            "bout-squashoutput = boutdata.squashoutput:main"
+            "bout-squashoutput = boutdata.scripts.bout_squashoutput:main",
         ]
     },
 )

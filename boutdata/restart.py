@@ -8,10 +8,6 @@ TODO
 
 """
 
-from __future__ import print_function
-from __future__ import division
-from builtins import str, range
-
 import os
 import glob
 
@@ -486,7 +482,16 @@ def create(averagelast=1, final=-1, path="data", output="./", informat="nc", out
         outfile.close()
 
 
-def redistribute(npes, path="data", nxpe=None, output=".", informat=None, outformat=None, mxg=2, myg=2):
+def redistribute(
+    npes,
+    path="data",
+    nxpe=None,
+    output=".",
+    informat=None,
+    outformat=None,
+    mxg=None,
+    myg=None,
+):
     """Resize restart files across NPES processors.
 
     Does not check if new processor arrangement is compatible with the
@@ -515,6 +520,9 @@ def redistribute(npes, path="data", nxpe=None, output=".", informat=None, outfor
         Specify file format of new restart files (must be a suffix
         understood by DataFile, e.g. 'nc'). Default is to use the same
         as informat.
+    mxg, myg : int, optional
+        Number of guard cells in x, y to use in the output (default:
+        keep the same as input)
 
     Returns
     -------
@@ -576,13 +584,18 @@ def redistribute(npes, path="data", nxpe=None, output=".", informat=None, outfor
     nx = old_processor_layout.nx
     ny = old_processor_layout.ny
     mz = old_processor_layout.mz
-    mxg = old_processor_layout.mxg
-    myg = old_processor_layout.myg
+    old_mxg = old_processor_layout.mxg
+    old_myg = old_processor_layout.myg
     old_npes = old_processor_layout.npes
     old_nxpe = old_processor_layout.nxpe
     old_nype = old_processor_layout.nype
     old_mxsub = old_processor_layout.mxsub
     old_mysub = old_processor_layout.mysub
+
+    if mxg is None:
+        mxg = old_mxg
+    if myg is None:
+        myg = old_myg
 
     nxpe = new_processor_layout.nxpe
     nype = new_processor_layout.nype
@@ -609,6 +622,47 @@ def redistribute(npes, path="data", nxpe=None, output=".", informat=None, outfor
         for i in range(npes):
             ix = i % nxpe
             iy = int(i/nxpe)
+
+            def get_block(data):
+                if mxg > old_mxg or myg > old_myg:
+                    # need to make a new array as some boundary cell points are not present in data
+                    new_shape = list(data.shape)
+                    new_shape[0] = mxsub + 2*mxg
+                    new_shape[1] = mysub + 2*myg
+                    result = np.zeros(new_shape)
+
+                    if mxg > old_mxg:
+                        d = mxg - old_mxg
+                        result_slice_x = slice(d, -d)
+                        data_slice_x = slice(ix*mxsub, (ix+1)*mxsub+2*old_mxg)
+                    else:
+                        d = old_mxg - mxg
+                        result_slice_x = slice(None)
+                        data_slice_x = slice(d+ix*mxsub, d+(ix+1)*mxsub+2*mxg)
+
+                    if myg > old_myg:
+                        d = myg - old_myg
+                        result_slice_y = slice(d, -d)
+                        data_slice_y = slice(iy*mysub, (iy+1)*mysub+2*old_myg)
+                    else:
+                        d = old_myg - myg
+                        result_slice_y = slice(None)
+                        data_slice_y = slice(d+iy*mysub, d+(iy+1)*mysub+2*myg)
+
+                    result[result_slice_x, result_slice_y] = data[
+                        data_slice_x, data_slice_y
+                    ]
+
+                    return result
+                else:
+                    xoffset = old_mxg - mxg
+                    yoffset = old_myg - myg
+                    return data[
+                        xoffset+ix*mxsub:xoffset+(ix+1)*mxsub+2*mxg,
+                        yoffset+iy*mysub:yoffset+(iy+1)*mysub+2*myg
+                    ]
+
+
             outfile = outfile_list[i]
             if v == "NPES":
                 outfile.write(v, npes)
@@ -622,22 +676,24 @@ def redistribute(npes, path="data", nxpe=None, output=".", informat=None, outfor
                 outfile.write(v, mysub)
             elif v == "MZSUB":
                 outfile.write(v, mzsub)
+            elif v == "MXG":
+                outfile.write(v, mxg)
+            elif v == "MYG":
+                outfile.write(v, myg)
             elif dimensions == ('x', 'y'):
                 # Field2D
-                outfile.write(
-                    v, data[ix*mxsub:(ix+1)*mxsub+2*mxg, iy*mysub:(iy+1)*mysub+2*myg])
+                outfile.write(v, get_block(data))
             elif dimensions == ('x', 'z'):
                 # FieldPerp
                 yindex_global = data.attributes['yindex_global']
                 if yindex_global + myg >= iy*mysub and yindex_global + myg < (iy+1)*mysub+2*myg:
                     outfile.write(v, data[ix*mxsub:(ix+1)*mxsub+2*mxg, :])
                 else:
-                    nullarray = BoutArray(np.zeros([mxsub+2*mxg, mysub+2*myg]), attributes={"bout_type":"FieldPerp", "yindex_global":-myg-1})
+                    nullarray = BoutArray(np.zeros([mxsub+2*mxg, mzsub]), attributes={"bout_type":"FieldPerp", "yindex_global":-myg-1})
                     outfile.write(v, nullarray)
             elif dimensions == ('x', 'y', 'z'):
                 # Field3D
-                outfile.write(
-                    v, data[ix*mxsub:(ix+1)*mxsub+2*mxg, iy*mysub:(iy+1)*mysub+2*myg, :])
+                outfile.write(v, get_block(data))
             elif not any(d in dimensions for d in ('x', 'y', 'z')):
                 # scalar or other non-spatially-dependent variable
                 outfile.write(v, data)
