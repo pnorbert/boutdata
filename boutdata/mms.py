@@ -596,7 +596,7 @@ class ShapedTokamak(object):
         output - boututils.datafile object, e.g., an open netCDF file
         MXG, Number of guard cells in the x-direction
         """
-        raise ValueError("Implementation of ShapedTokamak.write is unfinished")
+        raise NotImplementedError("Implementation of ShapedTokamak.write is unfinished")
 
         ngx = nx + 2 * MXG
         ngy = ny
