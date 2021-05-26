@@ -174,15 +174,14 @@ def Grad_par(f, metric=identity):
 
 
 def Vpar_Grad_par(v, f, metric=identity):
-    """Parallel advection operator $$v_\parallel \cdot \nabla_\parallel (f)$$"""  # noqa: E501, W605
+    r"""Parallel advection operator :math:`v_\parallel \cdot \nabla_\parallel (f)`"""
     return v * Grad_par(f, metric=metric)
 
 
 def Div_par(f, metric=identity):
-    """
-    Divergence of magnetic field aligned vector $$v = \hat{b} f
-    \nabla \cdot (\hat{b} f) = 1/J \partial_y (f/B)               # noqa: W605
-    = B Grad_par(f/B)$$                                           # noqa: W605
+    r"""
+    Divergence of magnetic field aligned vector :math:`v = \hat{b} f \nabla \cdot
+    (\hat{b} f) = 1/J \partial_y (f/B) = B Grad_par(f/B)`
     """
     return metric.B * Grad_par(f / metric.B, metric)
 
