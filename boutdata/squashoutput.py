@@ -10,11 +10,26 @@ and because single files are quicker to download.
 
 """
 
-def squashoutput(datadir=".", outputname="BOUT.dmp.nc", format="NETCDF4", tind=None,
-                 xind=None, yind=None, zind=None, xguards=True, yguards="include_upper",
-                 singleprecision=False, compress=False, least_significant_digit=None,
-                 quiet=False, complevel=None, append=False, delete=False,
-                 tind_auto=False):
+def squashoutput(
+    datadir=".",
+    outputname="BOUT.dmp.nc",
+    format="NETCDF4",
+    tind=None,
+    xind=None,
+    yind=None,
+    zind=None,
+    xguards=True,
+    yguards="include_upper",
+    singleprecision=False,
+    compress=False,
+    least_significant_digit=None,
+    quiet=False,
+    complevel=None,
+    append=False,
+    delete=False,
+    tind_auto=False,
+    parallel=False,
+):
     """
     Collect all data from BOUT.dmp.* files and create a single output file.
 
@@ -69,6 +84,10 @@ def squashoutput(datadir=".", outputname="BOUT.dmp.nc", format="NETCDF4", tind=N
     tind_auto : bool, optional
         Read all files, to get the shortest length of time_indices. All data truncated
         to the shortest length.  Useful if writing got interrupted (default: False)
+    parallel : bool or int, default False
+        If set to True or 0, use the multiprocessing library to read data in parallel
+        with the maximum number of available processors. If set to an int, use that many
+        processes.
     """
     from boutdata.data import BoutOutputs
     from boututils.datafile import DataFile
@@ -104,12 +123,23 @@ def squashoutput(datadir=".", outputname="BOUT.dmp.nc", format="NETCDF4", tind=N
 
     if os.path.isfile(fullpath) and not append:
         raise ValueError(
-            fullpath + " already exists. Collect may try to read from this file, which is presumably not desired behaviour.")
+            "{} already exists. Collect may try to read from this file, which is "
+            "presumably not desired behaviour.".format(fullpath)
+        )
 
     # useful object from BOUT pylib to access output data
-    outputs = BoutOutputs(datadir, info=False, xguards=xguards,
-                          yguards=yguards, tind=tind, xind=xind, yind=yind, zind=zind,
-                          tind_auto=tind_auto)
+    outputs = BoutOutputs(
+        datadir,
+        info=False,
+        xguards=xguards,
+        yguards=yguards,
+        tind=tind,
+        xind=xind,
+        yind=yind,
+        zind=zind,
+        tind_auto=tind_auto,
+        parallel=parallel,
+    )
     outputvars = outputs.keys()
     # Read a value to cache the files
     outputs[outputvars[0]]
@@ -164,6 +194,9 @@ def squashoutput(datadir=".", outputname="BOUT.dmp.nc", format="NETCDF4", tind=N
             f.sync()
             var = None
             gc.collect()
+
+    del outputs
+    gc.collect()
 
     if delete:
         if append:

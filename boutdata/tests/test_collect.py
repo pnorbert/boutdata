@@ -28,6 +28,12 @@ collect_kwargs_list = [
     {"xguards": False, "yguards": False},
 ]
 
+squash_params_list = [
+    (False, {}),
+    (True, {}),
+    (True, {"parallel": 2}),
+]
+
 
 def check_collected_data(
     expected,
@@ -72,7 +78,7 @@ def check_collected_data(
 
     collect_kwargs = collect_kwargs.copy()
     if squash:
-        squashoutput(path, outputname="boutdata.nc", **collect_kwargs)
+        squashoutput(path, outputname="boutdata.nc", **collect_kwargs, **squash_kwargs)
         collect_kwargs["prefix"] = "boutdata"
         # Delete dump files to be sure we do not read from them
         dump_names = glob(str(path.joinpath("BOUT.dmp.*.nc")))
@@ -198,12 +204,14 @@ class TestCollect:
 
         return grid_info
 
-    @pytest.mark.parametrize("squash", [False, True])
+    @pytest.mark.parametrize("squash_params", squash_params_list)
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
-    def test_core_min_files(self, tmp_path, squash, collect_kwargs):
+    def test_core_min_files(self, tmp_path, squash_params, collect_kwargs):
         """
         Check output from a core-only case using the minimum number of processes
         """
+        squash, squash_kwargs = squash_params
+
         grid_info = self.make_grid_info()
 
         fieldperp_global_yind = 3
@@ -241,16 +249,19 @@ class TestCollect:
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
+            squash_kwargs=squash_kwargs,
         )
 
-    @pytest.mark.parametrize("squash", [False, True])
+    @pytest.mark.parametrize("squash_params", squash_params_list)
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
-    def test_core(self, tmp_path, squash, collect_kwargs):
+    def test_core(self, tmp_path, squash_params, collect_kwargs):
         """
         Check output from a core-only case using a large number of processes. 'Large'
         means there is at least one process in each region with no edges touching
         another region.
         """
+        squash, squash_kwargs = squash_params
+
         grid_info = self.make_grid_info(nxpe=3, nype=3)
 
         fieldperp_global_yind = 3
@@ -296,14 +307,17 @@ class TestCollect:
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
+            squash_kwargs=squash_kwargs,
         )
 
-    @pytest.mark.parametrize("squash", [False, True])
+    @pytest.mark.parametrize("squash_params", squash_params_list)
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
-    def test_sol_min_files(self, tmp_path, squash, collect_kwargs):
+    def test_sol_min_files(self, tmp_path, squash_params, collect_kwargs):
         """
         Check output from a SOL-only case using the minimum number of processes
         """
+        squash, squash_kwargs = squash_params
+
         grid_info = self.make_grid_info(ixseps1=0, ixseps2=0)
 
         fieldperp_global_yind = 3
@@ -339,16 +353,19 @@ class TestCollect:
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
+            squash_kwargs=squash_kwargs,
         )
 
-    @pytest.mark.parametrize("squash", [False, True])
+    @pytest.mark.parametrize("squash_params", squash_params_list)
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
-    def test_sol(self, tmp_path, squash, collect_kwargs):
+    def test_sol(self, tmp_path, squash_params, collect_kwargs):
         """
         Check output from a SOL-only case using a large number of processes. 'Large'
         means there is at least one process in each region with no edges touching
         another region.
         """
+        squash, squash_kwargs = squash_params
+
         grid_info = self.make_grid_info(nxpe=3, nype=3, ixseps1=0, ixseps2=0)
 
         fieldperp_global_yind = 3
@@ -392,14 +409,17 @@ class TestCollect:
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
+            squash_kwargs=squash_kwargs,
         )
 
-    @pytest.mark.parametrize("squash", [False, True])
+    @pytest.mark.parametrize("squash_params", squash_params_list)
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
-    def test_singlenull_min_files(self, tmp_path, squash, collect_kwargs):
+    def test_singlenull_min_files(self, tmp_path, squash_params, collect_kwargs):
         """
         Check output from a single-null case using the minimum number of processes
         """
+        squash, squash_kwargs = squash_params
+
         grid_info = self.make_grid_info(nype=3, ixseps1=4, xpoints=1)
 
         fieldperp_global_yind = 7
@@ -439,17 +459,20 @@ class TestCollect:
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
+            squash_kwargs=squash_kwargs,
         )
 
-    @pytest.mark.parametrize("squash", [False, True])
+    @pytest.mark.parametrize("squash_params", squash_params_list)
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
     def test_singlenull_min_files_lower_boundary_fieldperp(
-        self, tmp_path, squash, collect_kwargs
+        self, tmp_path, squash_params, collect_kwargs
     ):
         """
         Check output from a single-null case using the minimum number of processes. This
         test puts the FieldPerp in the lower boundary.
         """
+        squash, squash_kwargs = squash_params
+
         grid_info = self.make_grid_info(nype=3, ixseps1=4, xpoints=1)
 
         fieldperp_global_yind = 1
@@ -489,17 +512,20 @@ class TestCollect:
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
+            squash_kwargs=squash_kwargs,
         )
 
-    @pytest.mark.parametrize("squash", [False, True])
+    @pytest.mark.parametrize("squash_params", squash_params_list)
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
     def test_singlenull_min_files_upper_boundary_fieldperp(
-        self, tmp_path, squash, collect_kwargs
+        self, tmp_path, squash_params, collect_kwargs
     ):
         """
         Check output from a single-null case using the minimum number of processes. This
         test puts the FieldPerp in the upper boundary.
         """
+        squash, squash_kwargs = squash_params
+
         grid_info = self.make_grid_info(nype=3, ixseps1=4, xpoints=1)
 
         fieldperp_global_yind = 14
@@ -539,17 +565,20 @@ class TestCollect:
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
+            squash_kwargs=squash_kwargs,
         )
 
-    @pytest.mark.parametrize("squash", [False, True])
+    @pytest.mark.parametrize("squash_params", squash_params_list)
     def test_singlenull_min_files_fieldperp_on_two_yproc_different_index(
-        self, tmp_path, squash
+        self, tmp_path, squash_params,
     ):
         """
         Check output from a single-null case using the minimum number of processes. This
         test has FieldPerps created with inconsistent y-indices to check this produces
         an error.
         """
+        squash, squash_kwargs = squash_params
+
         collect_kwargs = {"xguards": True, "yguards": "include_upper"}
 
         grid_info = self.make_grid_info(nype=3, ixseps1=4, xpoints=1)
@@ -592,17 +621,20 @@ class TestCollect:
                 path=tmp_path,
                 squash=squash,
                 collect_kwargs=collect_kwargs,
+                squash_kwargs=squash_kwargs,
             )
 
-    @pytest.mark.parametrize("squash", [False, True])
+    @pytest.mark.parametrize("squash_params", squash_params_list)
     def test_singlenull_min_files_fieldperp_on_two_yproc_same_index(
-        self, tmp_path, squash
+        self, tmp_path, squash_params,
     ):
         """
         Check output from a single-null case using the minimum number of processes. This
         test has FieldPerps created on different y-processes to check this produces an
         error.
         """
+        squash, squash_kwargs = squash_params
+
         collect_kwargs = {"xguards": True, "yguards": "include_upper"}
 
         grid_info = self.make_grid_info(nype=3, ixseps1=4, xpoints=1)
@@ -645,11 +677,101 @@ class TestCollect:
                 path=tmp_path,
                 squash=squash,
                 collect_kwargs=collect_kwargs,
+                squash_kwargs=squash_kwargs,
             )
 
-    @pytest.mark.parametrize("squash", [False, True])
+    @pytest.mark.parametrize("squash_params", squash_params_list)
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
-    def test_singlenull(self, tmp_path, squash, collect_kwargs):
+    def test_singlenull(self, tmp_path, squash_params, collect_kwargs):
+        """
+        Check output from a single-null case using a large number of processes. 'Large'
+        means there is at least one process in each region with no edges touching
+        another region.
+        """
+        squash, squash_kwargs = squash_params
+
+        grid_info = self.make_grid_info(nxpe=3, nype=9, ixseps1=7, xpoints=1)
+
+        fieldperp_global_yind = 19
+        fieldperp_yproc_ind = 4
+
+        rng = np.random.default_rng(105)
+
+        dump_params = [
+            # inner divertor leg
+            (0, ["xinner", "ylower"], -1),
+            (1, ["ylower"], -1),
+            (2, ["xouter", "ylower"], -1),
+            (3, ["xinner"], -1),
+            (4, [], -1),
+            (5, ["xouter"], -1),
+            (6, ["xinner"], -1),
+            (7, [], -1),
+            (8, ["xouter"], -1),
+            # core
+            (9, ["xinner"], -1),
+            (10, [], -1),
+            (11, ["xouter"], -1),
+            (12, ["xinner"], fieldperp_global_yind),
+            (13, [], fieldperp_global_yind),
+            (14, ["xouter"], fieldperp_global_yind),
+            (15, ["xinner"], -1),
+            (16, [], -1),
+            (17, ["xouter"], -1),
+            # outer divertor leg
+            (18, ["xinner"], -1),
+            (19, [], -1),
+            (20, ["xouter"], -1),
+            (21, ["xinner"], -1),
+            (22, [], -1),
+            (23, ["xouter"], -1),
+            (24, ["xinner", "yupper"], -1),
+            (25, ["yupper"], -1),
+            (26, ["xouter", "yupper"], -1),
+        ]
+        dumps = []
+        for i, boundaries, fieldperp_yind in dump_params:
+            dumps.append(
+                create_dump_file(
+                    tmpdir=tmp_path,
+                    rng=rng,
+                    grid_info=grid_info,
+                    i=i,
+                    boundaries=boundaries,
+                    fieldperp_global_yind=fieldperp_yind,
+                )
+            )
+
+        expected = concatenate_data(
+            dumps, nxpe=grid_info["NXPE"], fieldperp_yproc_ind=fieldperp_yproc_ind
+        )
+
+        check_collected_data(
+            expected,
+            fieldperp_global_yind=fieldperp_global_yind,
+            doublenull=False,
+            path=tmp_path,
+            squash=squash,
+            collect_kwargs=collect_kwargs,
+            squash_kwargs=squash_kwargs,
+        )
+
+    @pytest.mark.parametrize(
+        "squash_kwargs",
+        (
+            # {"parallel": False},
+            {"parallel": 1},
+            {"parallel": 2},
+            {"parallel": 3},
+            {"parallel": 4},
+            {"parallel": 5},
+            {"parallel": 6},
+            {"parallel": 7},
+            {"parallel": 8},
+            {"parallel": True},
+        ),
+    )
+    def test_singlenull_squashoutput_np(self, tmp_path, squash_kwargs):
         """
         Check output from a single-null case using a large number of processes. 'Large'
         means there is at least one process in each region with no edges touching
@@ -716,11 +838,12 @@ class TestCollect:
             fieldperp_global_yind=fieldperp_global_yind,
             doublenull=False,
             path=tmp_path,
-            squash=squash,
-            collect_kwargs=collect_kwargs,
+            squash=True,
+            collect_kwargs={"xguards": True, "yguards": "include_upper"},
+            squash_kwargs=squash_kwargs,
         )
 
-    @pytest.mark.parametrize("squash", [False, True])
+    @pytest.mark.parametrize("squash_params", squash_params_list)
     # This parametrize passes tuples for 'tind', 'xind', 'yind' and 'zind'. The first
     # value is the 'tind'/'xind'/'yind'/'zind' argument to pass to collect() or
     # squashoutput(), the second is the equivalent slice() to use on the expected
@@ -1065,7 +1188,7 @@ class TestCollect:
         ],
     )
     def test_singlenull_tind_xind_yind_zind(
-        self, tmp_path, squash, tind, xind, yind, zind
+        self, tmp_path, squash_params, tind, xind, yind, zind
     ):
         """
         Check output from a single-null case using a large number of processes. 'Large'
@@ -1077,6 +1200,8 @@ class TestCollect:
         xind, xslice = xind
         yind, yslice = yind
         zind, zslice = zind
+
+        squash, squash_kwargs = squash_params
 
         collect_kwargs = {
             "xguards": True,
@@ -1155,15 +1280,20 @@ class TestCollect:
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
+            squash_kwargs=squash_kwargs,
         )
 
-    @pytest.mark.parametrize("squash", [False, True])
+    @pytest.mark.parametrize("squash_params", squash_params_list)
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
-    def test_connected_doublenull_min_files(self, tmp_path, squash, collect_kwargs):
+    def test_connected_doublenull_min_files(
+        self, tmp_path, squash_params, collect_kwargs
+    ):
         """
         Check output from a connected double-null case using the minimum number of
         processes
         """
+        squash, squash_kwargs = squash_params
+
         grid_info = self.make_grid_info(nype=6, ixseps1=4, ixseps2=4, xpoints=2)
 
         fieldperp_global_yind = 7
@@ -1209,16 +1339,19 @@ class TestCollect:
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
+            squash_kwargs=squash_kwargs,
         )
 
-    @pytest.mark.parametrize("squash", [False, True])
+    @pytest.mark.parametrize("squash_params", squash_params_list)
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
-    def test_connected_doublenull(self, tmp_path, squash, collect_kwargs):
+    def test_connected_doublenull(self, tmp_path, squash_params, collect_kwargs):
         """
         Check output from a connected double-null case using a large number of
         processes. 'Large' means there is at least one process in each region with no
         edges touching another region.
         """
+        squash, squash_kwargs = squash_params
+
         grid_info = self.make_grid_info(
             nxpe=3, nype=18, ixseps1=7, ixseps2=7, xpoints=2
         )
@@ -1314,15 +1447,20 @@ class TestCollect:
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
+            squash_kwargs=squash_kwargs,
         )
 
-    @pytest.mark.parametrize("squash", [False, True])
+    @pytest.mark.parametrize("squash_params", squash_params_list)
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
-    def test_disconnected_doublenull_min_files(self, tmp_path, squash, collect_kwargs):
+    def test_disconnected_doublenull_min_files(
+        self, tmp_path, squash_params, collect_kwargs
+    ):
         """
         Check output from a disconnected double-null case using the minimum number of
         processes
         """
+        squash, squash_kwargs = squash_params
+
         grid_info = self.make_grid_info(nype=6, ixseps1=3, ixseps2=5, xpoints=2)
 
         fieldperp_global_yind = 7
@@ -1368,18 +1506,23 @@ class TestCollect:
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
+            squash_kwargs=squash_kwargs,
         )
 
-    @pytest.mark.parametrize("squash", [False, True])
+    @pytest.mark.parametrize("squash_params", squash_params_list)
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
     @pytest.mark.parametrize("mxg", [0, 1, 2])
     @pytest.mark.parametrize("myg", [0, 1, 2])
-    def test_disconnected_doublenull(self, tmp_path, squash, collect_kwargs, mxg, myg):
+    def test_disconnected_doublenull(
+        self, tmp_path, squash_params, collect_kwargs, mxg, myg
+    ):
         """
         Check output from a disconnected double-null case using a large number of
         processes. 'Large' means there is at least one process in each region with no
         edges touching another region.
         """
+        squash, squash_kwargs = squash_params
+
         grid_info = self.make_grid_info(
             mxg=mxg, myg=myg, nxpe=3, nype=18, ixseps1=6, ixseps2=11, xpoints=2
         )
@@ -1475,6 +1618,7 @@ class TestCollect:
             path=tmp_path,
             squash=squash,
             collect_kwargs=collect_kwargs,
+            squash_kwargs=squash_kwargs,
         )
 
     @pytest.mark.parametrize(

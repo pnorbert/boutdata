@@ -75,6 +75,14 @@ def main():
     parser.add_argument("-a", "--append", action="store_true", default=False)
     parser.add_argument("-d", "--delete", action="store_true", default=False)
     parser.add_argument("--tind_auto", action="store_true", default=False)
+    parser.add_argument(
+        "-p",
+        "--parallel",
+        type=int,
+        default=False,
+        help="Read data in parallel. Value is the number of processes to use, pass 0 "
+        "to use as many as there are physical cores.",
+    )
 
     if argcomplete:
         argcomplete.autocomplete(parser)

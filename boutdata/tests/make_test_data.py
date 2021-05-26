@@ -118,131 +118,130 @@ def create_dump_file(*, i, tmpdir, rng, grid_info, boundaries, fieldperp_global_
     ylower = "ylower" in boundaries
     yupper = "yupper" in boundaries
 
-    outputfile = Dataset(tmpdir.joinpath("BOUT.dmp." + str(i) + ".nc"), "w")
+    with Dataset(tmpdir.joinpath("BOUT.dmp." + str(i) + ".nc"), "w") as outputfile:
+        outputfile.createDimension("t", None)
+        outputfile.createDimension("x", localnx)
+        outputfile.createDimension("y", localny)
+        outputfile.createDimension("z", localnz)
 
-    outputfile.createDimension("t", None)
-    outputfile.createDimension("x", localnx)
-    outputfile.createDimension("y", localny)
-    outputfile.createDimension("z", localnz)
+        # Create slices for returned data without guard cells
+        xslice = slice(None if xinner else mxg, None if xouter or mxg == 0 else -mxg)
+        yslice = slice(None if ylower else myg, None if yupper or myg == 0 else -myg)
+        zslice = slice(mzg, None if mzg == 0 else -mzg)
 
-    # Create slices for returned data without guard cells
-    xslice = slice(None if xinner else mxg, None if xouter or mxg == 0 else -mxg)
-    yslice = slice(None if ylower else myg, None if yupper or myg == 0 else -myg)
-    zslice = slice(mzg, None if mzg == 0 else -mzg)
+        result = {}
 
-    result = {}
+        # Field3D
+        def create3D_t(name):
+            var = outputfile.createVariable(name, float, ("t", "x", "y", "z"))
 
-    # Field3D
-    def create3D_t(name):
-        var = outputfile.createVariable(name, float, ("t", "x", "y", "z"))
+            data = rng.random((nt, localnx, localny, localnz))
+            var[:] = data
+            for key, value in expected_attributes[name].items():
+                var.setncattr(key, value)
 
-        data = rng.random((nt, localnx, localny, localnz))
-        var[:] = data
-        for key, value in expected_attributes[name].items():
-            var.setncattr(key, value)
+            result[name] = data[:, xslice, yslice, zslice]
 
-        result[name] = data[:, xslice, yslice, zslice]
+        create3D_t("field3d_t_1")
+        create3D_t("field3d_t_2")
 
-    create3D_t("field3d_t_1")
-    create3D_t("field3d_t_2")
+        def create3D(name):
+            var = outputfile.createVariable(name, float, ("x", "y", "z"))
 
-    def create3D(name):
-        var = outputfile.createVariable(name, float, ("x", "y", "z"))
+            data = rng.random((localnx, localny, localnz))
+            var[:] = data
+            for key, value in expected_attributes[name].items():
+                var.setncattr(key, value)
 
-        data = rng.random((localnx, localny, localnz))
-        var[:] = data
-        for key, value in expected_attributes[name].items():
-            var.setncattr(key, value)
+            result[name] = data[xslice, yslice, zslice]
 
-        result[name] = data[xslice, yslice, zslice]
+        create3D("field3d_1")
+        create3D("field3d_2")
 
-    create3D("field3d_1")
-    create3D("field3d_2")
+        # Field2D
+        def create2D_t(name):
+            var = outputfile.createVariable(name, float, ("t", "x", "y"))
 
-    # Field2D
-    def create2D_t(name):
-        var = outputfile.createVariable(name, float, ("t", "x", "y"))
+            data = rng.random((nt, localnx, localny))
+            var[:] = data
+            for key, value in expected_attributes[name].items():
+                var.setncattr(key, value)
 
-        data = rng.random((nt, localnx, localny))
-        var[:] = data
-        for key, value in expected_attributes[name].items():
-            var.setncattr(key, value)
+            result[name] = data[:, xslice, yslice]
 
-        result[name] = data[:, xslice, yslice]
+        create2D_t("field2d_t_1")
+        create2D_t("field2d_t_2")
 
-    create2D_t("field2d_t_1")
-    create2D_t("field2d_t_2")
+        def create2D(name):
+            var = outputfile.createVariable(name, float, ("x", "y"))
 
-    def create2D(name):
-        var = outputfile.createVariable(name, float, ("x", "y"))
+            data = rng.random((localnx, localny))
+            var[:] = data
+            for key, value in expected_attributes[name].items():
+                var.setncattr(key, value)
 
-        data = rng.random((localnx, localny))
-        var[:] = data
-        for key, value in expected_attributes[name].items():
-            var.setncattr(key, value)
+            result[name] = data[xslice, yslice]
 
-        result[name] = data[xslice, yslice]
+        create2D("field2d_1")
+        create2D("field2d_2")
 
-    create2D("field2d_1")
-    create2D("field2d_2")
+        # FieldPerp
+        def createPerp_t(name):
+            var = outputfile.createVariable(name, float, ("t", "x", "z"))
 
-    # FieldPerp
-    def createPerp_t(name):
-        var = outputfile.createVariable(name, float, ("t", "x", "z"))
+            data = rng.random((nt, localnx, localnz))
+            var[:] = data
+            for key, value in expected_attributes[name].items():
+                var.setncattr(key, value)
+            var.setncattr("yindex_global", fieldperp_global_yind)
 
-        data = rng.random((nt, localnx, localnz))
-        var[:] = data
-        for key, value in expected_attributes[name].items():
-            var.setncattr(key, value)
-        var.setncattr("yindex_global", fieldperp_global_yind)
+            result[name] = data[:, xslice, zslice]
 
-        result[name] = data[:, xslice, zslice]
+        createPerp_t("fieldperp_t_1")
+        createPerp_t("fieldperp_t_2")
 
-    createPerp_t("fieldperp_t_1")
-    createPerp_t("fieldperp_t_2")
+        def createPerp(name):
+            var = outputfile.createVariable(name, float, ("x", "z"))
 
-    def createPerp(name):
-        var = outputfile.createVariable(name, float, ("x", "z"))
+            data = rng.random((localnx, localnz))
+            var[:] = data
+            for key, value in expected_attributes[name].items():
+                var.setncattr(key, value)
+            var.setncattr("yindex_global", fieldperp_global_yind)
 
-        data = rng.random((localnx, localnz))
-        var[:] = data
-        for key, value in expected_attributes[name].items():
-            var.setncattr(key, value)
-        var.setncattr("yindex_global", fieldperp_global_yind)
+            result[name] = data[xslice, zslice]
 
-        result[name] = data[xslice, zslice]
+        createPerp("fieldperp_1")
+        createPerp("fieldperp_2")
 
-    createPerp("fieldperp_1")
-    createPerp("fieldperp_2")
+        # Time-dependent array
+        def createScalar_t(name):
+            var = outputfile.createVariable(name, float, ("t",))
 
-    # Time-dependent array
-    def createScalar_t(name):
-        var = outputfile.createVariable(name, float, ("t",))
+            data = rng.random(nt)
+            var[:] = data
 
-        data = rng.random(nt)
-        var[:] = data
+            result[name] = data
 
-        result[name] = data
+        createScalar_t("t_array")
+        createScalar_t("scalar_t_1")
+        createScalar_t("scalar_t_2")
 
-    createScalar_t("t_array")
-    createScalar_t("scalar_t_1")
-    createScalar_t("scalar_t_2")
+        # Scalar
+        def createScalar(name, value):
+            var = outputfile.createVariable(name, type(value))
 
-    # Scalar
-    def createScalar(name, value):
-        var = outputfile.createVariable(name, type(value))
+            var[...] = value
 
-        var[...] = value
+            result[name] = value
 
-        result[name] = value
-
-    createScalar("BOUT_VERSION", 4.31)
-    for key, value in grid_info.items():
-        createScalar(key, value)
-    nxpe = grid_info["NXPE"]
-    createScalar("PE_XIND", i % nxpe)
-    createScalar("PE_YIND", i // nxpe)
-    createScalar("MYPE", i)
+        createScalar("BOUT_VERSION", 4.31)
+        for key, value in grid_info.items():
+            createScalar(key, value)
+        nxpe = grid_info["NXPE"]
+        createScalar("PE_XIND", i % nxpe)
+        createScalar("PE_YIND", i // nxpe)
+        createScalar("MYPE", i)
 
     return result
 
