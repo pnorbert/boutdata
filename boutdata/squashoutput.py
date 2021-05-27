@@ -170,7 +170,8 @@ def squashoutput(
         for ot in old["t_array"]:
             if ot in outputs["t_array"][cropnew:]:
                 raise RuntimeError(
-                    "For some reason t_array has some duplicated entries in the new and old file."
+                    "For some reason t_array has some duplicated entries in the new "
+                    "and old file."
                 )
     # Create single file for output and write data
     with DataFile(fullpath, create=True, write=True, format=format, **kwargs) as f:

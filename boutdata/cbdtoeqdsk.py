@@ -1,4 +1,3 @@
-from boututils.file_import import file_import
 import numpy as np
 
 

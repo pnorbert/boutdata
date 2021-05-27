@@ -11,9 +11,6 @@ and because single files are quicker to download.
 
 """
 
-import argparse
-from sys import exit
-
 try:
     import argcomplete
 except ImportError:
@@ -28,7 +25,6 @@ def main():
     """
 
     import argparse
-    from sys import exit
 
     try:
         import argcomplete
@@ -40,7 +36,7 @@ def main():
         description=(
             __doc__
             + "\n\n"
-            + squashoutput.__doc__
+            + squash.__doc__
             + "\n\nNote: the --tind, --xind, --yind and --zind command line arguments "
             "are converted\ndirectly to Python slice() objects and so use exclusive "
             "'stop' values. They can be\npassed up to 3 values: [stop], [start, stop], "

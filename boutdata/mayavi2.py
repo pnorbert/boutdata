@@ -12,11 +12,10 @@ def aligned_points(grid, nz=1, period=1.0, maxshift=0.4):
         zshift = grid["zShift"]
         Rxy = grid["Rxy"]
         Zxy = grid["Zxy"]
-    except:
+    except KeyError:
         print("Missing required data")
         return None
 
-    dz = 2.0 * pi / (period * (nz - 1))
     phi0 = np.linspace(0, 2.0 * pi / period, nz)
 
     # Need to insert additional points in Y so mesh looks smooth
@@ -79,13 +78,13 @@ def view3d(sgrid):
     from enthought.mayavi.sources.vtk_data_source import VTKDataSource
     from enthought.mayavi.modules.api import Outline, GridPlane
 
-    mayavi.new_scene()
+    mayavi2.new_scene()
     src = VTKDataSource(data=sgrid)
-    mayavi.add_source(src)
-    mayavi.add_module(Outline())
+    mayavi2.add_source(src)
+    mayavi2.add_module(Outline())
     g = GridPlane()
     g.grid_plane.axis = "x"
-    mayavi.add_module(g)
+    mayavi2.add_module(g)
 
 
 if __name__ == "__main__":

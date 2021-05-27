@@ -271,7 +271,7 @@ def concatenate_data(data_list, *, nxpe, fieldperp_yproc_ind):
     npes = len(data_list)
     nype = npes // nxpe
     if npes % nxpe != 0:
-        raise ValueError("nxpe=%i does not divide len(data_list)=%i".format(nxpe, npes))
+        raise ValueError("nxpe={} does not divide len(data_list)={}".format(nxpe, npes))
 
     for var in ("field3d_t_1", "field3d_t_2", "field2d_t_1", "field2d_t_2"):
         # Join in x-direction

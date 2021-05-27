@@ -629,16 +629,8 @@ def redistribute(
     except ValueError as e:
         print("Could not find valid processor split. " + e.what())
 
-    nx = old_processor_layout.nx
-    ny = old_processor_layout.ny
-    mz = old_processor_layout.mz
     old_mxg = old_processor_layout.mxg
     old_myg = old_processor_layout.myg
-    old_npes = old_processor_layout.npes
-    old_nxpe = old_processor_layout.nxpe
-    old_nype = old_processor_layout.nype
-    old_mxsub = old_processor_layout.mxsub
-    old_mysub = old_processor_layout.mysub
 
     if mxg is None:
         mxg = old_mxg
@@ -660,7 +652,6 @@ def redistribute(
 
     for v in var_list:
         dimensions = f.dimensions(v)
-        ndims = len(dimensions)
 
         # collect data
         data = collect(
@@ -674,7 +665,8 @@ def redistribute(
 
             def get_block(data):
                 if mxg > old_mxg or myg > old_myg:
-                    # need to make a new array as some boundary cell points are not present in data
+                    # need to make a new array as some boundary cell points are not
+                    # present in data
                     new_shape = list(data.shape)
                     new_shape[0] = mxsub + 2 * mxg
                     new_shape[1] = mysub + 2 * myg
@@ -829,7 +821,7 @@ def resizeY(newy, path="data", output=".", informat="nc", outformat=None, myg=2)
             try:
                 # Convert to scalar if necessary
                 data = data[0]
-            except:
+            except (TypeError, IndexError):
                 pass
             outfile.write(var, data)
 
@@ -891,7 +883,7 @@ def resizeY(newy, path="data", output=".", informat="nc", outformat=None, myg=2)
                 try:
                     # Convert to scalar if necessary
                     data = data[0]
-                except:
+                except (TypeError, IndexError):
                     pass
                 outfile.write(var, data)
 

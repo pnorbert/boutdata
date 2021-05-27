@@ -74,3 +74,7 @@ jobs:
       run: |
         pip install black
         black --check --diff --color .
+    - name: Lint with flake8
+      run: |
+        pip install flake8
+        flake8 && echo "flake8 successful"
