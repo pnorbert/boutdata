@@ -613,8 +613,6 @@ class ShapedTokamak(object):
 
         hthe = zeros([ngx, ngy])
 
-        # I = zeros([ngx, ngy])
-
         # Note: This is slow, and could be improved using something like lambdify
         for i, x in enumerate(xarr):
             for j, y in enumerate(yarr):
@@ -625,11 +623,6 @@ class ShapedTokamak(object):
                 Bpxy[i, j] = self.Bp.evalf(subs={self.x: x, self.y: y})
 
                 hthe[i, j] = self.hthe.evalf(subs={self.x: x, self.y: y})
-
-        # plt.plot(Rxy, Zxy)
-        # plt.show()
-
-        # Bxy = sqrt(Btxy ** 2 + Bpxy ** 2)
 
     def metric(self):
         """
