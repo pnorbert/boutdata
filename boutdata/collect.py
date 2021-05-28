@@ -1015,7 +1015,10 @@ def _get_grid_info(
     ny_inner = int(load_and_check("ny_inner"))
     is_doublenull = load_and_check("jyseps2_1") != load_and_check("jyseps1_2")
 
-    nt = len(load_and_check("t_array"))
+    if "t_array" in f.keys():
+        nt = len(f.read("t_array"))
+    else:
+        nt = 1
     nx = nxpe * mxsub + 2 * mxg if xguards else nxpe * mxsub
 
     if yguards:
