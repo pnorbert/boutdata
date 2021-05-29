@@ -76,6 +76,84 @@ expected_attributes = {
 }
 
 
+def make_grid_info(
+    *, mxg=2, myg=2, nxpe=1, nype=1, ixseps1=None, ixseps2=None, xpoints=0
+):
+    """
+    Create a dict of parameters used for creating test data
+
+    Parameters
+    ----------
+    mxg : int, optional
+        Number of guard cells in the x-direction
+    myg : int, optional
+        Number of guard cells in the y-direction
+    nxpe : int, optional
+        Number of processes in the x-direction
+    nype : int, optional
+        Number of processes in the y-direction
+    ixseps1 : int, optional
+        x-index (where indexing includes boundary points) of point just outside
+        first separatrix
+    ixseps2 : int, optional
+        x-index (where indexing includes boundary points) of point just outside
+        second separatrix
+    xpoints : int, optional
+        Number of X-points.
+    """
+    grid_info = {}
+    grid_info["iteration"] = 6
+    grid_info["MXSUB"] = 3
+    grid_info["MYSUB"] = 4
+    grid_info["MZSUB"] = 5
+    grid_info["MXG"] = mxg
+    grid_info["MYG"] = myg
+    grid_info["MZG"] = 0
+    grid_info["NXPE"] = nxpe
+    grid_info["NYPE"] = nype
+    grid_info["NZPE"] = 1
+    grid_info["nx"] = nxpe * grid_info["MXSUB"] + 2 * mxg
+    grid_info["ny"] = nype * grid_info["MYSUB"]
+    grid_info["nz"] = grid_info["NZPE"] * grid_info["MZSUB"]
+    grid_info["MZ"] = grid_info["nz"]
+    if ixseps1 is None:
+        grid_info["ixseps1"] = grid_info["nx"]
+    else:
+        grid_info["ixseps1"] = ixseps1
+    if ixseps2 is None:
+        grid_info["ixseps2"] = grid_info["nx"]
+    else:
+        grid_info["ixseps2"] = ixseps2
+    if xpoints == 0:
+        grid_info["jyseps1_1"] = -1
+        grid_info["jyseps2_1"] = grid_info["ny"] // 2 - 1
+        grid_info["ny_inner"] = grid_info["ny"] // 2
+        grid_info["jyseps1_2"] = grid_info["ny"] // 2 - 1
+        grid_info["jyseps2_2"] = grid_info["ny"]
+    elif xpoints == 1:
+        if nype < 3:
+            raise ValueError(f"nype={nype} not enough for single-null")
+        yproc_per_region = nype // 3
+        grid_info["jyseps1_1"] = yproc_per_region * grid_info["MYSUB"] - 1
+        grid_info["jyseps2_1"] = grid_info["ny"] // 2 - 1
+        grid_info["ny_inner"] = grid_info["ny"] // 2
+        grid_info["jyseps1_2"] = grid_info["ny"] // 2 - 1
+        grid_info["jyseps2_2"] = 2 * yproc_per_region * grid_info["MYSUB"] - 1
+    elif xpoints == 2:
+        if nype < 6:
+            raise ValueError(f"nype={nype} not enough for single-null")
+        yproc_per_region = nype // 6
+        grid_info["jyseps1_1"] = yproc_per_region * grid_info["MYSUB"] - 1
+        grid_info["jyseps2_1"] = 2 * yproc_per_region * grid_info["MYSUB"] - 1
+        grid_info["ny_inner"] = 3 * yproc_per_region * grid_info["MYSUB"]
+        grid_info["jyseps1_2"] = 4 * yproc_per_region * grid_info["MYSUB"] - 1
+        grid_info["jyseps2_2"] = 5 * yproc_per_region * grid_info["MYSUB"] - 1
+    else:
+        raise ValueError(f"Unsupported value for xpoints: {xpoints}")
+
+    return grid_info
+
+
 def create_dump_file(*, i, tmpdir, rng, grid_info, boundaries, fieldperp_global_yind):
     """
     Create a netCDF file mocking up a BOUT++ output file, and also return the data
