@@ -324,7 +324,111 @@ def create_dump_file(*, i, tmpdir, rng, grid_info, boundaries, fieldperp_global_
     return result
 
 
-def concatenate_data(data_list, *, nxpe, fieldperp_yproc_ind):
+def create_restart_file(*, i, tmpdir, rng, grid_info, fieldperp_global_yind):
+    """
+    Create a netCDF file mocking up a BOUT++ output file, and also return the data
+    without guard cells
+
+    Parameters
+    ----------
+    i : int
+        Number of the output file
+    tmpdir : pathlib.Path
+        Directory to write the dump file in
+    rng : numpy.random.Generator
+        Random number generator to create data
+    grid_info : dict
+        Dictionary containing grid sizes, etc
+    fieldperp_global_yind : int
+        Global y-index for a FieldPerp (should be -1 if FieldPerp is not on this
+        processor).
+
+    Returns
+    -------
+    Dict of scalars and numpy arrays
+    """
+    mxg = grid_info["MXG"]
+    myg = grid_info["MYG"]
+    mzg = grid_info["MZG"]
+    localnx = grid_info["MXSUB"] + 2 * mxg
+    localny = grid_info["MYSUB"] + 2 * myg
+    localnz = grid_info["MZSUB"] + 2 * mzg
+
+    with Dataset(tmpdir.joinpath("BOUT.restart." + str(i) + ".nc"), "w") as outputfile:
+        outputfile.createDimension("x", localnx)
+        outputfile.createDimension("y", localny)
+        outputfile.createDimension("z", localnz)
+
+        # Create slices for returned data without guard cells
+        xslice = slice(mxg, None if mxg == 0 else -mxg)
+        yslice = slice(myg, None if myg == 0 else -myg)
+        zslice = slice(mzg, None if mzg == 0 else -mzg)
+
+        result = {}
+
+        # Field3D
+        def create3D(name):
+            var = outputfile.createVariable(name, float, ("x", "y", "z"))
+
+            data = rng.random((localnx, localny, localnz))
+            var[:] = data
+            for key, value in expected_attributes[name].items():
+                var.setncattr(key, value)
+
+            result[name] = data[xslice, yslice, zslice]
+
+        create3D("field3d_1")
+        create3D("field3d_2")
+
+        # Field2D
+        def create2D(name):
+            var = outputfile.createVariable(name, float, ("x", "y"))
+
+            data = rng.random((localnx, localny))
+            var[:] = data
+            for key, value in expected_attributes[name].items():
+                var.setncattr(key, value)
+
+            result[name] = data[xslice, yslice]
+
+        create2D("field2d_1")
+        create2D("field2d_2")
+
+        # FieldPerp
+        def createPerp(name):
+            var = outputfile.createVariable(name, float, ("x", "z"))
+
+            data = rng.random((localnx, localnz))
+            var[:] = data
+            for key, value in expected_attributes[name].items():
+                var.setncattr(key, value)
+            var.setncattr("yindex_global", fieldperp_global_yind)
+
+            result[name] = data[xslice, zslice]
+
+        createPerp("fieldperp_1")
+        createPerp("fieldperp_2")
+
+        # Scalar
+        def createScalar(name, value):
+            var = outputfile.createVariable(name, type(value))
+
+            var[...] = value
+
+            result[name] = value
+
+        createScalar("BOUT_VERSION", 4.31)
+        for key, value in grid_info.items():
+            createScalar(key, value)
+        nxpe = grid_info["NXPE"]
+        createScalar("PE_XIND", i % nxpe)
+        createScalar("PE_YIND", i // nxpe)
+        createScalar("MYPE", i)
+
+    return result
+
+
+def concatenate_data(data_list, *, nxpe, fieldperp_yproc_ind, has_t_dim=True):
     """
     Joins together lists of data arrays for expected results from each process into a
     global array.
@@ -351,16 +455,17 @@ def concatenate_data(data_list, *, nxpe, fieldperp_yproc_ind):
     if npes % nxpe != 0:
         raise ValueError("nxpe={} does not divide len(data_list)={}".format(nxpe, npes))
 
-    for var in ("field3d_t_1", "field3d_t_2", "field2d_t_1", "field2d_t_2"):
-        # Join in x-direction
-        parts = [
-            np.concatenate(
-                [data_list[j][var] for j in range(i * nxpe, (i + 1) * nxpe)], axis=1
-            )
-            for i in range(nype)
-        ]
-        # Join in y-direction
-        result[var] = np.concatenate(parts, axis=2)
+    if has_t_dim:
+        for var in ("field3d_t_1", "field3d_t_2", "field2d_t_1", "field2d_t_2"):
+            # Join in x-direction
+            parts = [
+                np.concatenate(
+                    [data_list[j][var] for j in range(i * nxpe, (i + 1) * nxpe)], axis=1
+                )
+                for i in range(nype)
+            ]
+            # Join in y-direction
+            result[var] = np.concatenate(parts, axis=2)
 
     for var in ("field3d_1", "field3d_2", "field2d_1", "field2d_2"):
         # Join in x-direction
@@ -373,17 +478,18 @@ def concatenate_data(data_list, *, nxpe, fieldperp_yproc_ind):
         # Join in y-direction
         result[var] = np.concatenate(parts, axis=1)
 
-    for var in ("fieldperp_t_1", "fieldperp_t_2"):
-        # Join in x-direction
-        result[var] = np.concatenate(
-            [
-                data_list[j][var]
-                for j in range(
-                    fieldperp_yproc_ind * nxpe, (fieldperp_yproc_ind + 1) * nxpe
-                )
-            ],
-            axis=1,
-        )
+    if has_t_dim:
+        for var in ("fieldperp_t_1", "fieldperp_t_2"):
+            # Join in x-direction
+            result[var] = np.concatenate(
+                [
+                    data_list[j][var]
+                    for j in range(
+                        fieldperp_yproc_ind * nxpe, (fieldperp_yproc_ind + 1) * nxpe
+                    )
+                ],
+                axis=1,
+            )
 
     for var in ("fieldperp_1", "fieldperp_2"):
         # Join in x-direction
