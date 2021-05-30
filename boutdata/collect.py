@@ -1019,12 +1019,13 @@ def _get_grid_info(
         nt = 1
     nx = nxpe * mxsub + 2 * mxg if xguards else nxpe * mxsub
 
+    yproc_upper_target = None
     if yguards:
         ny = mysub * nype + 2 * myg
         if yguards == "include_upper":
-            ny_inner = int(load_and_check("ny_inner"))
             is_doublenull = load_and_check("jyseps2_1") != load_and_check("jyseps1_2")
             if is_doublenull:
+                ny_inner = int(load_and_check("ny_inner"))
                 # Simulation has a second (upper) target, with a second set of
                 # y-boundary points
                 ny = ny + 2 * myg
@@ -1034,11 +1035,8 @@ def _get_grid_info(
                         "Trying to keep upper boundary cells but mysub={} does not "
                         "divide ny_inner={}".format(mysub, ny_inner)
                     )
-        else:
-            yproc_upper_target = None
     else:
         ny = mysub * nype
-        yproc_upper_target = None
 
     nz = mz - 1 if version < 3.5 else mz
 
@@ -1076,7 +1074,8 @@ def _get_grid_info(
 
     if yguards == "include_upper":
         result["is_doublenull"] = is_doublenull
-        result["ny_inner"] = ny_inner
+        if is_doublenull:
+            result["ny_inner"] = ny_inner
 
     if all_vars_info:
         attributes = {}
