@@ -1012,8 +1012,6 @@ def _get_grid_info(
     except KeyError:
         nype = nfiles
         print("NYPE not found, setting to {}".format(nype))
-    ny_inner = int(load_and_check("ny_inner"))
-    is_doublenull = load_and_check("jyseps2_1") != load_and_check("jyseps1_2")
 
     if "t_array" in f.keys():
         nt = len(f.read("t_array"))
@@ -1021,23 +1019,24 @@ def _get_grid_info(
         nt = 1
     nx = nxpe * mxsub + 2 * mxg if xguards else nxpe * mxsub
 
+    yproc_upper_target = None
     if yguards:
         ny = mysub * nype + 2 * myg
-        if yguards == "include_upper" and is_doublenull:
-            # Simulation has a second (upper) target, with a second set of y-boundary
-            # points
-            ny = ny + 2 * myg
-            yproc_upper_target = ny_inner // mysub - 1
-            if ny_inner % mysub != 0:
-                raise ValueError(
-                    "Trying to keep upper boundary cells but mysub={} does not "
-                    "divide ny_inner={}".format(mysub, ny_inner)
-                )
-        else:
-            yproc_upper_target = None
+        if yguards == "include_upper":
+            is_doublenull = load_and_check("jyseps2_1") != load_and_check("jyseps1_2")
+            if is_doublenull:
+                ny_inner = int(load_and_check("ny_inner"))
+                # Simulation has a second (upper) target, with a second set of
+                # y-boundary points
+                ny = ny + 2 * myg
+                yproc_upper_target = ny_inner // mysub - 1
+                if ny_inner % mysub != 0:
+                    raise ValueError(
+                        "Trying to keep upper boundary cells but mysub={} does not "
+                        "divide ny_inner={}".format(mysub, ny_inner)
+                    )
     else:
         ny = mysub * nype
-        yproc_upper_target = None
 
     nz = mz - 1 if version < 3.5 else mz
 
@@ -1057,7 +1056,6 @@ def _get_grid_info(
     varNames = f.keys()
 
     result = {
-        "is_doublenull": is_doublenull,
         "mxg": mxg,
         "mxsub": mxsub,
         "myg": myg,
@@ -1067,13 +1065,17 @@ def _get_grid_info(
         "nx": nx,
         "nxpe": nxpe,
         "ny": ny,
-        "ny_inner": ny_inner,
         "nype": nype,
         "nz": nz,
         "sizes": sizes,
         "varNames": varNames,
         "yproc_upper_target": yproc_upper_target,
     }
+
+    if yguards == "include_upper":
+        result["is_doublenull"] = is_doublenull
+        if is_doublenull:
+            result["ny_inner"] = ny_inner
 
     if all_vars_info:
         attributes = {}
