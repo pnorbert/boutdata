@@ -91,3 +91,7 @@ def main():
         args.__dict__[ind + "ind"] = slice(*args.__dict__[ind + "ind"])
     # Call the function, using command line arguments
     squash.squashoutput(**args.__dict__)
+
+
+if __name__ == "__main__":
+    main()
