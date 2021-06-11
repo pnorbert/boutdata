@@ -1215,6 +1215,11 @@ class BoutOutputs(object):
         """Return a list of available variable names"""
         return self.grid_info["varNames"]
 
+    @property
+    def dimensions(self):
+        """Accesss a dict of dimensions of the variables"""
+        return self.grid_info["dimensions"]
+
     def evolvingVariables(self):
         """Return a list of names of time-evolving variables"""
         return self.grid_info["evolvingVariableNames"]
