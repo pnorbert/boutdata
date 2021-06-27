@@ -98,6 +98,13 @@ def main():
         help="Value at which to start the counter labelling output files when "
         "time_split_size is used.",
     )
+    parser.add_argument(
+        "--disable_parallel_write",
+        action="store_true",
+        default=False,
+        help="Parallel writing may increase memory usage, so it can be disabled even "
+        "when reading in parallel by setting passing this flag.",
+    )
 
     if argcomplete:
         argcomplete.autocomplete(parser)
