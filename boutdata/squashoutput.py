@@ -30,6 +30,8 @@ def squashoutput(
     delete=False,
     tind_auto=False,
     parallel=False,
+    time_split_size=None,
+    time_split_first_label=0,
 ):
     """
     Collect all data from BOUT.dmp.* files and create a single output file.
@@ -89,6 +91,14 @@ def squashoutput(
         If set to True or 0, use the multiprocessing library to read data in parallel
         with the maximum number of available processors. If set to an int, use that many
         processes.
+    time_split_size : int, optional
+        By default no splitting is done. If an integer value is passed, the output is
+        split into files with length in the t-dimension equal to that value. The outputs
+        are labelled by prefacing a counter (starting by default at 0, but see
+        time_split_first_label) to the file name before the .nc suffix.
+    time_split_first_label : int, default 0
+        Value at which to start the counter labelling output files when time_split_size
+        is used.
     """
     from boutdata.data import BoutOutputs
     from boututils.datafile import DataFile
@@ -160,6 +170,8 @@ def squashoutput(
         if complevel is not None:
             kwargs["complevel"] = complevel
     if append:
+        if time_split_size is not None:
+            raise ValueError("'time_split_size' is not compatible with append=True")
         old = DataFile(oldfile)
         # Check if dump on restart was enabled
         # If so, we want to drop the duplicated entry
@@ -173,29 +185,58 @@ def squashoutput(
                     "For some reason t_array has some duplicated entries in the new "
                     "and old file."
                 )
-    # Create single file for output and write data
-    with DataFile(fullpath, create=True, write=True, format=format, **kwargs) as f:
-        for varname in outputvars:
-            if not quiet:
-                print(varname, flush=True)
 
-            var = outputs[varname]
-            if append:
-                dims = outputs.dimensions[varname]
-                if "t" in dims:
-                    var = var[cropnew:, ...]
-                    varold = old[varname]
-                    var = BoutArray(numpy.append(varold, var, axis=0), var.attributes)
+    # Create file(s) for output and write data
+    if time_split_size is None:
+        files = [DataFile(fullpath, create=True, write=True, format=format, **kwargs)]
+        tslices = [slice(None)]
+    else:
+        tind = outputs.tind
+        # tind.stop + 1 - tind.start is the total number of t-indices ignoring the step.
+        # Adding tind.step - 1 and integer-dividing by tind.step converts to the total
+        # number accounting for the step.
+        nt = (tind.stop + 1 - tind.start + tind.step - 1) // tind.step
+        n_outputs = (nt + time_split_size - 1) // time_split_size
+        files = []
+        t_slices = []
+        for i in range(n_outputs):
+            parts = fullpath.split(".")
+            parts[-2] += str(time_split_first_label + i)
+            filename = ".".join(parts)
+            files.append(
+                DataFile(filename, create=True, write=True, format=format, **kwargs)
+            )
+            t_slices.append(slice(i * time_split_size, (i + 1) * time_split_size))
 
-            if singleprecision:
-                if not isinstance(var, int):
-                    var = BoutArray(numpy.float32(var), var.attributes)
+    for varname in outputvars:
+        if not quiet:
+            print(varname, flush=True)
 
-            f.write(varname, var)
+        var = outputs[varname]
+        dims = outputs.dimensions[varname]
+        if append:
+            if "t" in dims:
+                var = var[cropnew:, ...]
+                varold = old[varname]
+                var = BoutArray(numpy.append(varold, var, axis=0), var.attributes)
+
+        if singleprecision:
+            if not isinstance(var, int):
+                var = BoutArray(numpy.float32(var), var.attributes)
+
+        for f, t_slice in zip(files, t_slices):
+            if "t" in dims:
+                f.write(varname, var[t_slice])
+            else:
+                f.write(varname, var)
             # Write changes, free memory
             f.sync()
-            var = None
-            gc.collect()
+
+        var = None
+        gc.collect()
+
+    for f in files:
+        f.close()
 
     del outputs
     gc.collect()
