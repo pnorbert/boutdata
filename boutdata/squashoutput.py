@@ -193,8 +193,8 @@ def squashoutput(
 
     # Create file(s) for output and write data
     if time_split_size is None:
-        files = [DataFile(fullpath, create=True, write=True, **kwargs)]
-        tslices = [slice(None)]
+        filenames = [fullpath]
+        t_slices = [slice(None)]
     else:
         tind = outputs.tind
         # tind.stop + 1 - tind.start is the total number of t-indices ignoring the step.
