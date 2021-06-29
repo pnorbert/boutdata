@@ -104,6 +104,7 @@ def squashoutput(
         Parallel writing may increase memory usage, so it can be disabled even when
         reading in parallel by setting this argument to True.
     """
+    # use local imports to allow fast import for tab-completion
     from boutdata.data import BoutOutputs
     from boututils.datafile import DataFile
     from boututils.boutarray import BoutArray
@@ -315,6 +316,7 @@ class SquashWorkers:
         filenames : list of str
             Names of the files to write to.
         """
+        # use local imports to allow fast import for tab-completion
         from boututils.datafile import DataFile
 
         self.files = [
@@ -371,7 +373,7 @@ class SquashWorkers:
                 for f in files_dict.values():
                     f.close()
                 connection.close()
-                return 0
+                return
 
             varname, data, attributes = args
 

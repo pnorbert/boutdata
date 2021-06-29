@@ -88,7 +88,7 @@ def main():
         default=None,
         help="By default no splitting is done. If an integer value is passed, the "
         "output is split into files with length in the t-dimension equal to that "
-        "value.  The outputs are labelled by prefacing a counter (starting by default "
+        "value. The outputs are labelled by prefacing a counter (starting by default "
         "at 0, but see time_split_first_label) to the file name before the .nc suffix.",
     )
     parser.add_argument(
