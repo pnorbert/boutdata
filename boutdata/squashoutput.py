@@ -129,6 +129,8 @@ def squashoutput(
     fullpath = os.path.join(datadir, outputname)
 
     if append:
+        if time_split_size is not None:
+            raise ValueError("'time_split_size' is not compatible with append=True")
         datadirnew = tempfile.mkdtemp(dir=datadir)
         for f in glob.glob(os.path.join(datadir, "BOUT.dmp.*.??")):
             if not quiet:
@@ -175,8 +177,6 @@ def squashoutput(
         if complevel is not None:
             kwargs["complevel"] = complevel
     if append:
-        if time_split_size is not None:
-            raise ValueError("'time_split_size' is not compatible with append=True")
         old = DataFile(oldfile)
         # Check if dump on restart was enabled
         # If so, we want to drop the duplicated entry
