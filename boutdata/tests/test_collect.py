@@ -261,22 +261,6 @@ class TestCollect:
         # files created when setting time_split_size
         ######################################################################
 
-        doublenull = False
-
-        # Apply effect of arguments to expected data
-        if not collect_kwargs["xguards"]:
-            remove_xboundaries(expected, expected["MXG"])
-        if collect_kwargs["yguards"] is True and doublenull:
-            remove_yboundaries_upper_divertor(
-                expected, expected["MYG"], expected["ny_inner"]
-            )
-        if not collect_kwargs["yguards"]:
-            remove_yboundaries(
-                expected, expected["MYG"], expected["ny_inner"], doublenull
-            )
-
-        collect_kwargs = collect_kwargs.copy()
-
         # Always squash
         squashoutput(
             tmp_path, outputname="boutdata.nc", **collect_kwargs, **squash_kwargs
@@ -286,14 +270,6 @@ class TestCollect:
         dump_names = glob(str(tmp_path.joinpath("BOUT.dmp.*.nc")))
         for x in dump_names:
             Path(x).unlink()
-        # Reset arguments that are taken care of by squashoutput
-        for x in ("tind", "xind", "yind", "zind"):
-            if x in collect_kwargs:
-                collect_kwargs.pop(x)
-        # Never remove x-boundaries when collecting from a squashed file without them
-        collect_kwargs["xguards"] = True
-        # Never remove y-boundaries when collecting from a squashed file without them
-        collect_kwargs["yguards"] = "include_upper"
 
         # Assumes 'nt' is always 6, as set by make_grid_info() and create_dump_file()
         n_output = (6 + time_split[0] - 1) // time_split[0]
