@@ -312,7 +312,6 @@ class TestCollect:
         grid_info = make_grid_info()
 
         fieldperp_global_yind = 3
-        fieldperp_yproc_ind = 0
 
         rng = np.random.default_rng(100)
 
@@ -322,22 +321,15 @@ class TestCollect:
         dump_params = [
             (0, ["xinner", "xouter", "ylower", "yupper"], fieldperp_global_yind),
         ]
-        dumps = []
         for i, boundaries, fieldperp_yind in dump_params:
-            dumps.append(
-                create_dump_file(
-                    tmpdir=tmp_path,
-                    rng=rng,
-                    grid_info=grid_info,
-                    i=i,
-                    boundaries=boundaries,
-                    fieldperp_global_yind=fieldperp_yind,
-                )
+            create_dump_file(
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                i=i,
+                boundaries=boundaries,
+                fieldperp_global_yind=fieldperp_yind,
             )
-
-        expected = concatenate_data(
-            dumps, nxpe=grid_info["NXPE"], fieldperp_yproc_ind=fieldperp_yproc_ind
-        )
 
         with pytest.raises(
             ValueError, match="'time_split_size' is not compatible with append=True"
