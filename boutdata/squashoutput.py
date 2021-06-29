@@ -193,24 +193,9 @@ def squashoutput(
     kwargs["format"] = format
 
     # Create file(s) for output and write data
-    if time_split_size is None:
-        filenames = [fullpath]
-        t_slices = [slice(None)]
-    else:
-        tind = outputs.tind
-        # tind.stop + 1 - tind.start is the total number of t-indices ignoring the step.
-        # Adding tind.step - 1 and integer-dividing by tind.step converts to the total
-        # number accounting for the step.
-        nt = (tind.stop + 1 - tind.start + tind.step - 1) // tind.step
-        n_outputs = (nt + time_split_size - 1) // time_split_size
-        filenames = []
-        t_slices = []
-        for i in range(n_outputs):
-            parts = fullpath.split(".")
-            parts[-2] += str(time_split_first_label + i)
-            filename = ".".join(parts)
-            filenames.append(filename)
-            t_slices.append(slice(i * time_split_size, (i + 1) * time_split_size))
+    filenames, t_slices = _get_filenames_t_slices(
+        time_split_size, time_split_first_label, fullpath, outputs.tind
+    )
 
     workers = SquashWorkers(
         False if disable_parallel_write else parallel, filenames, kwargs
@@ -259,6 +244,50 @@ def squashoutput(
         # Note that get_chunk_cache() returns a tuple, so we have to unpack it when
         # passing to set_chunk_cache.
         set_chunk_cache(*netcdf4_chunk_cache)
+
+
+def _get_filenames_t_slices(time_split_size, time_split_first_label, fullpath, tind):
+    """
+    Create the filenames and slices used for splitting output in time. If not
+    splitting, 'do nothing'.
+
+    Parameters
+    ----------
+    time_split_size : int or None
+        See docstring of squashoutput().
+    time_split_first_label : int
+        See docstring of squashoutput().
+    fullpath : str
+        Path of the directory where data files are.
+    tind : slice
+        slice object applied to time dimension when reading data. Used to
+        calculate length of time dimension when time_split_size is set.
+
+    Returns
+    -------
+    filenames : list of str
+        File names to write output to.
+    t_slices : list of slice
+        Slices to be applied to the time dimension to select data for each
+        output file.
+    """
+    if time_split_size is None:
+        return [fullpath], [slice(None)]
+    else:
+        # tind.stop + 1 - tind.start is the total number of t-indices ignoring the step.
+        # Adding tind.step - 1 and integer-dividing by tind.step converts to the total
+        # number accounting for the step.
+        nt = (tind.stop + 1 - tind.start + tind.step - 1) // tind.step
+        n_outputs = (nt + time_split_size - 1) // time_split_size
+        filenames = []
+        t_slices = []
+        for i in range(n_outputs):
+            parts = fullpath.split(".")
+            parts[-2] += str(time_split_first_label + i)
+            filename = ".".join(parts)
+            filenames.append(filename)
+            t_slices.append(slice(i * time_split_size, (i + 1) * time_split_size))
+        return filenames, t_slices
 
 
 class SquashWorkers:
