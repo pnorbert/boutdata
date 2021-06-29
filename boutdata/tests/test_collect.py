@@ -326,6 +326,50 @@ class TestCollect:
                     fieldperp_global_yind,
                 )
 
+    def test_core_min_files_append_time_split_raises(self, tmp_path):
+        """
+        Check output from a core-only case using the minimum number of processes
+        """
+        collect_kwargs = {"xguards": True, "yguards": "include_upper"}
+        squash_kwargs = {"time_split_size": 2, "append": True}
+
+        grid_info = make_grid_info()
+
+        fieldperp_global_yind = 3
+        fieldperp_yproc_ind = 0
+
+        rng = np.random.default_rng(100)
+
+        # core
+        # core includes "ylower" and "yupper" even though there is no actual y-boundary
+        # because collect/squashoutput collect these points
+        dump_params = [
+            (0, ["xinner", "xouter", "ylower", "yupper"], fieldperp_global_yind),
+        ]
+        dumps = []
+        for i, boundaries, fieldperp_yind in dump_params:
+            dumps.append(
+                create_dump_file(
+                    tmpdir=tmp_path,
+                    rng=rng,
+                    grid_info=grid_info,
+                    i=i,
+                    boundaries=boundaries,
+                    fieldperp_global_yind=fieldperp_yind,
+                )
+            )
+
+        expected = concatenate_data(
+            dumps, nxpe=grid_info["NXPE"], fieldperp_yproc_ind=fieldperp_yproc_ind
+        )
+
+        with pytest.raises(
+            ValueError, match="'time_split_size' is not compatible with append=True"
+        ):
+            squashoutput(
+                tmp_path, outputname="boutdata.nc", **collect_kwargs, **squash_kwargs
+            )
+
     @pytest.mark.parametrize("squash_params", squash_params_list)
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
     def test_core(self, tmp_path, squash_params, collect_kwargs):
