@@ -96,35 +96,63 @@ def check_collected_data(
 
     for varname in expected:
         actual = collect(varname, path=path, **collect_kwargs)
-        npt.assert_array_equal(expected[varname], actual)
-        actual_keys = list(actual.attributes.keys())
-        if varname in expected_attributes:
-            for a in expected_attributes[varname]:
-                assert actual.attributes[a] == expected_attributes[varname][a]
-                actual_keys.remove(a)
+        check_variable(
+            varname,
+            actual,
+            expected[varname],
+            expected_attributes.get(varname, None),
+            fieldperp_global_yind,
+        )
 
-        if "fieldperp" in varname:
-            assert actual.attributes["yindex_global"] == fieldperp_global_yind
-            actual_keys.remove("yindex_global")
 
-        assert actual_keys == ["bout_type"]
+def check_variable(
+    varname, actual, expected_data, expected_attributes, fieldperp_global_yind
+):
+    """
+    Check a single variable
 
-        if "field3d_t" in varname:
-            assert actual.attributes["bout_type"] == "Field3D_t"
-        elif "field3d" in varname:
-            assert actual.attributes["bout_type"] == "Field3D"
-        elif "field2d_t" in varname:
-            assert actual.attributes["bout_type"] == "Field2D_t"
-        elif "field2d" in varname:
-            assert actual.attributes["bout_type"] == "Field2D"
-        elif "fieldperp_t" in varname:
-            assert actual.attributes["bout_type"] == "FieldPerp_t"
-        elif "fieldperp" in varname:
-            assert actual.attributes["bout_type"] == "FieldPerp"
-        elif "_t" in varname or varname == "t_array":
-            assert actual.attributes["bout_type"] == "scalar_t"
-        else:
-            assert actual.attributes["bout_type"] == "scalar"
+    Parameters
+    ----------
+    varname : str
+        Name of the variable
+    actual : BoutArray
+        The collected variable
+    expected_data : np.Array
+        Expected data for the variable
+    expected_attributes : dict or None
+        Expected attributes for the variable
+    fieldperp_global_yind : int
+        Global y-index where FieldPerps have been created
+    """
+    npt.assert_array_equal(expected_data, actual)
+    actual_keys = list(actual.attributes.keys())
+    if expected_attributes is not None:
+        for a in expected_attributes:
+            assert actual.attributes[a] == expected_attributes[a]
+            actual_keys.remove(a)
+
+    if "fieldperp" in varname:
+        assert actual.attributes["yindex_global"] == fieldperp_global_yind
+        actual_keys.remove("yindex_global")
+
+    assert actual_keys == ["bout_type"]
+
+    if "field3d_t" in varname:
+        assert actual.attributes["bout_type"] == "Field3D_t"
+    elif "field3d" in varname:
+        assert actual.attributes["bout_type"] == "Field3D"
+    elif "field2d_t" in varname:
+        assert actual.attributes["bout_type"] == "Field2D_t"
+    elif "field2d" in varname:
+        assert actual.attributes["bout_type"] == "Field2D"
+    elif "fieldperp_t" in varname:
+        assert actual.attributes["bout_type"] == "FieldPerp_t"
+    elif "fieldperp" in varname:
+        assert actual.attributes["bout_type"] == "FieldPerp"
+    elif "_t" in varname or varname == "t_array":
+        assert actual.attributes["bout_type"] == "scalar_t"
+    else:
+        assert actual.attributes["bout_type"] == "scalar"
 
 
 class TestCollect:
@@ -282,41 +310,21 @@ class TestCollect:
                     path=tmp_path,
                     **collect_kwargs,
                 )
+
                 if "_t" in actual.attributes["bout_type"]:
-                    npt.assert_array_equal(
-                        expected[varname][i * time_split[0] : (i + 1) * time_split[0]],
-                        actual,
-                    )
+                    expected_data = expected[varname][
+                        i * time_split[0] : (i + 1) * time_split[0]
+                    ]
                 else:
-                    npt.assert_array_equal(expected[varname], actual)
-                actual_keys = list(actual.attributes.keys())
-                if varname in expected_attributes:
-                    for a in expected_attributes[varname]:
-                        assert actual.attributes[a] == expected_attributes[varname][a]
-                        actual_keys.remove(a)
+                    expected_data = expected[varname]
 
-                if "fieldperp" in varname:
-                    assert actual.attributes["yindex_global"] == fieldperp_global_yind
-                    actual_keys.remove("yindex_global")
-
-                assert actual_keys == ["bout_type"]
-
-                if "field3d_t" in varname:
-                    assert actual.attributes["bout_type"] == "Field3D_t"
-                elif "field3d" in varname:
-                    assert actual.attributes["bout_type"] == "Field3D"
-                elif "field2d_t" in varname:
-                    assert actual.attributes["bout_type"] == "Field2D_t"
-                elif "field2d" in varname:
-                    assert actual.attributes["bout_type"] == "Field2D"
-                elif "fieldperp_t" in varname:
-                    assert actual.attributes["bout_type"] == "FieldPerp_t"
-                elif "fieldperp" in varname:
-                    assert actual.attributes["bout_type"] == "FieldPerp"
-                elif "_t" in varname or varname == "t_array":
-                    assert actual.attributes["bout_type"] == "scalar_t"
-                else:
-                    assert actual.attributes["bout_type"] == "scalar"
+                check_variable(
+                    varname,
+                    actual,
+                    expected_data,
+                    expected_attributes.get(varname, None),
+                    fieldperp_global_yind,
+                )
 
     @pytest.mark.parametrize("squash_params", squash_params_list)
     @pytest.mark.parametrize("collect_kwargs", collect_kwargs_list)
