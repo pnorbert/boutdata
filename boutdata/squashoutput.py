@@ -130,7 +130,7 @@ def squashoutput(
 
     if append:
         datadirnew = tempfile.mkdtemp(dir=datadir)
-        for f in glob.glob(datadir + "/BOUT.dmp.*.??"):
+        for f in glob.glob(os.path.join(datadir, "BOUT.dmp.*.??")):
             if not quiet:
                 print("moving", f, flush=True)
             shutil.move(f, datadirnew)
