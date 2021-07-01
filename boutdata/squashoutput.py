@@ -404,7 +404,7 @@ class SquashWorkers:
             args = connection.recv()
             if args is None:
                 # Terminate process cleanly
-                for f in files_dict.values():
+                for f in output_files.values():
                     f.close()
                 connection.close()
                 return
