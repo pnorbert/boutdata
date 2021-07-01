@@ -396,6 +396,13 @@ class SquashWorkers:
         from boututils.datafile import DataFile
         from boututils.boutarray import BoutArray
 
+        try:
+            # Ensure chunk cache is not used on worker processes
+            from netCDF4 import set_chunk_cache
+            set_chunk_cache(0)
+        except ImportError:
+            pass
+
         output_files = {}
         for i, name in files_dict.items():
             output_files[i] = DataFile(name, create=True, write=True, **self.kwargs)
