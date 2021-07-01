@@ -207,6 +207,79 @@ class TestCollect:
     @pytest.mark.parametrize(
         "time_split",
         [
+            (None, None),
+            (1, None),
+            (2, None),
+            (2, 3),
+            (3, None),
+            (4, None),
+            (5, None),
+            (6, None),
+            (7, None),
+        ],
+    )
+    def test_core_min_files_existing_squash_file_raises(self, tmp_path, time_split):
+        """
+        Check output from a core-only case using the minimum number of processes
+        """
+        time_split_size, time_split_first_label = time_split
+
+        squash_kwargs = {}
+        if time_split_size is not None:
+            squash_kwargs["time_split_size"] = time_split_size
+        if time_split_first_label is not None:
+            squash_kwargs["time_split_first_label"] = time_split_first_label
+
+        grid_info = make_grid_info()
+
+        fieldperp_global_yind = 3
+
+        rng = np.random.default_rng(100)
+
+        # core
+        # core includes "ylower" and "yupper" even though there is no actual y-boundary
+        # because collect/squashoutput collect these points
+        dump_params = [
+            (0, ["xinner", "xouter", "ylower", "yupper"], fieldperp_global_yind),
+        ]
+        for i, boundaries, fieldperp_yind in dump_params:
+            create_dump_file(
+                tmpdir=tmp_path,
+                rng=rng,
+                grid_info=grid_info,
+                i=i,
+                boundaries=boundaries,
+                fieldperp_global_yind=fieldperp_yind,
+            )
+
+        if time_split_size is None:
+            filenames = ["boutdata.nc"]
+        else:
+            first = 0 if time_split_first_label is None else time_split_first_label
+            # Assumes 'nt' is always 6, as set by make_grid_info() and
+            # create_dump_file()
+            n_output = (6 + time_split_size - 1) // time_split_size
+            filenames = [f"boutdata{i}.nc" for i in range(first, first + n_output)]
+
+        for f in filenames:
+            # Create file named f
+            existing_file = tmp_path.joinpath(f)
+            existing_file.touch()
+
+            with pytest.raises(
+                ValueError,
+                match=r"already exists, squashoutput\(\) will not overwrite.  Also, "
+                r"for some filenames collect may try to read from this file, which is "
+                r"presumably not desired behaviour.",
+            ):
+                squashoutput(tmp_path, outputname="boutdata.nc", **squash_kwargs)
+
+            # Remove 'existing_file' so we can check the next one
+            existing_file.unlink()
+
+    @pytest.mark.parametrize(
+        "time_split",
+        [
             (1, None),
             (2, None),
             (2, 3),

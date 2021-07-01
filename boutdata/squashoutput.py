@@ -139,12 +139,6 @@ def squashoutput(
         oldfile = datadirnew + "/" + outputname
         datadir = datadirnew
 
-    if os.path.isfile(fullpath) and not append:
-        raise ValueError(
-            "{} already exists. Collect may try to read from this file, which is "
-            "presumably not desired behaviour.".format(fullpath)
-        )
-
     # useful object from BOUT pylib to access output data
     outputs = BoutOutputs(
         datadir,
@@ -158,7 +152,23 @@ def squashoutput(
         tind_auto=tind_auto,
         parallel=parallel,
     )
+
+    # Create file(s) for output and write data
+    filenames, t_slices = _get_filenames_t_slices(
+        time_split_size, time_split_first_label, fullpath, outputs.tind
+    )
+
+    if not append:
+        for f in filenames:
+            if os.path.isfile(f):
+                raise ValueError(
+                    "{} already exists, squashoutput() will not overwrite. Also, "
+                    "for some filenames collect may try to read from this file, which "
+                    "is presumably not desired behaviour.".format(fullpath)
+                )
+
     outputvars = outputs.keys()
+
     # Read a value to cache the files
     outputs[outputvars[0]]
 
@@ -191,11 +201,6 @@ def squashoutput(
                     "and old file."
                 )
     kwargs["format"] = format
-
-    # Create file(s) for output and write data
-    filenames, t_slices = _get_filenames_t_slices(
-        time_split_size, time_split_first_label, fullpath, outputs.tind
-    )
 
     workers = SquashWorkers(
         False if disable_parallel_write else parallel, filenames, kwargs
