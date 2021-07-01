@@ -32,7 +32,6 @@ def squashoutput(
     parallel=False,
     time_split_size=None,
     time_split_first_label=0,
-    disable_parallel_write=False,
 ):
     """
     Collect all data from BOUT.dmp.* files and create a single output file.
@@ -100,9 +99,6 @@ def squashoutput(
     time_split_first_label : int, default 0
         Value at which to start the counter labelling output files when time_split_size
         is used.
-    disable_parallel_write : bool, default False
-        Parallel writing may increase memory usage, so it can be disabled even when
-        reading in parallel by setting this argument to True.
     """
     # use local imports to allow fast import for tab-completion
     from boutdata.data import BoutOutputs
@@ -202,9 +198,7 @@ def squashoutput(
                 )
     kwargs["format"] = format
 
-    workers = SquashWorkers(
-        False if disable_parallel_write else parallel, filenames, kwargs
-    )
+    files = [DataFile(name, create=True, write=True, **kwargs) for name in filenames]
 
     for varname in outputvars:
         if not quiet:
@@ -223,14 +217,18 @@ def squashoutput(
                 var = BoutArray(numpy.float32(var), var.attributes)
 
         if "t" in dims:
-            workers.write_data(varname, [var[t_slice] for t_slice in t_slices])
+            for f, t_slice in zip(files, t_slices):
+                f.write(varname, var[t_slice])
         else:
-            workers.write_data(varname, [var])
+            for f in files:
+                f.write(varname, var)
 
         var = None
         gc.collect()
 
-    del workers
+    for f in files:
+        f.close()
+
     del outputs
     gc.collect()
 
@@ -293,188 +291,3 @@ def _get_filenames_t_slices(time_split_size, time_split_first_label, fullpath, t
             filenames.append(filename)
             t_slices.append(slice(i * time_split_size, (i + 1) * time_split_size))
         return filenames, t_slices
-
-
-class SquashWorkers:
-    """
-    Class for packaging up worker processes for parallel writes, or passing the write
-    through in serial if parallel functionality not requested
-
-    Parameters
-    ----------
-    parallel : bool or int, default False
-        If False, write in serial. If True or 0 use all available processes. If positive
-        integer, use that many processes.
-    filenames : list of str
-        Names of the files to write to.
-    kwargs : dict
-        Keyword arguments to pass to DataFile constructors
-    """
-
-    def __init__(self, parallel, filenames, kwargs):
-        self.parallel = parallel
-        self.kwargs = kwargs
-        if self.parallel is False or len(filenames) == 1:
-            # No point doing parallel writing if there is only one output file
-            self.parallel = False
-            self.open_files(filenames)
-            return
-
-        if self.parallel is True or self.parallel == 0:
-            from boututils.run_wrapper import determineNumberOfCPUs
-
-            self.parallel = determineNumberOfCPUs()
-
-        self.n_outputs = len(filenames)
-
-        self.create_workers(filenames)
-
-    def __del__(self):
-        if self.parallel is False:
-            for f in self.files:
-                f.close()
-                del f
-        else:
-            for worker, connection, _ in self.workers:
-                # Send None to terminate worker process cleanly
-                connection.send(None)
-                worker.join()
-                connection.close()
-
-    def open_files(self, filenames):
-        """
-        Open files for serial writing
-
-        Parameters
-        ----------
-        filenames : list of str
-            Names of the files to write to.
-        """
-        # use local imports to allow fast import for tab-completion
-        from boututils.datafile import DataFile
-
-        self.files = [
-            DataFile(name, create=True, write=True, **self.kwargs) for name in filenames
-        ]
-
-    def create_workers(self, filenames):
-        """
-        Create workers for parallel writing
-
-        Parameters
-        ----------
-        filenames : list of str
-            Names of the files to write to.
-        """
-        from multiprocessing import Process, Pipe
-
-        n = min(self.parallel, self.n_outputs)
-        files_per_proc = [self.n_outputs // n for _ in range(n)]
-        for i in range(self.n_outputs % n):
-            files_per_proc[i] += 1
-        assert sum(files_per_proc) == self.n_outputs
-        counter = 0
-        self.workers = []
-        for i in range(n):
-            files_dict = {}
-            worker_indexes = range(counter, counter + files_per_proc[i])
-            for index in worker_indexes:
-                files_dict[index] = filenames[counter]
-                counter = counter + 1
-            parent_connection, child_connection = Pipe()
-            worker = Process(
-                target=self.worker_function,
-                args=(child_connection, files_dict),
-            )
-            worker.start()
-            self.workers.append((worker, parent_connection, worker_indexes))
-
-    def worker_function(self, connection, files_dict):
-        """
-        Function controlling execution on worker processes
-        """
-        from boututils.datafile import DataFile
-        from boututils.boutarray import BoutArray
-
-        try:
-            # Ensure chunk cache is not used on worker processes
-            from netCDF4 import set_chunk_cache
-            set_chunk_cache(0)
-        except ImportError:
-            pass
-
-        output_files = {}
-        for i, name in files_dict.items():
-            output_files[i] = DataFile(name, create=True, write=True, **self.kwargs)
-
-        while True:
-            args = connection.recv()
-            if args is None:
-                # Terminate process cleanly
-                for f in output_files.values():
-                    f.close()
-                connection.close()
-                return
-
-            varname, data, attributes = args
-
-            if not isinstance(data, dict):
-                # Time-independent variable or only one output file - write to all files
-                data = BoutArray(data, attributes=attributes)
-                for f in output_files.values():
-                    f.write(varname, data)
-                    # Write changes, free memory
-                    f.sync()
-            else:
-                # Time-dependent variable, write each slice to a separate file
-                for i, array in data.items():
-                    array = BoutArray(array, attributes=attributes)
-                    output_files[i].write(varname, array)
-                    # Write changes, free memory
-                    output_files[i].sync()
-
-    def write_data(self, varname, data_list):
-        """
-        Write data to the output files
-
-        Parameters
-        ----------
-        varname : str
-            Name of the variable being written.
-        data_list : list of BoutArray
-            Data to be written, either a single entry for a time-independent variable,
-            or self.n_outputs arrays giving all the time slices of a time-dependent
-            variable.
-        """
-        if self.parallel is False:
-            if len(data_list) == 1:
-                # Time-independent variable or only one output file - write to all files
-                for f in self.files:
-                    f.write(varname, data_list[0])
-                    # Write changes, free memory
-                    f.sync()
-            else:
-                # Time-dependent variable, write each slice to a separate file
-                for i, f in enumerate(self.files):
-                    f.write(varname, data_list[i])
-                    # Write changes, free memory
-                    f.sync()
-            return
-
-        # Note, need to pass attributes separately because apparently pickling (which
-        # happens to the data arrays when they are sent) converts BoutArrays to numpy
-        # arrays, losing the attributes.
-        if len(data_list) == 1:
-            # Time-independent variable or only one output file - write to all files
-            for _, connection, _ in self.workers:
-                connection.send((varname, data_list[0], data_list[0].attributes))
-        else:
-            # Time-dependent variable, write each slice to a separate file
-            for _, connection, worker_indexes in self.workers:
-                connection.send(
-                    (
-                        varname,
-                        {i: data_list[i] for i in worker_indexes},
-                        data_list[0].attributes,
-                    )
-                )
