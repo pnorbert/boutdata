@@ -279,10 +279,10 @@ def _get_filenames_t_slices(time_split_size, time_split_first_label, fullpath, t
     if time_split_size is None:
         return [fullpath], [slice(None)]
     else:
-        # tind.stop + 1 - tind.start is the total number of t-indices ignoring the step.
+        # tind.stop - tind.start is the total number of t-indices ignoring the step.
         # Adding tind.step - 1 and integer-dividing by tind.step converts to the total
         # number accounting for the step.
-        nt = (tind.stop + 1 - tind.start + tind.step - 1) // tind.step
+        nt = (tind.stop - tind.start + tind.step - 1) // tind.step
         n_outputs = (nt + time_split_size - 1) // time_split_size
         filenames = []
         t_slices = []
