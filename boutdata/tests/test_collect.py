@@ -268,9 +268,8 @@ class TestCollect:
 
             with pytest.raises(
                 ValueError,
-                match=r"already exists, squashoutput\(\) will not overwrite.  Also, "
-                r"for some filenames collect may try to read from this file, which is "
-                r"presumably not desired behaviour.",
+                match=r" will not overwrite. Also, for some filenames collect may try "
+                r"to read from this file, which is presumably not desired behaviour.",
             ):
                 squashoutput(tmp_path, outputname="boutdata.nc", **squash_kwargs)
 
