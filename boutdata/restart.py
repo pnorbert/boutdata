@@ -297,14 +297,6 @@ def resizeZ(newNz, path="data", output="./", informat="nc", outformat=None):
         print("ERROR: Can't overwrite restart files when expanding")
         return False
 
-    def is_pow2(x):
-        """Returns true if x is a power of 2"""
-        return (x > 0) and ((x & (x - 1)) == 0)
-
-    if not is_pow2(newNz):
-        print("ERROR: New Z size must be a power of 2")
-        return False
-
     file_list = glob.glob(os.path.join(path, "BOUT.restart.*." + informat))
     file_list.sort()
     nfiles = len(file_list)
