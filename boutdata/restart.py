@@ -353,6 +353,9 @@ def resizeZ(newNz, path="data", output="./", informat="nc", outformat=None):
                     # Note that ifft(fft(a)) = a for the same number of
                     # points in both IDL and np.ftt
                     newdata *= newNz / nz
+                elif var == "nz":
+                    print("    Changing " + var)
+                    newdata = newNz
                 else:
                     print("    Copying " + var)
                     newdata = data.copy()
