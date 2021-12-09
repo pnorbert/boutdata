@@ -477,7 +477,12 @@ def gridcontourf(
             norm=norm,
         )
         ax.contourf(
-            R[:, ystart:ny], Z[:, ystart:ny], data2d[:, ystart:ny], levels, cmap=cmap, norm=norm
+            R[:, ystart:ny],
+            Z[:, ystart:ny],
+            data2d[:, ystart:ny],
+            levels,
+            cmap=cmap,
+            norm=norm,
         )
 
         # X-point
