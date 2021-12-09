@@ -328,10 +328,6 @@ def gridcontourf(
         mind = -maxd
 
     if log:
-        # Log scale
-        # lev_exp = np.arange(np.floor(np.log10(mind)-1), np.ceil(np.log10(maxd)+1))
-        # levels = np.power(10, lev_exp)
-
         levels = np.exp(linspace(np.log(mind), np.log(maxd), nlevel, endpoint=True))
         from matplotlib import colors
 
