@@ -330,11 +330,7 @@ def gridcontourf(
         mind = -maxd
 
     if log:
-        # Log scale
-        # lev_exp = np.arange(np.floor(np.log10(mind)-1), np.ceil(np.log10(maxd)+1))
-        # levels = np.power(10, lev_exp)
-
-        levels = np.exp(linspace(np.log(mind), np.log(maxd), nlevel, endpoint=True))
+        levels = np.logspace(np.log10(mind), np.log10(maxd), nlevel, endpoint=True)
         from matplotlib import colors
 
         norm = colors.LogNorm(vmin=mind, vmax=maxd)
@@ -479,7 +475,12 @@ def gridcontourf(
             norm=norm,
         )
         ax.contourf(
-            R[:, ystart:ny], Z[:, ystart:ny], data2d[:, ystart:ny], levels, cmap=cmap
+            R[:, ystart:ny],
+            Z[:, ystart:ny],
+            data2d[:, ystart:ny],
+            levels,
+            cmap=cmap,
+            norm=norm,
         )
 
         # X-point
