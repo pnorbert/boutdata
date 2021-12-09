@@ -3,6 +3,7 @@
 """
 
 from numpy import ndarray, zeros, concatenate, linspace, amin, amax
+import numpy as np
 import matplotlib.pyplot as plt
 
 from boututils.datafile import DataFile
@@ -211,6 +212,7 @@ def gridcontourf(
     xlabel="Major radius [m]",
     ylabel="Height [m]",
     separatrix=False,
+    log=False,
 ):
     """Plots a 2D contour plot, taking into account branch cuts
     (X-points).
@@ -325,7 +327,18 @@ def gridcontourf(
         maxd = max([maxd, abs(mind)])
         mind = -maxd
 
-    levels = linspace(mind, maxd, nlevel, endpoint=True)
+    if log:
+        # Log scale
+        # lev_exp = np.arange(np.floor(np.log10(mind)-1), np.ceil(np.log10(maxd)+1))
+        # levels = np.power(10, lev_exp)
+
+        levels = np.exp(linspace(np.log(mind), np.log(maxd), nlevel, endpoint=True))
+        from matplotlib import colors
+
+        norm = colors.LogNorm(vmin=mind, vmax=maxd)
+    else:
+        levels = linspace(mind, maxd, nlevel, endpoint=True)
+        norm = None
 
     ystart = 0  # Y index to start the next section
     if j11 >= 0:
@@ -336,6 +349,7 @@ def gridcontourf(
             data2d[:, ystart : (j11 + 1)],
             levels,
             cmap=cmap,
+            norm=norm,
         )
 
         yind = [j11, j22 + 1]
@@ -345,6 +359,7 @@ def gridcontourf(
             data2d[:ix1, yind].transpose(),
             levels,
             cmap=cmap,
+            norm=norm,
         )
 
         ax.contourf(
@@ -353,6 +368,7 @@ def gridcontourf(
             data2d[ix1:, j11 : (j11 + 2)],
             levels,
             cmap=cmap,
+            norm=norm,
         )
         ystart = j11 + 1
 
@@ -363,6 +379,7 @@ def gridcontourf(
             data2d[:ix1, yind].transpose(),
             levels,
             cmap=cmap,
+            norm=norm,
         )
 
     # Inner SOL
@@ -372,6 +389,7 @@ def gridcontourf(
         data2d[:, ystart : (j21 + 1)],
         levels,
         cmap=cmap,
+        norm=norm,
     )
     ystart = j21 + 1
 
@@ -385,9 +403,15 @@ def gridcontourf(
             data2d[ix1:, j21 : (j21 + 2)],
             levels,
             cmap=cmap,
+            norm=norm,
         )
         ax.contourf(
-            R[:, ystart:nin], Z[:, ystart:nin], data2d[:, ystart:nin], levels, cmap=cmap
+            R[:, ystart:nin],
+            Z[:, ystart:nin],
+            data2d[:, ystart:nin],
+            levels,
+            cmap=cmap,
+            norm=norm,
         )
 
         # Outer leg
@@ -397,6 +421,7 @@ def gridcontourf(
             data2d[:, nin : (j12 + 1)],
             levels,
             cmap=cmap,
+            norm=norm,
         )
         ax.contourf(
             R[ix1:, j12 : (j12 + 2)],
@@ -404,6 +429,7 @@ def gridcontourf(
             data2d[ix1:, j12 : (j12 + 2)],
             levels,
             cmap=cmap,
+            norm=norm,
         )
         ystart = j12 + 1
 
@@ -414,6 +440,7 @@ def gridcontourf(
             data2d[:ix1, yind].transpose(),
             levels,
             cmap=cmap,
+            norm=norm,
         )
 
         yind = [j21 + 1, j12]
@@ -423,6 +450,7 @@ def gridcontourf(
             data2d[:ix1, yind].transpose(),
             levels,
             cmap=cmap,
+            norm=norm,
         )
     else:
         ystart -= 1
@@ -433,6 +461,7 @@ def gridcontourf(
         data2d[:, ystart : (j22 + 1)],
         levels,
         cmap=cmap,
+        norm=norm,
     )
 
     ystart = j22 + 1
@@ -445,6 +474,7 @@ def gridcontourf(
             data2d[ix1:, j22 : (j22 + 2)],
             levels,
             cmap=cmap,
+            norm=norm,
         )
         ax.contourf(
             R[:, ystart:ny], Z[:, ystart:ny], data2d[:, ystart:ny], levels, cmap=cmap
@@ -474,7 +504,14 @@ def gridcontourf(
                 data2d[ix1 - 1, j22],
             ],
         ]
-        ax.contourf(Rx, Zx, Dx, levels, cmap=cmap)
+        ax.contourf(
+            Rx,
+            Zx,
+            Dx,
+            levels,
+            cmap=cmap,
+            norm=norm,
+        )
 
     if add_colorbar:
         fig.colorbar(con)
