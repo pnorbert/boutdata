@@ -242,6 +242,8 @@ def gridcontourf(
         Labels for the x/y axes
     separatrix : bool, optional
         Add separatrix
+    log : bool, optional
+        Use a logarithmic scale for the color
 
     Returns
     -------
