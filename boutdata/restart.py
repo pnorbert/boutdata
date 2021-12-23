@@ -956,3 +956,210 @@ def addvar(var, value, path="."):
 
             # Set the variable in the NetCDF file
             df.write(var, data)
+
+
+def change_grid(
+    from_grid_file,
+    to_grid_file,
+    path="data",
+    output=".",
+    interpolator="nearest",
+    show=False,
+):
+    """
+    Convert a set of restart files from one grid to another
+
+    Notes:
+    - Only working for 2D (axisymmetric) simulations with nz = 1
+
+    from_grid_file : str
+         File containing the input grid
+    to_grid_file : str
+         File containing the output grid
+    path : str, optional
+         Directory containing input restart files
+    output : str, optional
+         Directory where output restart files will be written
+    interpolator : str, optional
+         Interpolation method to use. Options are 'nearest', 'CloughTocher', 'RBF'
+    show : bool, optional
+         Display the interpolated fields using Matplotlib
+
+    """
+
+    # Read in grid files
+    with DataFile(from_grid_file) as g:
+        from_Rxy = g["Rxy"]
+        from_Zxy = g["Zxy"]
+
+    with DataFile(to_grid_file) as g:
+        to_Rxy = g["Rxy"]
+        to_Zxy = g["Zxy"]
+
+    file_list = glob.glob(os.path.join(path, "BOUT.restart.*.nc"))
+    if len(file_list) == 0:
+        raise ValueError("ERROR: No restart files found")
+
+    copy_vars = [
+        "NXPE",
+        "NYPE",
+        "hist_hi",
+        "tt",
+        "MXG",
+        "MYG",
+        "MZG",
+        "nz",
+        "run_id",
+        "run_restart_from",
+    ]
+    copy_data = {}
+    interp_vars = []
+
+    # Read information from a restart file
+    with DataFile(file_list[0]) as f:
+        for var in copy_vars:
+            copy_data[var] = f[var]
+
+        # Get a list of variables
+        varnames = f.list()
+
+        for var in varnames:
+            dimensions = f.dimensions(var)
+            if dimensions == ("x", "y", "z"):
+                # Could be an evolving variable [x,y,z]x
+                interp_vars.append(var)
+
+    # Only tested for nz = 1
+    assert copy_data["nz"] == 1
+
+    def extrapolate_yguards(data2d, myg):
+        nx, ny = data2d.shape
+        result = np.zeros((nx, ny + 2 * myg))
+        print(result.shape)
+        result[:, myg:-myg] = data2d
+
+        dy = result[:, myg + 1] - result[:, myg]
+        for i in range(1, myg + 1):
+            result[:, myg - i] = result[:, myg] - i * dy
+        dy = result[:, -myg - 1] - result[:, -myg - 2]
+        for i in range(1, myg + 1):
+            result[:, -myg - 1 + i] = result[:, -myg - 1] + i * dy
+        return result
+
+    from_Rxy = extrapolate_yguards(from_Rxy, copy_data["MYG"])
+    from_Zxy = extrapolate_yguards(from_Zxy, copy_data["MYG"])
+    to_Rxy = extrapolate_yguards(to_Rxy, copy_data["MYG"])
+    to_Zxy = extrapolate_yguards(to_Zxy, copy_data["MYG"])
+
+    interp_data = {}
+    for var in interp_vars:
+        print("Interpolating " + var)
+
+        from_data = collect(
+            var,
+            path=path,
+            xguards=True,
+            yguards=True,
+            prefix="BOUT.restart",
+            info=False,
+        )
+
+        if interpolator == "CloughTocher":
+            # Triangulate
+            from scipy.interpolate import CloughTocher2DInterpolator
+
+            interp = CloughTocher2DInterpolator(
+                list(zip(from_Rxy.flatten(), from_Zxy.flatten())), from_data.flatten()
+            )
+        elif interpolator == "RBF":
+            # Radial Basis Functions
+            from scipy.interpolate import RBFInterpolator
+
+            interp = RBFInterpolator(
+                list(zip(from_Rxy.flatten(), from_Zxy.flatten())),
+                from_data.flatten(),
+                neighbors=50,
+            )
+
+        elif interpolator == "nearest":
+            # Nearest neighbour. Tends to be robust
+            from scipy.interpolate import NearestNDInterpolator
+
+            interp = NearestNDInterpolator(
+                list(zip(from_Rxy.flatten(), from_Zxy.flatten())), from_data.flatten()
+            )
+        else:
+            raise ValueError("Invalid interpolator")
+
+        to_data = interp(list(zip(to_Rxy.flatten(), to_Zxy.flatten()))).reshape(
+            to_Rxy.shape
+        )
+
+        print(
+            "\tData ranges: {}:{} -> {}:{}".format(
+                np.amin(from_data),
+                np.amax(from_data),
+                np.amin(to_data),
+                np.amax(to_data),
+            )
+        )
+        if show:
+            import matplotlib.pyplot as plt
+
+            plt.pcolormesh(to_Rxy, to_Zxy, to_data, shading="auto")
+            plt.plot(from_Rxy, from_Zxy, "ok")
+            plt.colorbar()
+            plt.axis("equal")
+            plt.show()
+
+        interp_data[var] = to_data
+
+    # Now have copy_data and interp_data dictionaries to write to the
+    # new restart files. Now need to partition the interpolated arrays
+    # with similar logic to redistribute()
+
+    nxpe = copy_data["NXPE"]
+    nype = copy_data["NYPE"]
+    npes = nxpe * nype
+
+    mxg = copy_data["MXG"]
+    myg = copy_data["MYG"]
+
+    new_nx, new_ny = to_Rxy.shape
+
+    if (new_nx - 2 * mxg) % nxpe != 0:
+        # Can't split grid in this way
+        raise ValueError("nxpe={} not compatible with nx = {}".format(nxpe, new_nx))
+    if (new_ny - 2 * myg) % nxpe != 0:
+        # Can't split grid in this waymxsub = (new_nx - 2*mxg) // nxpe
+        raise ValueError("nype={} not compatible with ny = {}".format(nype, new_ny))
+
+    mxsub = (new_nx - 2 * mxg) // nxpe
+    mysub = (new_ny - 2 * myg) // nype
+
+    copy_data["MXSUB"] = mxsub
+    copy_data["MYSUB"] = mysub
+    copy_data["nx"] = new_nx
+    copy_data["ny"] = new_ny - 2 * myg
+
+    for i in range(npes):
+        ix = i % nxpe
+        iy = int(i / nxpe)
+
+        def get_block(data):
+            return data[
+                ix * mxsub : (ix + 1) * mxsub + 2 * mxg,
+                iy * mysub : (iy + 1) * mysub + 2 * myg,
+            ]
+
+        outpath = os.path.join(output, "BOUT.restart." + str(i) + ".nc")
+        with DataFile(outpath, create=True) as f:
+            print("Creating " + outpath)
+
+            # Write the scalars
+            for k in copy_data:
+                f.write(k, copy_data[k])
+
+            # Write fields
+            for k in interp_data:
+                f.write(k, get_block(interp_data[k]))
