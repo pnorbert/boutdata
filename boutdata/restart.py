@@ -724,6 +724,10 @@ def redistribute(
                 outfile.write(v, mxg)
             elif v == "MYG":
                 outfile.write(v, myg)
+            elif v == "PE_XIND":
+                outfile.write(v, ix)
+            elif v == "PE_YIND":
+                outfile.write(v, iy)
             elif dimensions == ("x", "y"):
                 # Field2D
                 outfile.write(v, get_block(data))
