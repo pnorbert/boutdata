@@ -1131,7 +1131,7 @@ def change_grid(
         # Can't split grid in this way
         raise ValueError("nxpe={} not compatible with nx = {}".format(nxpe, new_nx))
     if (new_ny - 2 * myg) % nxpe != 0:
-        # Can't split grid in this waymxsub = (new_nx - 2*mxg) // nxpe
+        # Can't split grid in this way
         raise ValueError("nype={} not compatible with ny = {}".format(nype, new_ny))
 
     mxsub = (new_nx - 2 * mxg) // nxpe
