@@ -1156,6 +1156,9 @@ def change_grid(
         with DataFile(outpath, create=True) as f:
             print("Creating " + outpath)
 
+            f.write("PE_XIND", ix)
+            f.write("PE_YIND", iy)
+
             # Write the scalars
             for k in copy_data:
                 f.write(k, copy_data[k])
