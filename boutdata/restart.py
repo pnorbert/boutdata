@@ -1145,7 +1145,7 @@ def change_grid(
 
     for i in range(npes):
         ix = i % nxpe
-        iy = int(i / nxpe)
+        iy = i // nxpe
 
         def get_block(data):
             return data[
