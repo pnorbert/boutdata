@@ -1026,7 +1026,7 @@ def change_grid(
         for var in varnames:
             dimensions = f.dimensions(var)
             if dimensions == ("x", "y", "z"):
-                # Could be an evolving variable [x,y,z]x
+                # Could be an evolving variable [x,y,z]
                 interp_vars.append(var)
 
     # Only tested for nz = 1
