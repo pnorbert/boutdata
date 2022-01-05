@@ -972,6 +972,7 @@ def change_grid(
     Notes:
     - Only working for 2D (axisymmetric) simulations with nz = 1
     - Does not support evolving Field2D or FieldPerp variables
+    - Does not support grids with y boundary cells
 
     from_grid_file : str
          File containing the input grid
@@ -990,10 +991,22 @@ def change_grid(
 
     # Read in grid files
     with DataFile(from_grid_file) as g:
+        # Check for y boundary cells
+        try:
+            if g["y_boundary_guards"] != 0:
+                raise ValueError("Support for grid files with y-boundary cells not implemented yet")
+        except KeyError:
+            pass # No y_boundary_guards key
         from_Rxy = g["Rxy"]
         from_Zxy = g["Zxy"]
 
     with DataFile(to_grid_file) as g:
+        # Check for y boundary cells
+        try:
+            if g["y_boundary_guards"] != 0:
+                raise ValueError("Support for grid files with y-boundary cells not implemented yet")
+        except KeyError:
+            pass # No y_boundary_guards key
         to_Rxy = g["Rxy"]
         to_Zxy = g["Zxy"]
 
