@@ -971,6 +971,7 @@ def change_grid(
 
     Notes:
     - Only working for 2D (axisymmetric) simulations with nz = 1
+    - Does not support evolving Field2D or FieldPerp variables
 
     from_grid_file : str
          File containing the input grid
