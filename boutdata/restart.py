@@ -1015,6 +1015,7 @@ def change_grid(
         raise ValueError("ERROR: No restart files found")
 
     copy_vars = [
+        "BOUT_VERSION",
         "NXPE",
         "NYPE",
         "hist_hi",
@@ -1023,6 +1024,7 @@ def change_grid(
         "MYG",
         "MZG",
         "nz",
+        "MZ",
         "run_id",
         "run_restart_from",
     ]
@@ -1161,10 +1163,11 @@ def change_grid(
         iy = i // nxpe
 
         def get_block(data):
-            return data[
+            sliced = data[
                 ix * mxsub : (ix + 1) * mxsub + 2 * mxg,
                 iy * mysub : (iy + 1) * mysub + 2 * myg,
             ]
+            return sliced.reshape(sliced.shape + (1,)) # make 3D
 
         outpath = os.path.join(output, "BOUT.restart." + str(i) + ".nc")
         with DataFile(outpath, create=True) as f:
