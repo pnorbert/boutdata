@@ -994,9 +994,11 @@ def change_grid(
         # Check for y boundary cells
         try:
             if g["y_boundary_guards"] != 0:
-                raise ValueError("Support for grid files with y-boundary cells not implemented yet")
+                raise ValueError(
+                    "Support for grid files with y-boundary cells not implemented yet"
+                )
         except KeyError:
-            pass # No y_boundary_guards key
+            pass  # No y_boundary_guards key
         from_Rxy = g["Rxy"]
         from_Zxy = g["Zxy"]
 
@@ -1004,9 +1006,11 @@ def change_grid(
         # Check for y boundary cells
         try:
             if g["y_boundary_guards"] != 0:
-                raise ValueError("Support for grid files with y-boundary cells not implemented yet")
+                raise ValueError(
+                    "Support for grid files with y-boundary cells not implemented yet"
+                )
         except KeyError:
-            pass # No y_boundary_guards key
+            pass  # No y_boundary_guards key
         to_Rxy = g["Rxy"]
         to_Zxy = g["Zxy"]
 
@@ -1167,7 +1171,7 @@ def change_grid(
                 ix * mxsub : (ix + 1) * mxsub + 2 * mxg,
                 iy * mysub : (iy + 1) * mysub + 2 * myg,
             ]
-            return sliced.reshape(sliced.shape + (1,)) # make 3D
+            return sliced.reshape(sliced.shape + (1,))  # make 3D
 
         outpath = os.path.join(output, "BOUT.restart." + str(i) + ".nc")
         with DataFile(outpath, create=True) as f:
