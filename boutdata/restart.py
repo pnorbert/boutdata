@@ -638,10 +638,14 @@ def redistribute(
     mysub = new_processor_layout.mysub
     mzsub = new_processor_layout.mz
 
-    jyseps2_1 = f["jyseps2_1"]
-    ny_inner = f["ny_inner"]
-    jyseps1_2 = f["jyseps1_2"]
-    is_doublenull = jyseps2_1 == jyseps1_2
+    if "jyseps2_1" not in f.keys():
+        # Workaround for older output files that are missing jyseps* values
+        is_doublenull = False
+    else:
+        jyseps2_1 = f["jyseps2_1"]
+        ny_inner = f["ny_inner"]
+        jyseps1_2 = f["jyseps1_2"]
+        is_doublenull = jyseps2_1 == jyseps1_2
 
     outfile_list = []
     for i in range(npes):
