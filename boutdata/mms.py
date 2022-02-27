@@ -293,7 +293,7 @@ class SimpleTokamak(object):
     is intended solely for testing with MMS
     """
 
-    def __init__(self, R=2, Bt=1.0, eps=0.1, dr=0.02, q=lambda x: 2 + x ** 2):
+    def __init__(self, R=2, Bt=1.0, eps=0.1, dr=0.02, q=lambda x: 2 + x**2):
         """
         R    - Major radius [m]
 
@@ -350,7 +350,7 @@ class SimpleTokamak(object):
         self.Bpxy = self.Btxy * self.hthe / (self.nu * self.Rxy)
 
         # Total magnetic field
-        self.Bxy = sqrt(self.Btxy ** 2 + self.Bpxy ** 2)
+        self.Bxy = sqrt(self.Btxy**2 + self.Bpxy**2)
 
         # Approximate poloidal field for radial width calculation
         Bp0 = Bt * self.r / (q(0.5) * R)
@@ -444,17 +444,17 @@ class SimpleTokamak(object):
         # Calculate metric tensor
 
         m.g11 = (self.Rxy * self.Bpxy) ** 2
-        m.g22 = 1.0 / self.hthe ** 2
-        m.g33 = self.sinty ** 2 * m.g11 + self.Bxy ** 2 / m.g11
+        m.g22 = 1.0 / self.hthe**2
+        m.g33 = self.sinty**2 * m.g11 + self.Bxy**2 / m.g11
         m.g12 = 0.0 * x
         m.g13 = -self.sinty * m.g11
         m.g23 = -self.Btxy / (self.hthe * self.Bpxy * self.R)
 
         m.g_11 = 1.0 / m.g11 + (self.sinty * self.Rxy) ** 2
         m.g_22 = (self.Bxy * self.hthe / self.Bpxy) ** 2
-        m.g_33 = self.Rxy ** 2
+        m.g_33 = self.Rxy**2
         m.g_12 = self.Btxy * self.hthe * self.sinty * self.Rxy / self.Bpxy
-        m.g_13 = self.sinty * self.Rxy ** 2
+        m.g_13 = self.sinty * self.Rxy**2
         m.g_23 = self.Btxy * self.hthe * self.Rxy / self.Bpxy
 
         m.J = self.hthe / self.Bpxy
@@ -583,7 +583,7 @@ class ShapedTokamak(object):
 
         self.Bt = Btxy
         self.Bp = Bpxy
-        self.B = sqrt(Btxy ** 2 + Bpxy ** 2)
+        self.B = sqrt(Btxy**2 + Bpxy**2)
 
         self.hthe = hthe
 
@@ -637,17 +637,17 @@ class ShapedTokamak(object):
         # Calculate metric tensor
 
         m.g11 = (self.R * self.Bp) ** 2
-        m.g22 = 1.0 / self.hthe ** 2
-        m.g33 = self.I ** 2 * m.g11 + self.B ** 2 / m.g11
+        m.g22 = 1.0 / self.hthe**2
+        m.g33 = self.I**2 * m.g11 + self.B**2 / m.g11
         m.g12 = 0.0
         m.g13 = -self.I * m.g11
         m.g23 = -self.Bt / (self.hthe * self.Bp * self.R)
 
         m.g_11 = 1.0 / m.g11 + (self.I * self.R) ** 2
         m.g_22 = (self.B * self.hthe / self.Bpxy) ** 2
-        m.g_33 = self.R ** 2
+        m.g_33 = self.R**2
         m.g_12 = self.Bt * self.hthe * self.I * self.R / self.Bp
-        m.g_13 = self.I * self.R ** 2
+        m.g_13 = self.I * self.R**2
         m.g_23 = self.Bt * self.hthe * self.R / self.Bp
 
         m.J = self.hthe / self.Bp
