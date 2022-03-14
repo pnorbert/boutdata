@@ -56,16 +56,8 @@ def get_processor_layout(boutfile, has_t_dimension=True, mxg=None, myg=None):
 
     """
 
-    if mxg is None:
-        try:
-            mxg = boutfile["MXG"]
-        except KeyError:
-            mxg = 2
-    if myg is None:
-        try:
-            myg = boutfile["MYG"]
-        except KeyError:
-            myg = 2
+    mxg = mxg or boutfile.get("MXG", 2)
+    myg = myg or boutfile.get("MYG", 2)
 
     nxpe = boutfile.read("NXPE")
     nype = boutfile.read("NYPE")
