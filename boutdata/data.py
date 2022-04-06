@@ -1102,6 +1102,12 @@ class BoutOutputs(object):
                 for i in range(self.grid_info["npes"])
             ]
 
+        if self._DataFileCaching or self._parallel:
+            # Keep reference to 0'th file, for reading attributes
+            self._file0 = DataFile(self._file_list[0])
+        else:
+            self._file0 = None
+
         if self._info:
             print(
                 "mxsub = {} mysub = {} mz = {}\n".format(
@@ -1223,6 +1229,64 @@ class BoutOutputs(object):
     def evolvingVariables(self):
         """Return a list of names of time-evolving variables"""
         return self.grid_info["evolvingVariableNames"]
+
+    def get_attribute(self, variable, attrname):
+        """Get an attribute of a variable
+
+        Parameters
+        ----------
+        variable : str
+            Name of variable to get attribute from
+        attrname : str
+            Name of attribute
+
+        Returns
+        -------
+        Value of attribute
+        """
+        if self._file0 is None:
+            with DataFile(self._file_list[0]) as f:
+                return f.attributes(variable)[attrname]
+        else:
+            return self._file0.attributes(variable)[attrname]
+
+    def get_file_attribute(self, attrname):
+        """Get an attribute of the output files.
+
+        Attribute is taken from the rank-0 file. No checking is done that the attribute
+        is consistent between all the output files.
+
+        Parameters
+        ----------
+        attrname : str
+            Name of attribute
+
+        Returns
+        -------
+        Value of attribute
+        """
+        if self._file0 is None:
+            with DataFile(self._file_list[0]) as f:
+                return f.read_file_attribute(attrname)
+        else:
+            return self._file0.read_file_attribute(attrname)
+
+    def list_file_attributes(self):
+        """List all file attributes of output files
+
+        List is taken from the rank-0 file. No checking is done that the file attributes
+        are consistent between all the output files.
+
+        Returns
+        -------
+        List of str
+            Names of the file attributes
+        """
+        if self._file0 is None:
+            with DataFile(self._file_list[0]) as f:
+                return f.list_file_attributes()
+        else:
+            return self._file0.list_file_attributes()
 
     def redistribute(self, npes, nxpe=None, mxg=2, myg=2, include_restarts=True):
         """Create a new set of dump files for npes processors.
