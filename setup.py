@@ -45,7 +45,7 @@ setuptools.setup(
         "numpy",
         "matplotlib",
         "scipy",
-        "boututils",
+        "boututils>=0.1.9",
         "importlib-metadata ; python_version<'3.8'",
     ],
     classifiers=[

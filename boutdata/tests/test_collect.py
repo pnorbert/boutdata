@@ -6,12 +6,14 @@ import pytest
 
 from boutdata.collect import collect
 from boutdata.squashoutput import squashoutput
+from boututils.datafile import DataFile
 
 from boutdata.tests.make_test_data import (
     apply_slices,
     create_dump_file,
     concatenate_data,
     expected_attributes,
+    expected_file_attributes,
     make_grid_info,
     remove_xboundaries,
     remove_yboundaries,
@@ -57,7 +59,7 @@ def check_collected_data(
         Arrays should be global (not per-process).
     fieldperp_global_yind : int
         Global y-index where FieldPerps are expected to be defined.
-    path : pathlib.Path or str
+    path : pathlib.Path
         Path to collect data from.
     squash : bool
         If True, call `squashoutput()` and delete the `BOUT.dmp.*.nc` files (so that we
@@ -103,6 +105,14 @@ def check_collected_data(
             expected_attributes.get(varname, None),
             fieldperp_global_yind,
         )
+
+    if squash:
+        filename = path.joinpath("boutdata.nc")
+    else:
+        filename = path.joinpath("BOUT.dmp.0.nc")
+    with DataFile(str(filename)) as f:
+        for attrname, attr in expected_file_attributes.items():
+            assert f.read_file_attribute(attrname) == attr
 
 
 def check_variable(

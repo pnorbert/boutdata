@@ -75,6 +75,12 @@ expected_attributes = {
     },
 }
 
+expected_file_attributes = {
+    "global_str_attribute": "foobar",
+    "global_int_attribute": 42,
+    "global_float_attribute": 7.0,
+}
+
 
 def make_grid_info(
     *, mxg=2, myg=2, nxpe=1, nype=1, ixseps1=None, ixseps2=None, xpoints=0
@@ -320,6 +326,9 @@ def create_dump_file(*, i, tmpdir, rng, grid_info, boundaries, fieldperp_global_
         createScalar("PE_XIND", i % nxpe)
         createScalar("PE_YIND", i // nxpe)
         createScalar("MYPE", i)
+
+        for attrname, attr in expected_file_attributes.items():
+            setattr(outputfile, attrname, attr)
 
     return result
 

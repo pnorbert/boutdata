@@ -226,6 +226,12 @@ def squashoutput(
         var = None
         gc.collect()
 
+    # Copy file attributes
+    for attrname in outputs.list_file_attributes():
+        attrval = outputs.get_file_attribute(attrname)
+        for f in files:
+            f.write_file_attribute(attrname, attrval)
+
     for f in files:
         f.close()
 
