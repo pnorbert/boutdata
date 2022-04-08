@@ -1151,6 +1151,8 @@ class BoutOutputs(object):
                 connection.send(None)
                 worker.join()
                 connection.close()
+        if self._file0 is not None:
+            self._file0.close()
 
     def _init_caching(self):
         """
