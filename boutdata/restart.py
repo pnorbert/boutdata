@@ -1197,7 +1197,9 @@ def change_grid(
                 f.write(k, get_block(interp_data[k]))
 
 
-def shift_v3_to_v4(gridfile, zperiod, path="data", output=".", informat="nc", mxg=2, myg=2):
+def shift_v3_to_v4(
+    gridfile, zperiod, path="data", output=".", informat="nc", mxg=2, myg=2
+):
     """Convert a set of restart files from BOUT++ v3 to v4
 
        Assumes that both simulations are using shifted metric coordinates:
@@ -1266,8 +1268,14 @@ def shift_v3_to_v4(gridfile, zperiod, path="data", output=".", informat="nc", mx
             new.write("MXG", mxg)
             new.write("MYG", myg)
             new.write("MZG", 0)
-            new.write("run_id", np.array(list('zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz'), dtype='c'))
-            new.write("run_restart_from", np.array(list('zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz'), dtype='c'))
+            new.write(
+                "run_id",
+                np.array(list("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"), dtype="c"),
+            )
+            new.write(
+                "run_restart_from",
+                np.array(list("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"), dtype="c"),
+            )
 
             # Loop over the variables in the old file
             for var in old.list():
@@ -1292,13 +1300,15 @@ def shift_v3_to_v4(gridfile, zperiod, path="data", output=".", informat="nc", mx
 
                     # Shifting by zShift goes from field-aligned to orthogonal coords
                     # Note: Removing y guards but not X because zShift includes x boundaries
-                    newdata[:, myg:-myg, :] = shiftz.shiftz(newdata[:, myg:-myg, :],
-                                                            zShift[x_offset:(x_offset + nx),
-                                                                   y_offset:(y_offset + MYSUB)],
-                                                            zperiod=zperiod)
+                    newdata[:, myg:-myg, :] = shiftz.shiftz(
+                        newdata[:, myg:-myg, :],
+                        zShift[
+                            x_offset : (x_offset + nx), y_offset : (y_offset + MYSUB)
+                        ],
+                        zperiod=zperiod,
+                    )
                     new.write("nx", nx)
                     new.write("ny", ny - 2 * myg)
                     new.write("nz", nz)
                 newdata = BoutArray(newdata, attributes=attributes)
                 new.write(var, newdata)
-
