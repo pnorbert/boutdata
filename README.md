@@ -36,11 +36,15 @@ in ubuntu
 
 `pip install boutdata`
 
+or in a Conda environment:
+
+`conda install -c conda-forge boutdata`
+
 ### Examples
 Reading data from dump files:
 
 ```
-from boutdata import *
+from boutdata import collect
 ni = collect("Ni")
 ```
 
