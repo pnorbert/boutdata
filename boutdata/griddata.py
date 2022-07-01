@@ -213,6 +213,7 @@ def gridcontourf(
     ylabel="Height [m]",
     separatrix=False,
     log=False,
+    remove_xguards=False,
 ):
     """Plots a 2D contour plot, taking into account branch cuts
     (X-points).
@@ -244,6 +245,8 @@ def gridcontourf(
         Add separatrix
     log : bool, optional
         Use a logarithmic scale for the color
+    remove_xguards : bool, optional
+        Convert two guard cells into one value on the boundary
 
     Returns
     -------
@@ -312,6 +315,21 @@ def gridcontourf(
 
     if data2d.shape != (nx, ny):
         raise ValueError("Dimensions do not match")
+
+    if remove_xguards:
+
+        def remove_guards(arr2d):
+            result = arr2d[1:-1, :].copy()
+            result[0, :] = 0.5 * (result[0, :] + result[1, :])
+            result[-1, :] = 0.5 * (result[-1, :] + result[-2, :])
+            return result
+
+        R = remove_guards(R)
+        Z = remove_guards(Z)
+        data2d = remove_guards(data2d)
+        # Adjust x indices for the separatrices
+        ix1 -= 1
+        ix2 -= 1
 
     add_colorbar = False
     if ax is None:
