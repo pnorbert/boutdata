@@ -652,7 +652,9 @@ class BoutOptionsFile(BoutOptions):
             # Go through each line in the file
             section = self  # Start with root section
             comments = []
-            for linenr, line in enumerate(f.readlines()):
+
+            nr_line_iter = enumerate(f.readlines())
+            for linenr, line in nr_line_iter:
                 # First remove comments, either # or ;
                 if line.lstrip().startswith(self.VALID_COMMENTS):
                     comments.append("#" + line.strip()[1:])
@@ -706,6 +708,27 @@ class BoutOptionsFile(BoutOptions):
                         value_name = line.strip()
                     else:
                         value = line[(eqpos + 1) :].strip()
+
+                        # If the line contains unbalanced parentheses of brackets
+                        # then continue reading
+                        def count_brackets(s):
+                            "Count net number of opening and closing brackets"
+                            return s.count('(') - s.count(')') + s.count('[') - s.count(']')
+                        if count_brackets(value) != 0:
+                            for cont_linenr, cont_line in nr_line_iter:
+                                # Check for comments on continuing lines
+                                comment_match = self.COMMENT_REGEX.search(cont_line)
+                                if comment_match is not None:
+                                    cont_line, comment_whitespace, cont_inline_comment = comment_match.groups()
+                                    # Append inline comments
+                                    if inline_comment is not None:
+                                        inline_comment += " " + cont_inline_comment[1:]
+                                    else:
+                                        inline_comment = cont_inline_comment
+                                value += " " + cont_line.strip()
+                                if count_brackets(value) == 0:
+                                    # Brackets now balanced
+                                    break
                         try:
                             # Try to convert to an integer
                             value = int(value)
