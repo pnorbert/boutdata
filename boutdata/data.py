@@ -713,13 +713,23 @@ class BoutOptionsFile(BoutOptions):
                         # then continue reading
                         def count_brackets(s):
                             "Count net number of opening and closing brackets"
-                            return s.count('(') - s.count(')') + s.count('[') - s.count(']')
+                            return (
+                                s.count("(")
+                                - s.count(")")
+                                + s.count("[")
+                                - s.count("]")
+                            )
+
                         if count_brackets(value) != 0:
                             for cont_linenr, cont_line in nr_line_iter:
                                 # Check for comments on continuing lines
                                 comment_match = self.COMMENT_REGEX.search(cont_line)
                                 if comment_match is not None:
-                                    cont_line, comment_whitespace, cont_inline_comment = comment_match.groups()
+                                    (
+                                        cont_line,
+                                        comment_whitespace,
+                                        cont_inline_comment,
+                                    ) = comment_match.groups()
                                     # Append inline comments
                                     if inline_comment is not None:
                                         inline_comment += " " + cont_inline_comment[1:]
