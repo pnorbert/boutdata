@@ -17,11 +17,14 @@ from boututils.boutarray import BoutArray
 from boutdata.processor_rearrange import get_processor_layout, create_processor_layout
 
 import multiprocessing
+from natsort import natsorted
 import numpy as np
 from numpy import mean, zeros, arange
 from numpy.random import normal
 
 from scipy.interpolate import interp1d
+
+from boutdata import shiftz
 
 try:
     from scipy.interpolate import RegularGridInterpolator
@@ -294,16 +297,14 @@ def resizeZ(newNz, path="data", output="./", informat="nc", outformat=None):
         outformat = informat
 
     if path == output:
-        print("ERROR: Can't overwrite restart files when expanding")
-        return False
+        raise ValueError("Can't overwrite restart files when expanding")
 
     file_list = glob.glob(os.path.join(path, "BOUT.restart.*." + informat))
     file_list.sort()
     nfiles = len(file_list)
 
     if nfiles == 0:
-        print("ERROR: No data found")
-        return False
+        raise ValueError("No data found")
 
     print("Number of files found: " + str(nfiles))
 
@@ -1195,3 +1196,120 @@ def change_grid(
             # Write fields
             for k in interp_data:
                 f.write(k, get_block(interp_data[k]))
+
+
+def shift_v3_to_v4(
+    gridfile, zperiod, path="data", output=".", informat="nc", mxg=2, myg=2
+):
+    """Convert a set of restart files from BOUT++ v3 to v4
+
+       Assumes that both simulations are using shifted metric coordinates:
+       - v3 restarts are in field-aligned coordinates
+         (shifted when taking X derivatives)
+       - v4 restarts are in shifted coordinates
+         (shifted when taking Y derivatives)
+
+    Parameters
+    ----------
+
+    gridfile : str
+        String containing grid file name
+    zperiod : int
+        Number of times the domain is repeated to form a full torus
+    path : str, optional
+        Directory containing the input restart files (BOUT++ v3)
+    output : str, optional
+        Directory where the output restart files will go
+    informat : str, optional
+        File extension of the input restart files
+    mxg : int, optional
+        Number of X guard cells
+    myg : int, optional
+        Number of Y guard cells
+    """
+
+    # Try opening the grid file
+    with DataFile(gridfile) as grid:
+        try:
+            zShift = grid["zShift"]
+        except KeyError:
+            zShift = grid["qinty"]
+
+    if path == output:
+        raise ValueError("Can't overwrite restart file")
+
+    file_list = glob.glob(os.path.join(path, "BOUT.restart.*." + informat))
+    file_list = natsorted(file_list)
+    nfiles = len(file_list)
+
+    if nfiles == 0:
+        raise ValueError("No data found")
+
+    print("Number of files found: " + str(nfiles))
+
+    # Read processor layout
+    with DataFile(file_list[0]) as f:
+        NXPE = f["NXPE"]
+        NPES = f["NPES"]
+    if NPES != nfiles:
+        raise ValueError("Number of restart files doesn't match NPES")
+
+    for n in range(nfiles):
+        basename = "BOUT.restart.{}.{}".format(n, informat)
+        f = os.path.join(path, basename)
+        new_f = os.path.join(output, basename)
+        print("Changing {} => {}".format(f, new_f))
+
+        pe_xind = n % NXPE
+        pe_yind = n // NXPE
+
+        # Open the restart file in read mode and create the new file
+        with DataFile(f) as old, DataFile(new_f, write=True, create=True) as new:
+            # Add new variables
+            new.write("MXG", mxg)
+            new.write("MYG", myg)
+            new.write("MZG", 0)
+            new.write(
+                "run_id",
+                np.array(list("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"), dtype="c"),
+            )
+            new.write(
+                "run_restart_from",
+                np.array(list("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"), dtype="c"),
+            )
+
+            # Loop over the variables in the old file
+            for var in old.list():
+                # Read the data
+                data = old.read(var)
+                attributes = old.attributes(var)
+
+                # Find 3D variables
+                newdata = data
+                if old.ndims(var) == 3:
+                    print("    Shifting " + var)
+
+                    # Remove one Z grid cell
+                    newdata = newdata[:, :, :-1]
+
+                    nx, ny, nz = newdata.shape
+                    MXSUB = nx - 2 * mxg
+                    MYSUB = ny - 2 * myg
+
+                    x_offset = pe_xind * MXSUB
+                    y_offset = pe_yind * MYSUB
+
+                    # Shifting by zShift goes from field-aligned to orthogonal coords
+                    # Note: Removing y guards but not X because zShift includes x boundaries
+                    newdata[:, myg:-myg, :] = shiftz.shiftz(
+                        newdata[:, myg:-myg, :],
+                        zShift[
+                            x_offset : (x_offset + nx), y_offset : (y_offset + MYSUB)
+                        ],
+                        zperiod=zperiod,
+                    )
+                    new.write("nx", nx)
+                    new.write("ny", ny - 2 * myg)
+                    new.write("nz", nz)
+                newdata = BoutArray(newdata, attributes=attributes)
+                new.write(var, newdata)
