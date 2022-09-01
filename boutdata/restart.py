@@ -17,6 +17,7 @@ from boututils.boutarray import BoutArray
 from boutdata.processor_rearrange import get_processor_layout, create_processor_layout
 
 import multiprocessing
+from natsort import natsorted
 import numpy as np
 from numpy import mean, zeros, arange
 from numpy.random import normal
@@ -1238,7 +1239,7 @@ def shift_v3_to_v4(
         raise ValueError("Can't overwrite restart file")
 
     file_list = glob.glob(os.path.join(path, "BOUT.restart.*." + informat))
-    file_list.sort()
+    file_list = natsorted(file_list)
     nfiles = len(file_list)
 
     if nfiles == 0:

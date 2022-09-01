@@ -44,6 +44,7 @@ setuptools.setup(
         "sympy",
         "numpy",
         "matplotlib",
+        "natsort",
         "scipy",
         "boututils>=0.1.9",
         "importlib-metadata ; python_version<'3.8'",
