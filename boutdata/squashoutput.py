@@ -10,6 +10,8 @@ and because single files are quicker to download.
 
 """
 
+from . import __version__
+
 
 def squashoutput(
     datadir=".",
@@ -35,6 +37,9 @@ def squashoutput(
 ):
     """
     Collect all data from BOUT.dmp.* files and create a single output file.
+
+    Note: adds an attribute to the 'squashed' output file called `squashoutput_version`
+    which records the current version number of `boutdata`.
 
     Parameters
     ----------
@@ -231,6 +236,8 @@ def squashoutput(
         attrval = outputs.get_file_attribute(attrname)
         for f in files:
             f.write_file_attribute(attrname, attrval)
+
+    f.write_file_attribute("squashoutput_version", __version__)
 
     for f in files:
         f.close()
