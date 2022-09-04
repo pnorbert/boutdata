@@ -184,19 +184,26 @@ def resize(
                     break
 
             nx, ny, nz = data.shape
+            dx, dy, dz = old['dx'].flat[0], old['dy'].flat[0], old['dz'].flat[0]
+            # shift grid if CELL-CENTRED   
+            shift = 0.5 if old.attributes(var) == 0 else 0
+            
             # Make coordinates
             # NOTE: The max min of the coordinates are irrelevant when
             #       interpolating (as long as old and new coordinates
             #       are consistent), so we just choose all variable to
-            #       be between 0 and 1 Calculate the old coordinates
-            xCoordOld = np.linspace(0, 1, nx)
-            yCoordOld = np.linspace(0, 1, ny)
-            zCoordOld = np.linspace(0, 1, nz)
-
+            #       be between 0 and 1 Calculate the old coordinates 
+            xCoordOld = np.arange(nx - mxg + shift)*dx
+            yCoordOld = np.arange(ny - myg + shift)*dy
+            zCoordOld = np.arange(nz + shift)*dz
+            # Calculate the new spacing
+            newDx= dx * ((nx - mxg) / (newNx - mxg) )
+            newDy= dy * ((ny - myg) / (newNy - myg) )
+            newDz= dz * (nz / newNz )
             # Calculate the new coordinates
-            xCoordNew = np.linspace(xCoordOld[0], xCoordOld[-1], newNx)
-            yCoordNew = np.linspace(yCoordOld[0], yCoordOld[-1], newNy)
-            zCoordNew = np.linspace(zCoordOld[0], zCoordOld[-1], newNz)
+            xCoordNew = np.arange(newNx - mxg + shift)*newDx
+            yCoordNew = np.arange(newNy - myg + shift)*newDy
+            zCoordNew = np.arange(newNz + shift)*newDz
 
             # Make a pool of workers
             pool = multiprocessing.Pool(maxProc)
