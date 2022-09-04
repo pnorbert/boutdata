@@ -197,8 +197,8 @@ def resize(
             yCoordOld = np.arange(ny - myg + shift)*dy
             zCoordOld = np.arange(nz + shift)*dz
             # Calculate the new spacing
-            newDx= dx * ((nx - mxg) / (newNx - mxg) )
-            newDy= dy * ((ny - myg) / (newNy - myg) )
+            newDx= dx * ((nx - 2*mxg) / (newNx - 2*mxg) )
+            newDy= dy * ((ny - 2*myg) / (newNy - 2*myg) )
             newDz= dz * (nz / newNz )
             # Calculate the new coordinates
             xCoordNew = np.arange(newNx - mxg + shift)*newDx
