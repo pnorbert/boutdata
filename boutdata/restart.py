@@ -186,7 +186,7 @@ def resize(
             nx, ny, nz = data.shape
             dx, dy, dz = old['dx'].flat[0], old['dy'].flat[0], old['dz'].flat[0]
             # shift grid if CELL-CENTRED   
-            shift = 0.5 if old.attributes(var) == 0 else 0
+            shift = 0.5 if old.attributes(var)['cell_location'] == 'CELL-CENTRE' else 0
             
             # Make coordinates
             # NOTE: The max min of the coordinates are irrelevant when
