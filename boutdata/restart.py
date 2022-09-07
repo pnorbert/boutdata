@@ -195,17 +195,17 @@ def resize(
             #       interpolating (as long as old and new coordinates
             #       are consistent), so we just choose all variable to
             #       be between 0 and 1 Calculate the old coordinates 
-            xCoordOld = np.arange(nx - mxg + xshift)*dx
-            yCoordOld = np.arange(ny - myg + yshift)*dy
-            zCoordOld = np.arange(nz + zshift)*dz
+            xCoordOld = (np.arange(nx) - mxg + xshift)*dx
+            yCoordOld = (np.arange(ny) - myg + yshift)*dy
+            zCoordOld = (np.arange(nz) + zshift)*dz
             # Calculate the new spacing
             newDx= dx * ((nx - 2*mxg) / (newNx - 2*mxg) )
             newDy= dy * ((ny - 2*myg) / (newNy - 2*myg) )
             newDz= dz * (nz / newNz )
             # Calculate the new coordinates
-            xCoordNew = np.arange(newNx - mxg + xshift)*newDx
-            yCoordNew = np.arange(newNy - myg + yshift)*newDy
-            zCoordNew = np.arange(newNz + zshift)*newDz
+            xCoordNew = (np.arange(newNx) - mxg + xshift)*newDx
+            yCoordNew = (np.arange(newNy) - myg + yshift)*newDy
+            zCoordNew = (np.arange(newNz) + zshift)*newDz
 
             # Make a pool of workers
             pool = multiprocessing.Pool(maxProc)
