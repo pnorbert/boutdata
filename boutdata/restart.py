@@ -69,7 +69,7 @@ def resize3DField(var, data, coordsAndSizesTuple, method, mute):
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.RegularGridInterpolator.html
     # for details)
     gridInterpolator = RegularGridInterpolator(
-        (xCoordOld, yCoordOld, zCoordOld), data, method
+        (xCoordOld, yCoordOld, zCoordOld), data, method, fill_value = 0.0
     )
 
     # Need to fill with one exrta z plane (will only contain zeros)
