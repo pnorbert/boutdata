@@ -250,7 +250,7 @@ def resize(
                 else:
                     if not (mute):
                         print("    Copying " + var)
-                        newData = data.copy()
+                    newData = data.copy()
                     if not (mute):
                         print("Writing " + var)
                     new.write(var, newData)
