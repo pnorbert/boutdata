@@ -63,6 +63,14 @@ def main():
     parser.add_argument("--xind", type=int_or_none, nargs="*", default=[None])
     parser.add_argument("--yind", type=int_or_none, nargs="*", default=[None])
     parser.add_argument("--zind", type=int_or_none, nargs="*", default=[None])
+    parser.add_argument(
+        "--drop_variables",
+        type=str,
+        nargs="*",
+        default=None,
+        help="Variable names passed in drop_variables will be ignored, and not "
+        "included in the squashed output file.",
+    )
     parser.add_argument("-s", "--singleprecision", action="store_true", default=False)
     parser.add_argument("-c", "--compress", action="store_true", default=False)
     parser.add_argument("-l", "--complevel", type=int_or_none, default=None)

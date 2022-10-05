@@ -23,6 +23,7 @@ def squashoutput(
     zind=None,
     xguards=True,
     yguards="include_upper",
+    drop_variables=None,
     singleprecision=False,
     compress=False,
     least_significant_digit=None,
@@ -71,6 +72,9 @@ def squashoutput(
     yguards : bool or "include_upper"
         yguards argument passed to collect (note different default to collect's)
         default "include_upper"
+    drop_variables : str, or list or tuple of strings
+        Variable names passed in drop_variables will be ignored, and not included in the
+        squashed output file.
     singleprecision : bool
         If true convert data to single-precision floats
         default False
@@ -140,6 +144,11 @@ def squashoutput(
         oldfile = datadirnew + "/" + outputname
         datadir = datadirnew
 
+    if drop_variables is None:
+        drop_variables = []
+    elif isinstance(drop_variables, str):
+        drop_variables = [drop_variables]
+
     # useful object from BOUT pylib to access output data
     outputs = BoutOutputs(
         datadir,
@@ -168,7 +177,7 @@ def squashoutput(
                     "is presumably not desired behaviour.".format(fullpath)
                 )
 
-    outputvars = outputs.keys()
+    outputvars = [k for k in outputs.keys() if k not in drop_variables]
 
     # Read a value to cache the files
     outputs[outputvars[0]]
