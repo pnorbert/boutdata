@@ -22,15 +22,15 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        python-version: [3.7, 3.8]
+        python-version: ["3.8", "3.9", "3.10"]
         os: [ubuntu-latest]
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -49,12 +49,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install setuptools_scm pytest-cov
-          pip install .
+          pip install .[tests]
 
       - name: Test local run
         run: |
-          pytest -v --cov=./
+          pytest -v
 
       - name: Upload to codecov
         run: |
