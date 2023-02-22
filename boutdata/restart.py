@@ -1184,7 +1184,7 @@ def change_grid(
     if (to_nx - 2 * mxg) % nxpe != 0:
         # Can't split grid in this way
         raise ValueError("nxpe={} not compatible with nx = {}".format(nxpe, to_nx))
-    if to_ny % nxpe != 0:
+    if to_ny % nype != 0:
         # Can't split grid in this way
         raise ValueError("nype={} not compatible with ny = {}".format(nype, to_ny))
 
@@ -1201,9 +1201,10 @@ def change_grid(
         iy = i // nxpe
 
         def get_block(data):
-            sliced = data[
+            sliced = np.zeros((mxsub + 2 * mxg, mysub + 2 * myg))
+            sliced[:, myg:-myg] = data[
                 ix * mxsub : (ix + 1) * mxsub + 2 * mxg,
-                iy * mysub : (iy + 1) * mysub + 2 * myg,
+                iy * mysub : (iy + 1) * mysub,
             ]
             return sliced.reshape(sliced.shape + (1,))  # make 3D
 
