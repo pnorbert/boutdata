@@ -40,11 +40,6 @@ def regions(grid, mxg=2):
     j21 = grid["jyseps2_1"]
     j22 = grid["jyseps2_2"]
     ix1 = grid["ixseps1"]
-    ix2 = grid["ixseps2"]
-    try:
-        nin = grid["ny_inner"]
-    except KeyError:
-        nin = j12
 
     nx = grid["nx"]
     ny = grid["ny"]

@@ -1091,28 +1091,28 @@ def change_grid(
             f_data = np.zeros((f_nx + 2, f_ny + 2))
             f_data[1:-1, 1:-1] = from_data[f_xf : (f_xl + 1), f_yf : (f_yl + 1)]
             # Fill each boundary from connecting regions
-            if from_region["inner"] != None:
+            if from_region["inner"] is not None:
                 reg = from_regions[from_region["inner"]]
                 f_data[0, 1:-1] = from_data[
                     reg["xlast"], reg["yfirst"] : (reg["ylast"] + 1)
                 ]
             else:
                 f_data[0, 1:-1] = f_data[1, 1:-1]
-            if from_region["outer"] != None:
+            if from_region["outer"] is not None:
                 reg = from_regions[from_region["outer"]]
                 f_data[-1, 1:-1] = from_data[
                     reg["xfirst"], reg["yfirst"] : (reg["ylast"] + 1)
                 ]
             else:
                 f_data[-1, 1:-1] = f_data[-2, 1:-1]
-            if from_region["lower"] != None:
+            if from_region["lower"] is not None:
                 reg = from_regions[from_region["lower"]]
                 f_data[1:-1, 0] = from_data[
                     reg["xfirst"] : (reg["xlast"] + 1), reg["ylast"]
                 ]
             else:
                 f_data[1:-1, 0] = f_data[1:-1, 1]
-            if from_region["upper"] != None:
+            if from_region["upper"] is not None:
                 reg = from_regions[from_region["upper"]]
                 f_data[1:-1, -1] = from_data[
                     reg["xfirst"] : (reg["xlast"] + 1), reg["yfirst"]
