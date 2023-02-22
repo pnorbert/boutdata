@@ -25,6 +25,7 @@ from numpy.random import normal
 from scipy.interpolate import interp1d
 
 from boutdata import shiftz
+from . import griddata
 
 try:
     from scipy.interpolate import RegularGridInterpolator
@@ -174,7 +175,6 @@ def resize(
 
         # Open the restart file in read mode and create the new file
         with DataFile(f) as old, DataFile(new_f, write=True, create=True) as new:
-
             # Find the dimension
             for var in old.list():
                 # Read the data
@@ -223,7 +223,6 @@ def resize(
 
                 # Find 3D variables
                 if old.ndims(var) == 3:
-
                     # Asynchronous call (locks first at .get())
                     jobs.append(
                         pool.apply_async(
@@ -972,7 +971,7 @@ def change_grid(
     to_grid_file,
     path="data",
     output=".",
-    interpolator="nearest",
+    method="linear",
     show=False,
 ):
     """
@@ -991,12 +990,14 @@ def change_grid(
          Directory containing input restart files
     output : str, optional
          Directory where output restart files will be written
-    interpolator : str, optional
-         Interpolation method to use. Options are 'nearest', 'CloughTocher', 'RBF'
+    method : str, optional
+         Interpolation method to use, passed to SciPy's RegularGridInterpolator
     show : bool, optional
          Display the interpolated fields using Matplotlib
 
     """
+
+    from scipy.interpolate import RegularGridInterpolator
 
     # Read in grid files
     with DataFile(from_grid_file) as g:
@@ -1008,8 +1009,7 @@ def change_grid(
                 )
         except KeyError:
             pass  # No y_boundary_guards key
-        from_Rxy = g["Rxy"]
-        from_Zxy = g["Zxy"]
+        from_regions = griddata.regions(g)
 
     with DataFile(to_grid_file) as g:
         # Check for y boundary cells
@@ -1020,8 +1020,9 @@ def change_grid(
                 )
         except KeyError:
             pass  # No y_boundary_guards key
-        to_Rxy = g["Rxy"]
-        to_Zxy = g["Zxy"]
+        to_regions = griddata.regions(g)
+        to_nx = g["nx"]
+        to_ny = g["ny"]
 
     file_list = glob.glob(os.path.join(path, "BOUT.restart.*.nc"))
     if len(file_list) == 0:
@@ -1061,25 +1062,6 @@ def change_grid(
     # Only tested for nz = 1
     assert copy_data["nz"] == 1
 
-    def extrapolate_yguards(data2d, myg):
-        nx, ny = data2d.shape
-        result = np.zeros((nx, ny + 2 * myg))
-        print(result.shape)
-        result[:, myg:-myg] = data2d
-
-        dy = result[:, myg + 1] - result[:, myg]
-        for i in range(1, myg + 1):
-            result[:, myg - i] = result[:, myg] - i * dy
-        dy = result[:, -myg - 1] - result[:, -myg - 2]
-        for i in range(1, myg + 1):
-            result[:, -myg - 1 + i] = result[:, -myg - 1] + i * dy
-        return result
-
-    from_Rxy = extrapolate_yguards(from_Rxy, copy_data["MYG"])
-    from_Zxy = extrapolate_yguards(from_Zxy, copy_data["MYG"])
-    to_Rxy = extrapolate_yguards(to_Rxy, copy_data["MYG"])
-    to_Zxy = extrapolate_yguards(to_Zxy, copy_data["MYG"])
-
     interp_data = {}
     for var in interp_vars:
         print("Interpolating " + var)
@@ -1088,42 +1070,88 @@ def change_grid(
             var,
             path=path,
             xguards=True,
-            yguards=True,
+            yguards=False,
             prefix="BOUT.restart",
             info=False,
-        )
+        ).squeeze()
 
-        if interpolator == "CloughTocher":
-            # Triangulate
-            from scipy.interpolate import CloughTocher2DInterpolator
+        to_data = np.zeros((to_nx, to_ny))
 
-            interp = CloughTocher2DInterpolator(
-                list(zip(from_Rxy.flatten(), from_Zxy.flatten())), from_data.flatten()
+        for region_name, to_region in to_regions.items():
+            print("\t" + region_name)
+            # Look up region in from_regions
+            from_region = from_regions[region_name]
+            f_xf = from_region["xfirst"]
+            f_xl = from_region["xlast"]
+            f_yf = from_region["yfirst"]
+            f_yl = from_region["ylast"]
+            f_nx = f_xl - f_xf + 1
+            f_ny = f_yl - f_yf + 1
+            # Allocate array including one boundary cell all around
+            f_data = np.zeros((f_nx + 2, f_ny + 2))
+            f_data[1:-1, 1:-1] = from_data[f_xf : (f_xl + 1), f_yf : (f_yl + 1)]
+            # Fill each boundary from connecting regions
+            if from_region["inner"] != None:
+                reg = from_regions[from_region["inner"]]
+                f_data[0, 1:-1] = from_data[
+                    reg["xlast"], reg["yfirst"] : (reg["ylast"] + 1)
+                ]
+            else:
+                f_data[0, 1:-1] = f_data[1, 1:-1]
+            if from_region["outer"] != None:
+                reg = from_regions[from_region["outer"]]
+                f_data[-1, 1:-1] = from_data[
+                    reg["xfirst"], reg["yfirst"] : (reg["ylast"] + 1)
+                ]
+            else:
+                f_data[-1, 1:-1] = f_data[-2, 1:-1]
+            if from_region["lower"] != None:
+                reg = from_regions[from_region["lower"]]
+                f_data[1:-1, 0] = from_data[
+                    reg["xfirst"] : (reg["xlast"] + 1), reg["ylast"]
+                ]
+            else:
+                f_data[1:-1, 0] = f_data[1:-1, 1]
+            if from_region["upper"] != None:
+                reg = from_regions[from_region["upper"]]
+                f_data[1:-1, -1] = from_data[
+                    reg["xfirst"] : (reg["xlast"] + 1), reg["yfirst"]
+                ]
+            else:
+                f_data[1:-1, -1] = f_data[1:-1, -2]
+            # Smooth corners
+            f_data[0, 0] = (f_data[0, 1] + f_data[1, 0] + f_data[1, 1]) / 3
+            f_data[-1, 0] = (f_data[-1, 1] + f_data[-2, 0] + f_data[-2, 1]) / 3
+            f_data[0, -1] = (f_data[0, -2] + f_data[1, -1] + f_data[1, -2]) / 3
+            f_data[-1, -1] = (f_data[-1, -2] + f_data[-2, -1] + f_data[-2, -2]) / 3
+
+            # Have data, can interpolate onto new region
+            # Create coordinates that go from 0 to 1 on cell boundaries
+            interpolator = RegularGridInterpolator(
+                (
+                    (np.arange(f_nx + 2) - 0.5) / f_nx,
+                    (np.arange(f_ny + 2) - 0.5) / f_ny,
+                ),
+                f_data,
+                method=method,
             )
-        elif interpolator == "RBF":
-            # Radial Basis Functions
-            from scipy.interpolate import RBFInterpolator
 
-            interp = RBFInterpolator(
-                list(zip(from_Rxy.flatten(), from_Zxy.flatten())),
-                from_data.flatten(),
-                neighbors=50,
+            # Look up region in to_regions
+            to_region = to_regions[region_name]
+            t_xf = to_region["xfirst"]
+            t_xl = to_region["xlast"]
+            t_yf = to_region["yfirst"]
+            t_yl = to_region["ylast"]
+            t_nx = t_xl - t_xf + 1
+            t_ny = t_yl - t_yf + 1
+
+            xinds, yinds = np.meshgrid(
+                (np.arange(t_nx) + 0.5) / t_nx,
+                (np.arange(t_ny) + 0.5) / t_ny,
+                indexing="ij",
             )
 
-        elif interpolator == "nearest":
-            # Nearest neighbour. Tends to be robust
-            from scipy.interpolate import NearestNDInterpolator
-
-            interp = NearestNDInterpolator(
-                list(zip(from_Rxy.flatten(), from_Zxy.flatten())), from_data.flatten()
-            )
-        else:
-            raise ValueError("Invalid interpolator")
-
-        to_data = interp(list(zip(to_Rxy.flatten(), to_Zxy.flatten()))).reshape(
-            to_Rxy.shape
-        )
-
+            to_data[t_xf : (t_xl + 1), t_yf : (t_yl + 1)] = interpolator((xinds, yinds))
         print(
             "\tData ranges: {}:{} -> {}:{}".format(
                 np.amin(from_data),
@@ -1135,8 +1163,7 @@ def change_grid(
         if show:
             import matplotlib.pyplot as plt
 
-            plt.pcolormesh(to_Rxy, to_Zxy, to_data, shading="auto")
-            plt.plot(from_Rxy, from_Zxy, "ok")
+            plt.pcolormesh(to_data[:, :], shading="auto")
             plt.colorbar()
             plt.axis("equal")
             plt.show()
@@ -1154,22 +1181,20 @@ def change_grid(
     mxg = copy_data["MXG"]
     myg = copy_data["MYG"]
 
-    new_nx, new_ny = to_Rxy.shape
-
-    if (new_nx - 2 * mxg) % nxpe != 0:
+    if (to_nx - 2 * mxg) % nxpe != 0:
         # Can't split grid in this way
-        raise ValueError("nxpe={} not compatible with nx = {}".format(nxpe, new_nx))
-    if (new_ny - 2 * myg) % nxpe != 0:
+        raise ValueError("nxpe={} not compatible with nx = {}".format(nxpe, to_nx))
+    if to_ny % nxpe != 0:
         # Can't split grid in this way
-        raise ValueError("nype={} not compatible with ny = {}".format(nype, new_ny))
+        raise ValueError("nype={} not compatible with ny = {}".format(nype, to_ny))
 
-    mxsub = (new_nx - 2 * mxg) // nxpe
-    mysub = (new_ny - 2 * myg) // nype
+    mxsub = (to_nx - 2 * mxg) // nxpe
+    mysub = to_ny // nype
 
     copy_data["MXSUB"] = mxsub
     copy_data["MYSUB"] = mysub
-    copy_data["nx"] = new_nx
-    copy_data["ny"] = new_ny - 2 * myg
+    copy_data["nx"] = to_nx
+    copy_data["ny"] = to_ny
 
     for i in range(npes):
         ix = i % nxpe
