@@ -768,7 +768,7 @@ def redistribute(
                         np.zeros([mxsub + 2 * mxg, mzsub]),
                         attributes={
                             "bout_type": "FieldPerp",
-                            "yindex_global": -myg - 1,
+                            "yindex_global": yindex_global,
                         },
                     )
                     outfile.write(v, nullarray)
