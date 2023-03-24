@@ -956,7 +956,7 @@ def addvar(var, value, path="."):
                 if len(size) == 3:
                     break
             if size is None:
-                raise Exception("no 3D variables found")
+                raise ValueError("no 3D variables found")
 
             # Create a new 3D array with input value
             data = np.zeros(size) + value
