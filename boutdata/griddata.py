@@ -9,6 +9,115 @@ import matplotlib.pyplot as plt
 from boututils.datafile import DataFile
 
 
+def regions(grid, mxg=2):
+    """
+    Return a description of the regions of a grid
+
+    Parameters
+    ----------
+
+    grid : DataFile or dict-like
+
+    Returns
+    -------
+
+    dict of logically rectangular region descriptions.
+    Each region connects to at most one region on each side
+
+    Each region is described by the connections:
+    - "inner" : Name of the region on the low X edge
+    - "outer" : Name of the region on the high X edge
+    - "lower" : Name of the region on the low Y edge
+    - "upper" : Name of the region on the high Y edge
+    and the range of global indices:
+    - "xfirst", "xlast" : Inclusive range in X
+    - "yfirst", "ylast" : Inclusive range in Y
+
+    """
+
+    j11 = grid["jyseps1_1"]
+    j12 = grid["jyseps1_2"]
+    j21 = grid["jyseps2_1"]
+    j22 = grid["jyseps2_2"]
+    ix1 = grid["ixseps1"]
+
+    nx = grid["nx"]
+    ny = grid["ny"]
+
+    double_null = j12 != j21
+    has_lower_inner_leg = j11 >= 0
+    has_lower_outer_leg = j22 + 1 < ny
+
+    assert not double_null
+
+    regions = {}
+    if has_lower_inner_leg:
+        # Lower inner leg
+        regions["lower inner pf"] = {
+            "inner": None,
+            "outer": "lower inner sol",
+            "lower": None,
+            "upper": "lower outer pf",
+            "xfirst": mxg,
+            "xlast": ix1 - 1,
+            "yfirst": 0,
+            "ylast": j11,
+        }
+        regions["lower inner sol"] = {
+            "inner": "lower inner pf",
+            "outer": None,
+            "lower": None,
+            "upper": "sol",
+            "xfirst": ix1,
+            "xlast": nx - 1 - mxg,
+            "yfirst": 0,
+            "ylast": j11,
+        }
+    regions["sol"] = {
+        "inner": "core",
+        "outer": None,
+        "lower": "lower inner sol" if has_lower_inner_leg else None,
+        "upper": "lower outer sol" if has_lower_outer_leg else None,
+        "xfirst": ix1,
+        "xlast": nx - 1 - mxg,
+        "yfirst": j11 + 1,
+        "ylast": j22,
+    }
+    regions["core"] = {
+        "inner": None,
+        "outer": "sol",
+        "lower": "core",
+        "upper": "core",
+        "xfirst": mxg,
+        "xlast": ix1 - 1,
+        "yfirst": j11 + 1,
+        "ylast": j22,
+    }
+    if has_lower_outer_leg:
+        # Lower outer leg
+        regions["lower outer pf"] = {
+            "inner": None,
+            "outer": "lower outer sol",
+            "lower": "lower inner pf",
+            "upper": None,
+            "xfirst": mxg,
+            "xlast": ix1 - 1,
+            "yfirst": j22 + 1,
+            "ylast": ny - 1,
+        }
+        regions["lower outer sol"] = {
+            "inner": "lower outer pf",
+            "outer": None,
+            "lower": "sol",
+            "upper": None,
+            "xfirst": ix1,
+            "xlast": nx - 1 - mxg,
+            "yfirst": j22 + 1,
+            "ylast": ny - 1,
+        }
+    return regions
+
+
 def slice(infile, outfile, region=None, xind=None, yind=None):
     """Copy an X-Y slice from one DataFile to another
 
