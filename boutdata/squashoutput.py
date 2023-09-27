@@ -144,7 +144,7 @@ def squashoutput(
         oldfile = datadirnew + "/" + outputname
         datadir = datadirnew
 
-    if drop_variables is None:
+    if not drop_variables:
         drop_variables = []
     elif isinstance(drop_variables, str):
         drop_variables = [drop_variables]
