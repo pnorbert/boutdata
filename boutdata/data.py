@@ -1058,14 +1058,14 @@ class BoutOutputs(object):
         """
         self._path = path
         # normalize prefix by removing trailing '.' if present
-        self._prefix = prefix.rstrip(".")
+        self._prefix = prefix.removesuffix(".")
         if suffix is None:
             temp_file_list = glob.glob(os.path.join(self._path, self._prefix + "*"))
             latest_file = max(temp_file_list, key=os.path.getctime)
             self._suffix = latest_file.split(".")[-1]
         else:
             # normalize suffix by removing leading '.' if present
-            self._suffix = suffix.lstrip(".")
+            self._suffix = suffix.removeprefix(".")
         self._caching = caching
         self._info = info
         self._xguards = xguards
