@@ -1058,7 +1058,7 @@ class BoutOutputs(object):
         """
         self._path = path
         # normalize prefix by removing trailing '.' if present
-        self._prefix = prefix.rstrip(".")
+        self._prefix = prefix.removesuffix(".")
         if suffix is None:
             temp_file_list = glob.glob(os.path.join(self._path, self._prefix + "*"))
             latest_file = max(temp_file_list, key=os.path.getctime)
