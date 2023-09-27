@@ -1065,7 +1065,7 @@ class BoutOutputs(object):
             self._suffix = latest_file.split(".")[-1]
         else:
             # normalize suffix by removing leading '.' if present
-            self._suffix = suffix.lstrip(".")
+            self._suffix = suffix.removeprefix(".")
         self._caching = caching
         self._info = info
         self._xguards = xguards
