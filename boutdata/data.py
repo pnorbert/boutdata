@@ -1057,6 +1057,7 @@ class BoutOutputs(object):
         Initialise BoutOutputs object
         """
         self._path = path
+        self._file0 = None
         # normalize prefix by removing trailing '.' if present
         self._prefix = prefix.removesuffix(".")
         if suffix is None:
@@ -1138,8 +1139,6 @@ class BoutOutputs(object):
         if self._DataFileCaching or self._parallel:
             # Keep reference to 0'th file, for reading attributes
             self._file0 = DataFile(self._file_list[0])
-        else:
-            self._file0 = None
 
         if self._info:
             print(
