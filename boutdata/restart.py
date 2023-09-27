@@ -70,7 +70,7 @@ def resize3DField(var, data, coordsAndSizesTuple, method, mute):
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.RegularGridInterpolator.html
     # for details)
     gridInterpolator = RegularGridInterpolator(
-        (xCoordOld, yCoordOld, zCoordOld), data, method
+        (xCoordOld, yCoordOld, zCoordOld), data, method, bounds_error = False, fill_value = None
     )
 
     # Need to fill with one exrta z plane (will only contain zeros)
@@ -184,19 +184,28 @@ def resize(
                     break
 
             nx, ny, nz = data.shape
+            dx, dy, dz = old['dx'].flat[0], old['dy'].flat[0], old['dz'].flat[0]
+            # shift grid if CELL-CENTRED   
+            xshift = 0.0 if old.attributes(var)['cell_location'] == 'CELL_XLOW' else 0.5
+            yshift = 0.0 if old.attributes(var)['cell_location'] == 'CELL_YLOW' else 0.5
+            zshift = 0.0 if old.attributes(var)['cell_location'] == 'CELL_ZLOW' else 0.5
+            
             # Make coordinates
             # NOTE: The max min of the coordinates are irrelevant when
             #       interpolating (as long as old and new coordinates
             #       are consistent), so we just choose all variable to
-            #       be between 0 and 1 Calculate the old coordinates
-            xCoordOld = np.linspace(0, 1, nx)
-            yCoordOld = np.linspace(0, 1, ny)
-            zCoordOld = np.linspace(0, 1, nz)
-
+            #       be between 0 and 1 Calculate the old coordinates 
+            xCoordOld = (np.arange(nx) - mxg + xshift)*dx
+            yCoordOld = (np.arange(ny) - myg + yshift)*dy
+            zCoordOld = (np.arange(nz) + zshift)*dz
+            # Calculate the new spacing
+            newDx= dx * ((nx - 2*mxg) / (newNx - 2*mxg) )
+            newDy= dy * ((ny - 2*myg) / (newNy - 2*myg) )
+            newDz= dz * (nz / newNz )
             # Calculate the new coordinates
-            xCoordNew = np.linspace(xCoordOld[0], xCoordOld[-1], newNx)
-            yCoordNew = np.linspace(yCoordOld[0], yCoordOld[-1], newNy)
-            zCoordNew = np.linspace(zCoordOld[0], zCoordOld[-1], newNz)
+            xCoordNew = (np.arange(newNx) - mxg + xshift)*newDx
+            yCoordNew = (np.arange(newNy) - myg + yshift)*newDy
+            zCoordNew = (np.arange(newNz) + zshift)*newDz
 
             # Make a pool of workers
             pool = multiprocessing.Pool(maxProc)
@@ -240,7 +249,7 @@ def resize(
                 else:
                     if not (mute):
                         print("    Copying " + var)
-                        newData = data.copy()
+                    newData = data.copy()
                     if not (mute):
                         print("Writing " + var)
                     new.write(var, newData)
