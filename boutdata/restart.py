@@ -482,7 +482,12 @@ def create(
         outfile = DataFile(outfname, create=True)
 
         # Get the data always needed in restart files
+        # hist_hi should be an integer in the restart files
         hist_hi = infile.read("iteration")
+        try:
+            hist_hi = hist_hi[final]
+        except:
+            pass
         print(("hist_hi = ", hist_hi))
         outfile.write("hist_hi", hist_hi)
 
