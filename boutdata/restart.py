@@ -484,10 +484,9 @@ def create(
         # Get the data always needed in restart files
         # hist_hi should be an integer in the restart files
         hist_hi = infile.read("iteration")
-        try:
+        if hasattr(hist_hi, "__getitem__"):
             hist_hi = hist_hi[final]
-        except:
-            pass
+
         print(("hist_hi = ", hist_hi))
         outfile.write("hist_hi", hist_hi)
 
@@ -518,13 +517,17 @@ def create(
                 data = infile.read(var)
 
                 if averagelast == 1:
-                    slice = data[final, :, :, :]
+                    data_slice = data[final, :, :, :]
                 else:
-                    slice = mean(data[(final - averagelast) : final, :, :, :], axis=0)
+                    data_slice = mean(
+                        data[(final - averagelast) : final, :, :, :], axis=0
+                    )
 
-                print(slice.shape)
+                print(data_slice.shape)
+                # This attribute results in the correct (x,y,z) dimension labels
+                data_slice.attributes["bout_type"] = "Field3D"
 
-                outfile.write(var, slice)
+                outfile.write(var, data_slice)
 
         infile.close()
         outfile.close()
