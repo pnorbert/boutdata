@@ -527,6 +527,14 @@ def create(
                 # This attribute results in the correct (x,y,z) dimension labels
                 data_slice.attributes["bout_type"] = "Field3D"
 
+                # The presence of `time_dimension` triggers BOUT++ to
+                # save field with a time dimension, which breaks
+                # subsequent restart files. `current_time_index` just
+                # doesn't make sense for restart files
+                for bad_attr in ["current_time_index", "time_dimension"]:
+                    if bad_attr in data.attributes:
+                        data_slice.attributes.pop(bad_attr)
+
                 outfile.write(var, data_slice)
 
         infile.close()
