@@ -313,3 +313,9 @@ def _get_filenames_t_slices(time_split_size, time_split_first_label, fullpath, t
             filenames.append(filename)
             t_slices.append(slice(i * time_split_size, (i + 1) * time_split_size))
         return filenames, t_slices
+
+
+if __name__ == "__main__":
+    from .scripts.bout_squashoutput import main
+
+    main()
