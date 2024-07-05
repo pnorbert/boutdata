@@ -63,7 +63,8 @@ def resize3DField(var, data, coordsAndSizesTuple, method, mute):
         print(
             "    Resizing "
             + var
-            + " to (nx,ny,nz) = ({},{},{})".format(newNx, newNy, newNz)
+            + " from (nx,ny,nz) = ({},{},{})".format(*data.shape)
+            + " to ({},{},{})".format(newNx, newNy, newNz)
         )
 
     # Make the regular grid function (see examples in
@@ -108,6 +109,9 @@ def resize(
     NOTE: Can't overwrite
     WARNING: Currently only implemented with uniform BOUT++ grid
 
+    If errors occur, try running with maxProc=1. That will disable
+    multiprocessing so will be slow.
+
     Parameters
     ----------
     newNx, newNy, newNz : int
@@ -125,7 +129,8 @@ def resize(
     method : {'linear', 'nearest'}, optional
         What interpolation method to be used
     maxProc : {None, int}, optional
-        Limits maximum processors to use when interpolating if set
+        Limits maximum processors to use when interpolating if set.
+        Set to 1 to disable multiprocessing.
     mute : bool, optional
         Whether or not output should be printed from this function
 
@@ -204,9 +209,10 @@ def resize(
             zCoordNew = (np.arange(newNz) + zshift) * newDz
 
             # Make a pool of workers
-            pool = multiprocessing.Pool(maxProc)
-            # List of jobs and results
-            jobs = []
+            if maxProc != 1:
+                pool = multiprocessing.Pool(maxProc)
+                # List of jobs and results
+                jobs = []
             # Pack input to resize3DField together
             coordsAndSizesTuple = (
                 xCoordOld,
@@ -228,19 +234,29 @@ def resize(
 
                 # Find 3D variables
                 if old.ndims(var) == 3:
-                    # Asynchronous call (locks first at .get())
-                    jobs.append(
-                        pool.apply_async(
-                            resize3DField,
-                            args=(
-                                var,
-                                data,
-                                coordsAndSizesTuple,
-                                method,
-                                mute,
-                            ),
+                    if maxProc != 1:
+                        # Asynchronous call (locks first at .get())
+                        jobs.append(
+                            pool.apply_async(
+                                resize3DField,
+                                args=(
+                                    var,
+                                    data,
+                                    coordsAndSizesTuple,
+                                    method,
+                                    mute,
+                                ),
+                            )
                         )
-                    )
+                    else:
+                        # Synchronous call. Easier for debugging
+                        _, newData = resize3DField(
+                            var, data, coordsAndSizesTuple, method, mute
+                        )
+                        newData = BoutArray(newData, attributes=attributes)
+                        if not (mute):
+                            print("Writing " + var)
+                        new.write(var, newData)
 
                 else:
                     if not (mute):
@@ -250,17 +266,18 @@ def resize(
                         print("Writing " + var)
                     new.write(var, newData)
 
-            for job in jobs:
-                var, newData = job.get()
-                newData = BoutArray(newData, attributes=attributes)
-                if not (mute):
-                    print("Writing " + var)
-                new.write(var, newData)
+            if maxProc != 1:
+                for job in jobs:
+                    var, newData = job.get()
+                    newData = BoutArray(newData, attributes=attributes)
+                    if not (mute):
+                        print("Writing " + var)
+                    new.write(var, newData)
 
-            # Close the pool of workers
-            pool.close()
-            # Wait for all processes to finish
-            pool.join()
+                # Close the pool of workers
+                pool.close()
+                # Wait for all processes to finish
+                pool.join()
 
     return True
 
