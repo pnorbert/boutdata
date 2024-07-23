@@ -36,7 +36,7 @@ class processor_layout(processor_layout_):
     pass
 
 
-def get_processor_layout(boutfile, has_t_dimension=True, mxg=2, myg=2):
+def get_processor_layout(boutfile, has_t_dimension=True, mxg=None, myg=None):
     """Given a BOUT.restart.* or BOUT.dmp.* file (as a DataFile object),
     return the processor layout for its data
 
@@ -55,6 +55,9 @@ def get_processor_layout(boutfile, has_t_dimension=True, mxg=2, myg=2):
         A description of the processor layout and grid sizes
 
     """
+
+    mxg = mxg or boutfile.get("MXG", 2)
+    myg = myg or boutfile.get("MYG", 2)
 
     nxpe = boutfile.read("NXPE")
     nype = boutfile.read("NYPE")

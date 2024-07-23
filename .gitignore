@@ -127,3 +127,4 @@ dmypy.json
 .idea/
 *.sw[po]
 
+boutdata/_version.py

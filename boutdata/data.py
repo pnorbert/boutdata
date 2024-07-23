@@ -652,7 +652,9 @@ class BoutOptionsFile(BoutOptions):
             # Go through each line in the file
             section = self  # Start with root section
             comments = []
-            for linenr, line in enumerate(f.readlines()):
+
+            nr_line_iter = enumerate(f.readlines())
+            for linenr, line in nr_line_iter:
                 # First remove comments, either # or ;
                 if line.lstrip().startswith(self.VALID_COMMENTS):
                     comments.append("#" + line.strip()[1:])
@@ -693,9 +695,9 @@ class BoutOptionsFile(BoutOptions):
                         comments = []
                     if inline_comment is not None:
                         parent_section.inline_comments[sectionname] = inline_comment
-                        parent_section._comment_whitespace[
-                            sectionname
-                        ] = comment_whitespace
+                        parent_section._comment_whitespace[sectionname] = (
+                            comment_whitespace
+                        )
                 else:
                     # A key=value pair
 
@@ -706,6 +708,37 @@ class BoutOptionsFile(BoutOptions):
                         value_name = line.strip()
                     else:
                         value = line[(eqpos + 1) :].strip()
+
+                        # If the line contains unbalanced parentheses of brackets
+                        # then continue reading
+                        def count_brackets(s):
+                            "Count net number of opening and closing brackets"
+                            return (
+                                s.count("(")
+                                - s.count(")")
+                                + s.count("[")
+                                - s.count("]")
+                            )
+
+                        if count_brackets(value) != 0:
+                            for cont_linenr, cont_line in nr_line_iter:
+                                # Check for comments on continuing lines
+                                comment_match = self.COMMENT_REGEX.search(cont_line)
+                                if comment_match is not None:
+                                    (
+                                        cont_line,
+                                        comment_whitespace,
+                                        cont_inline_comment,
+                                    ) = comment_match.groups()
+                                    # Append inline comments
+                                    if inline_comment is not None:
+                                        inline_comment += " " + cont_inline_comment[1:]
+                                    else:
+                                        inline_comment = cont_inline_comment
+                                value += " " + cont_line.strip()
+                                if count_brackets(value) == 0:
+                                    # Brackets now balanced
+                                    break
                         try:
                             # Try to convert to an integer
                             value = int(value)
@@ -1024,15 +1057,16 @@ class BoutOutputs(object):
         Initialise BoutOutputs object
         """
         self._path = path
+        self._file0 = None
         # normalize prefix by removing trailing '.' if present
-        self._prefix = prefix.rstrip(".")
+        self._prefix = prefix.removesuffix(".")
         if suffix is None:
             temp_file_list = glob.glob(os.path.join(self._path, self._prefix + "*"))
             latest_file = max(temp_file_list, key=os.path.getctime)
             self._suffix = latest_file.split(".")[-1]
         else:
             # normalize suffix by removing leading '.' if present
-            self._suffix = suffix.lstrip(".")
+            self._suffix = suffix.removeprefix(".")
         self._caching = caching
         self._info = info
         self._xguards = xguards
@@ -1102,6 +1136,10 @@ class BoutOutputs(object):
                 for i in range(self.grid_info["npes"])
             ]
 
+        if self._DataFileCaching or self._parallel:
+            # Keep reference to 0'th file, for reading attributes
+            self._file0 = DataFile(self._file_list[0])
+
         if self._info:
             print(
                 "mxsub = {} mysub = {} mz = {}\n".format(
@@ -1145,6 +1183,8 @@ class BoutOutputs(object):
                 connection.send(None)
                 worker.join()
                 connection.close()
+        if self._file0 is not None:
+            self._file0.close()
 
     def _init_caching(self):
         """
@@ -1223,6 +1263,64 @@ class BoutOutputs(object):
     def evolvingVariables(self):
         """Return a list of names of time-evolving variables"""
         return self.grid_info["evolvingVariableNames"]
+
+    def get_attribute(self, variable, attrname):
+        """Get an attribute of a variable
+
+        Parameters
+        ----------
+        variable : str
+            Name of variable to get attribute from
+        attrname : str
+            Name of attribute
+
+        Returns
+        -------
+        Value of attribute
+        """
+        if self._file0 is None:
+            with DataFile(self._file_list[0]) as f:
+                return f.attributes(variable)[attrname]
+        else:
+            return self._file0.attributes(variable)[attrname]
+
+    def get_file_attribute(self, attrname):
+        """Get an attribute of the output files.
+
+        Attribute is taken from the rank-0 file. No checking is done that the attribute
+        is consistent between all the output files.
+
+        Parameters
+        ----------
+        attrname : str
+            Name of attribute
+
+        Returns
+        -------
+        Value of attribute
+        """
+        if self._file0 is None:
+            with DataFile(self._file_list[0]) as f:
+                return f.read_file_attribute(attrname)
+        else:
+            return self._file0.read_file_attribute(attrname)
+
+    def list_file_attributes(self):
+        """List all file attributes of output files
+
+        List is taken from the rank-0 file. No checking is done that the file attributes
+        are consistent between all the output files.
+
+        Returns
+        -------
+        List of str
+            Names of the file attributes
+        """
+        if self._file0 is None:
+            with DataFile(self._file_list[0]) as f:
+                return f.list_file_attributes()
+        else:
+            return self._file0.list_file_attributes()
 
     def redistribute(self, npes, nxpe=None, mxg=2, myg=2, include_restarts=True):
         """Create a new set of dump files for npes processors.

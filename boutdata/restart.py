@@ -17,11 +17,15 @@ from boututils.boutarray import BoutArray
 from boutdata.processor_rearrange import get_processor_layout, create_processor_layout
 
 import multiprocessing
+from natsort import natsorted
 import numpy as np
 from numpy import mean, zeros, arange
 from numpy.random import normal
 
 from scipy.interpolate import interp1d
+
+from boutdata import shiftz
+from . import griddata
 
 try:
     from scipy.interpolate import RegularGridInterpolator
@@ -59,14 +63,19 @@ def resize3DField(var, data, coordsAndSizesTuple, method, mute):
         print(
             "    Resizing "
             + var
-            + " to (nx,ny,nz) = ({},{},{})".format(newNx, newNy, newNz)
+            + " from (nx,ny,nz) = ({},{},{})".format(*data.shape)
+            + " to ({},{},{})".format(newNx, newNy, newNz)
         )
 
     # Make the regular grid function (see examples in
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.RegularGridInterpolator.html
     # for details)
     gridInterpolator = RegularGridInterpolator(
-        (xCoordOld, yCoordOld, zCoordOld), data, method
+        (xCoordOld, yCoordOld, zCoordOld),
+        data,
+        method,
+        bounds_error=False,
+        fill_value=None,
     )
 
     # Need to fill with one exrta z plane (will only contain zeros)
@@ -100,6 +109,9 @@ def resize(
     NOTE: Can't overwrite
     WARNING: Currently only implemented with uniform BOUT++ grid
 
+    If errors occur, try running with maxProc=1. That will disable
+    multiprocessing so will be slow.
+
     Parameters
     ----------
     newNx, newNy, newNz : int
@@ -117,7 +129,8 @@ def resize(
     method : {'linear', 'nearest'}, optional
         What interpolation method to be used
     maxProc : {None, int}, optional
-        Limits maximum processors to use when interpolating if set
+        Limits maximum processors to use when interpolating if set.
+        Set to 1 to disable multiprocessing.
     mute : bool, optional
         Whether or not output should be printed from this function
 
@@ -145,14 +158,6 @@ def resize(
         print("ERROR: Can't overwrite restart files when expanding")
         return False
 
-    def is_pow2(x):
-        """Returns true if x is a power of 2"""
-        return (x > 0) and ((x & (x - 1)) == 0)
-
-    if not is_pow2(newNz):
-        print("ERROR: New Z size {} must be a power of 2".format(newNz))
-        return False
-
     file_list = glob.glob(os.path.join(path, "BOUT.restart.*." + informat))
     file_list.sort()
     nfiles = len(file_list)
@@ -171,7 +176,6 @@ def resize(
 
         # Open the restart file in read mode and create the new file
         with DataFile(f) as old, DataFile(new_f, write=True, create=True) as new:
-
             # Find the dimension
             for var in old.list():
                 # Read the data
@@ -181,24 +185,34 @@ def resize(
                     break
 
             nx, ny, nz = data.shape
+            dx, dy, dz = old["dx"].flat[0], old["dy"].flat[0], old["dz"].flat[0]
+            # shift grid if CELL-CENTRED
+            xshift = 0.0 if old.attributes(var)["cell_location"] == "CELL_XLOW" else 0.5
+            yshift = 0.0 if old.attributes(var)["cell_location"] == "CELL_YLOW" else 0.5
+            zshift = 0.0 if old.attributes(var)["cell_location"] == "CELL_ZLOW" else 0.5
+
             # Make coordinates
             # NOTE: The max min of the coordinates are irrelevant when
             #       interpolating (as long as old and new coordinates
             #       are consistent), so we just choose all variable to
             #       be between 0 and 1 Calculate the old coordinates
-            xCoordOld = np.linspace(0, 1, nx)
-            yCoordOld = np.linspace(0, 1, ny)
-            zCoordOld = np.linspace(0, 1, nz)
-
+            xCoordOld = (np.arange(nx) - mxg + xshift) * dx
+            yCoordOld = (np.arange(ny) - myg + yshift) * dy
+            zCoordOld = (np.arange(nz) + zshift) * dz
+            # Calculate the new spacing
+            newDx = dx * ((nx - 2 * mxg) / (newNx - 2 * mxg))
+            newDy = dy * ((ny - 2 * myg) / (newNy - 2 * myg))
+            newDz = dz * (nz / newNz)
             # Calculate the new coordinates
-            xCoordNew = np.linspace(xCoordOld[0], xCoordOld[-1], newNx)
-            yCoordNew = np.linspace(yCoordOld[0], yCoordOld[-1], newNy)
-            zCoordNew = np.linspace(zCoordOld[0], zCoordOld[-1], newNz)
+            xCoordNew = (np.arange(newNx) - mxg + xshift) * newDx
+            yCoordNew = (np.arange(newNy) - myg + yshift) * newDy
+            zCoordNew = (np.arange(newNz) + zshift) * newDz
 
             # Make a pool of workers
-            pool = multiprocessing.Pool(maxProc)
-            # List of jobs and results
-            jobs = []
+            if maxProc != 1:
+                pool = multiprocessing.Pool(maxProc)
+                # List of jobs and results
+                jobs = []
             # Pack input to resize3DField together
             coordsAndSizesTuple = (
                 xCoordOld,
@@ -220,40 +234,50 @@ def resize(
 
                 # Find 3D variables
                 if old.ndims(var) == 3:
-
-                    # Asynchronous call (locks first at .get())
-                    jobs.append(
-                        pool.apply_async(
-                            resize3DField,
-                            args=(
-                                var,
-                                data,
-                                coordsAndSizesTuple,
-                                method,
-                                mute,
-                            ),
+                    if maxProc != 1:
+                        # Asynchronous call (locks first at .get())
+                        jobs.append(
+                            pool.apply_async(
+                                resize3DField,
+                                args=(
+                                    var,
+                                    data,
+                                    coordsAndSizesTuple,
+                                    method,
+                                    mute,
+                                ),
+                            )
                         )
-                    )
+                    else:
+                        # Synchronous call. Easier for debugging
+                        _, newData = resize3DField(
+                            var, data, coordsAndSizesTuple, method, mute
+                        )
+                        newData = BoutArray(newData, attributes=attributes)
+                        if not (mute):
+                            print("Writing " + var)
+                        new.write(var, newData)
 
                 else:
                     if not (mute):
                         print("    Copying " + var)
-                        newData = data.copy()
+                    newData = data.copy()
                     if not (mute):
                         print("Writing " + var)
                     new.write(var, newData)
 
-            for job in jobs:
-                var, newData = job.get()
-                newData = BoutArray(newData, attributes=attributes)
-                if not (mute):
-                    print("Writing " + var)
-                new.write(var, newData)
+            if maxProc != 1:
+                for job in jobs:
+                    var, newData = job.get()
+                    newData = BoutArray(newData, attributes=attributes)
+                    if not (mute):
+                        print("Writing " + var)
+                    new.write(var, newData)
 
-            # Close the pool of workers
-            pool.close()
-            # Wait for all processes to finish
-            pool.join()
+                # Close the pool of workers
+                pool.close()
+                # Wait for all processes to finish
+                pool.join()
 
     return True
 
@@ -294,16 +318,14 @@ def resizeZ(newNz, path="data", output="./", informat="nc", outformat=None):
         outformat = informat
 
     if path == output:
-        print("ERROR: Can't overwrite restart files when expanding")
-        return False
+        raise ValueError("Can't overwrite restart files when expanding")
 
     file_list = glob.glob(os.path.join(path, "BOUT.restart.*." + informat))
     file_list.sort()
     nfiles = len(file_list)
 
     if nfiles == 0:
-        print("ERROR: No data found")
-        return False
+        raise ValueError("No data found")
 
     print("Number of files found: " + str(nfiles))
 
@@ -477,7 +499,11 @@ def create(
         outfile = DataFile(outfname, create=True)
 
         # Get the data always needed in restart files
+        # hist_hi should be an integer in the restart files
         hist_hi = infile.read("iteration")
+        if hasattr(hist_hi, "__getitem__"):
+            hist_hi = hist_hi[final]
+
         print(("hist_hi = ", hist_hi))
         outfile.write("hist_hi", hist_hi)
 
@@ -508,13 +534,25 @@ def create(
                 data = infile.read(var)
 
                 if averagelast == 1:
-                    slice = data[final, :, :, :]
+                    data_slice = data[final, :, :, :]
                 else:
-                    slice = mean(data[(final - averagelast) : final, :, :, :], axis=0)
+                    data_slice = mean(
+                        data[(final - averagelast) : final, :, :, :], axis=0
+                    )
 
-                print(slice.shape)
+                print(data_slice.shape)
+                # This attribute results in the correct (x,y,z) dimension labels
+                data_slice.attributes["bout_type"] = "Field3D"
 
-                outfile.write(var, slice)
+                # The presence of `time_dimension` triggers BOUT++ to
+                # save field with a time dimension, which breaks
+                # subsequent restart files. `current_time_index` just
+                # doesn't make sense for restart files
+                for bad_attr in ["current_time_index", "time_dimension"]:
+                    if bad_attr in data.attributes:
+                        data_slice.attributes.pop(bad_attr)
+
+                outfile.write(var, data_slice)
 
         infile.close()
         outfile.close()
@@ -767,7 +805,7 @@ def redistribute(
                         np.zeros([mxsub + 2 * mxg, mzsub]),
                         attributes={
                             "bout_type": "FieldPerp",
-                            "yindex_global": -myg - 1,
+                            "yindex_global": yindex_global,
                         },
                     )
                     outfile.write(v, nullarray)
@@ -957,7 +995,7 @@ def addvar(var, value, path="."):
                 if len(size) == 3:
                     break
             if size is None:
-                raise Exception("no 3D variables found")
+                raise ValueError("no 3D variables found")
 
             # Create a new 3D array with input value
             data = np.zeros(size) + value
@@ -971,7 +1009,7 @@ def change_grid(
     to_grid_file,
     path="data",
     output=".",
-    interpolator="nearest",
+    method="linear",
     show=False,
 ):
     """
@@ -990,12 +1028,14 @@ def change_grid(
          Directory containing input restart files
     output : str, optional
          Directory where output restart files will be written
-    interpolator : str, optional
-         Interpolation method to use. Options are 'nearest', 'CloughTocher', 'RBF'
+    method : str, optional
+         Interpolation method to use, passed to SciPy's RegularGridInterpolator
     show : bool, optional
          Display the interpolated fields using Matplotlib
 
     """
+
+    from scipy.interpolate import RegularGridInterpolator
 
     # Read in grid files
     with DataFile(from_grid_file) as g:
@@ -1007,8 +1047,7 @@ def change_grid(
                 )
         except KeyError:
             pass  # No y_boundary_guards key
-        from_Rxy = g["Rxy"]
-        from_Zxy = g["Zxy"]
+        from_regions = griddata.regions(g)
 
     with DataFile(to_grid_file) as g:
         # Check for y boundary cells
@@ -1019,8 +1058,9 @@ def change_grid(
                 )
         except KeyError:
             pass  # No y_boundary_guards key
-        to_Rxy = g["Rxy"]
-        to_Zxy = g["Zxy"]
+        to_regions = griddata.regions(g)
+        to_nx = g["nx"]
+        to_ny = g["ny"]
 
     file_list = glob.glob(os.path.join(path, "BOUT.restart.*.nc"))
     if len(file_list) == 0:
@@ -1060,25 +1100,6 @@ def change_grid(
     # Only tested for nz = 1
     assert copy_data["nz"] == 1
 
-    def extrapolate_yguards(data2d, myg):
-        nx, ny = data2d.shape
-        result = np.zeros((nx, ny + 2 * myg))
-        print(result.shape)
-        result[:, myg:-myg] = data2d
-
-        dy = result[:, myg + 1] - result[:, myg]
-        for i in range(1, myg + 1):
-            result[:, myg - i] = result[:, myg] - i * dy
-        dy = result[:, -myg - 1] - result[:, -myg - 2]
-        for i in range(1, myg + 1):
-            result[:, -myg - 1 + i] = result[:, -myg - 1] + i * dy
-        return result
-
-    from_Rxy = extrapolate_yguards(from_Rxy, copy_data["MYG"])
-    from_Zxy = extrapolate_yguards(from_Zxy, copy_data["MYG"])
-    to_Rxy = extrapolate_yguards(to_Rxy, copy_data["MYG"])
-    to_Zxy = extrapolate_yguards(to_Zxy, copy_data["MYG"])
-
     interp_data = {}
     for var in interp_vars:
         print("Interpolating " + var)
@@ -1087,42 +1108,88 @@ def change_grid(
             var,
             path=path,
             xguards=True,
-            yguards=True,
+            yguards=False,
             prefix="BOUT.restart",
             info=False,
-        )
+        ).squeeze()
 
-        if interpolator == "CloughTocher":
-            # Triangulate
-            from scipy.interpolate import CloughTocher2DInterpolator
+        to_data = np.zeros((to_nx, to_ny))
 
-            interp = CloughTocher2DInterpolator(
-                list(zip(from_Rxy.flatten(), from_Zxy.flatten())), from_data.flatten()
+        for region_name, to_region in to_regions.items():
+            print("\t" + region_name)
+            # Look up region in from_regions
+            from_region = from_regions[region_name]
+            f_xf = from_region["xfirst"]
+            f_xl = from_region["xlast"]
+            f_yf = from_region["yfirst"]
+            f_yl = from_region["ylast"]
+            f_nx = f_xl - f_xf + 1
+            f_ny = f_yl - f_yf + 1
+            # Allocate array including one boundary cell all around
+            f_data = np.zeros((f_nx + 2, f_ny + 2))
+            f_data[1:-1, 1:-1] = from_data[f_xf : (f_xl + 1), f_yf : (f_yl + 1)]
+            # Fill each boundary from connecting regions
+            if from_region["inner"] is not None:
+                reg = from_regions[from_region["inner"]]
+                f_data[0, 1:-1] = from_data[
+                    reg["xlast"], reg["yfirst"] : (reg["ylast"] + 1)
+                ]
+            else:
+                f_data[0, 1:-1] = f_data[1, 1:-1]
+            if from_region["outer"] is not None:
+                reg = from_regions[from_region["outer"]]
+                f_data[-1, 1:-1] = from_data[
+                    reg["xfirst"], reg["yfirst"] : (reg["ylast"] + 1)
+                ]
+            else:
+                f_data[-1, 1:-1] = f_data[-2, 1:-1]
+            if from_region["lower"] is not None:
+                reg = from_regions[from_region["lower"]]
+                f_data[1:-1, 0] = from_data[
+                    reg["xfirst"] : (reg["xlast"] + 1), reg["ylast"]
+                ]
+            else:
+                f_data[1:-1, 0] = f_data[1:-1, 1]
+            if from_region["upper"] is not None:
+                reg = from_regions[from_region["upper"]]
+                f_data[1:-1, -1] = from_data[
+                    reg["xfirst"] : (reg["xlast"] + 1), reg["yfirst"]
+                ]
+            else:
+                f_data[1:-1, -1] = f_data[1:-1, -2]
+            # Smooth corners
+            f_data[0, 0] = (f_data[0, 1] + f_data[1, 0] + f_data[1, 1]) / 3
+            f_data[-1, 0] = (f_data[-1, 1] + f_data[-2, 0] + f_data[-2, 1]) / 3
+            f_data[0, -1] = (f_data[0, -2] + f_data[1, -1] + f_data[1, -2]) / 3
+            f_data[-1, -1] = (f_data[-1, -2] + f_data[-2, -1] + f_data[-2, -2]) / 3
+
+            # Have data, can interpolate onto new region
+            # Create coordinates that go from 0 to 1 on cell boundaries
+            interpolator = RegularGridInterpolator(
+                (
+                    (np.arange(f_nx + 2) - 0.5) / f_nx,
+                    (np.arange(f_ny + 2) - 0.5) / f_ny,
+                ),
+                f_data,
+                method=method,
             )
-        elif interpolator == "RBF":
-            # Radial Basis Functions
-            from scipy.interpolate import RBFInterpolator
 
-            interp = RBFInterpolator(
-                list(zip(from_Rxy.flatten(), from_Zxy.flatten())),
-                from_data.flatten(),
-                neighbors=50,
+            # Look up region in to_regions
+            to_region = to_regions[region_name]
+            t_xf = to_region["xfirst"]
+            t_xl = to_region["xlast"]
+            t_yf = to_region["yfirst"]
+            t_yl = to_region["ylast"]
+            t_nx = t_xl - t_xf + 1
+            t_ny = t_yl - t_yf + 1
+
+            xinds, yinds = np.meshgrid(
+                (np.arange(t_nx) + 0.5) / t_nx,
+                (np.arange(t_ny) + 0.5) / t_ny,
+                indexing="ij",
             )
 
-        elif interpolator == "nearest":
-            # Nearest neighbour. Tends to be robust
-            from scipy.interpolate import NearestNDInterpolator
-
-            interp = NearestNDInterpolator(
-                list(zip(from_Rxy.flatten(), from_Zxy.flatten())), from_data.flatten()
-            )
-        else:
-            raise ValueError("Invalid interpolator")
-
-        to_data = interp(list(zip(to_Rxy.flatten(), to_Zxy.flatten()))).reshape(
-            to_Rxy.shape
-        )
-
+            to_data[t_xf : (t_xl + 1), t_yf : (t_yl + 1)] = interpolator((xinds, yinds))
         print(
             "\tData ranges: {}:{} -> {}:{}".format(
                 np.amin(from_data),
@@ -1134,8 +1201,7 @@ def change_grid(
         if show:
             import matplotlib.pyplot as plt
 
-            plt.pcolormesh(to_Rxy, to_Zxy, to_data, shading="auto")
-            plt.plot(from_Rxy, from_Zxy, "ok")
+            plt.pcolormesh(to_data[:, :], shading="auto")
             plt.colorbar()
             plt.axis("equal")
             plt.show()
@@ -1153,31 +1219,30 @@ def change_grid(
     mxg = copy_data["MXG"]
     myg = copy_data["MYG"]
 
-    new_nx, new_ny = to_Rxy.shape
-
-    if (new_nx - 2 * mxg) % nxpe != 0:
+    if (to_nx - 2 * mxg) % nxpe != 0:
         # Can't split grid in this way
-        raise ValueError("nxpe={} not compatible with nx = {}".format(nxpe, new_nx))
-    if (new_ny - 2 * myg) % nxpe != 0:
+        raise ValueError("nxpe={} not compatible with nx = {}".format(nxpe, to_nx))
+    if to_ny % nype != 0:
         # Can't split grid in this way
-        raise ValueError("nype={} not compatible with ny = {}".format(nype, new_ny))
+        raise ValueError("nype={} not compatible with ny = {}".format(nype, to_ny))
 
-    mxsub = (new_nx - 2 * mxg) // nxpe
-    mysub = (new_ny - 2 * myg) // nype
+    mxsub = (to_nx - 2 * mxg) // nxpe
+    mysub = to_ny // nype
 
     copy_data["MXSUB"] = mxsub
     copy_data["MYSUB"] = mysub
-    copy_data["nx"] = new_nx
-    copy_data["ny"] = new_ny - 2 * myg
+    copy_data["nx"] = to_nx
+    copy_data["ny"] = to_ny
 
     for i in range(npes):
         ix = i % nxpe
         iy = i // nxpe
 
         def get_block(data):
-            sliced = data[
+            sliced = np.zeros((mxsub + 2 * mxg, mysub + 2 * myg))
+            sliced[:, myg:-myg] = data[
                 ix * mxsub : (ix + 1) * mxsub + 2 * mxg,
-                iy * mysub : (iy + 1) * mysub + 2 * myg,
+                iy * mysub : (iy + 1) * mysub,
             ]
             return sliced.reshape(sliced.shape + (1,))  # make 3D
 
@@ -1195,3 +1260,120 @@ def change_grid(
             # Write fields
             for k in interp_data:
                 f.write(k, get_block(interp_data[k]))
+
+
+def shift_v3_to_v4(
+    gridfile, zperiod, path="data", output=".", informat="nc", mxg=2, myg=2
+):
+    """Convert a set of restart files from BOUT++ v3 to v4
+
+       Assumes that both simulations are using shifted metric coordinates:
+       - v3 restarts are in field-aligned coordinates
+         (shifted when taking X derivatives)
+       - v4 restarts are in shifted coordinates
+         (shifted when taking Y derivatives)
+
+    Parameters
+    ----------
+
+    gridfile : str
+        String containing grid file name
+    zperiod : int
+        Number of times the domain is repeated to form a full torus
+    path : str, optional
+        Directory containing the input restart files (BOUT++ v3)
+    output : str, optional
+        Directory where the output restart files will go
+    informat : str, optional
+        File extension of the input restart files
+    mxg : int, optional
+        Number of X guard cells
+    myg : int, optional
+        Number of Y guard cells
+    """
+
+    # Try opening the grid file
+    with DataFile(gridfile) as grid:
+        try:
+            zShift = grid["zShift"]
+        except KeyError:
+            zShift = grid["qinty"]
+
+    if path == output:
+        raise ValueError("Can't overwrite restart file")
+
+    file_list = glob.glob(os.path.join(path, "BOUT.restart.*." + informat))
+    file_list = natsorted(file_list)
+    nfiles = len(file_list)
+
+    if nfiles == 0:
+        raise ValueError("No data found")
+
+    print("Number of files found: " + str(nfiles))
+
+    # Read processor layout
+    with DataFile(file_list[0]) as f:
+        NXPE = f["NXPE"]
+        NPES = f["NPES"]
+    if NPES != nfiles:
+        raise ValueError("Number of restart files doesn't match NPES")
+
+    for n in range(nfiles):
+        basename = "BOUT.restart.{}.{}".format(n, informat)
+        f = os.path.join(path, basename)
+        new_f = os.path.join(output, basename)
+        print("Changing {} => {}".format(f, new_f))
+
+        pe_xind = n % NXPE
+        pe_yind = n // NXPE
+
+        # Open the restart file in read mode and create the new file
+        with DataFile(f) as old, DataFile(new_f, write=True, create=True) as new:
+            # Add new variables
+            new.write("MXG", mxg)
+            new.write("MYG", myg)
+            new.write("MZG", 0)
+            new.write(
+                "run_id",
+                np.array(list("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"), dtype="c"),
+            )
+            new.write(
+                "run_restart_from",
+                np.array(list("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"), dtype="c"),
+            )
+
+            # Loop over the variables in the old file
+            for var in old.list():
+                # Read the data
+                data = old.read(var)
+                attributes = old.attributes(var)
+
+                # Find 3D variables
+                newdata = data
+                if old.ndims(var) == 3:
+                    print("    Shifting " + var)
+
+                    # Remove one Z grid cell
+                    newdata = newdata[:, :, :-1]
+
+                    nx, ny, nz = newdata.shape
+                    MXSUB = nx - 2 * mxg
+                    MYSUB = ny - 2 * myg
+
+                    x_offset = pe_xind * MXSUB
+                    y_offset = pe_yind * MYSUB
+
+                    # Shifting by zShift goes from field-aligned to orthogonal coords
+                    # Note: Removing y guards but not X because zShift includes x boundaries
+                    newdata[:, myg:-myg, :] = shiftz.shiftz(
+                        newdata[:, myg:-myg, :],
+                        zShift[
+                            x_offset : (x_offset + nx), y_offset : (y_offset + MYSUB)
+                        ],
+                        zperiod=zperiod,
+                    )
+                    new.write("nx", nx)
+                    new.write("ny", ny - 2 * myg)
+                    new.write("nz", nz)
+                newdata = BoutArray(newdata, attributes=attributes)
+                new.write(var, newdata)

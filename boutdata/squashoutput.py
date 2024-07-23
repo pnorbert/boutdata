@@ -10,6 +10,8 @@ and because single files are quicker to download.
 
 """
 
+from . import __version__
+
 
 def squashoutput(
     datadir=".",
@@ -21,6 +23,7 @@ def squashoutput(
     zind=None,
     xguards=True,
     yguards="include_upper",
+    drop_variables=None,
     singleprecision=False,
     compress=False,
     least_significant_digit=None,
@@ -35,6 +38,9 @@ def squashoutput(
 ):
     """
     Collect all data from BOUT.dmp.* files and create a single output file.
+
+    Note: adds an attribute to the 'squashed' output file called `squashoutput_version`
+    which records the current version number of `boutdata`.
 
     Parameters
     ----------
@@ -66,6 +72,9 @@ def squashoutput(
     yguards : bool or "include_upper"
         yguards argument passed to collect (note different default to collect's)
         default "include_upper"
+    drop_variables : str, or list or tuple of strings
+        Variable names passed in drop_variables will be ignored, and not included in the
+        squashed output file.
     singleprecision : bool
         If true convert data to single-precision floats
         default False
@@ -135,6 +144,11 @@ def squashoutput(
         oldfile = datadirnew + "/" + outputname
         datadir = datadirnew
 
+    if not drop_variables:
+        drop_variables = []
+    elif isinstance(drop_variables, str):
+        drop_variables = [drop_variables]
+
     # useful object from BOUT pylib to access output data
     outputs = BoutOutputs(
         datadir,
@@ -163,7 +177,7 @@ def squashoutput(
                     "is presumably not desired behaviour.".format(fullpath)
                 )
 
-    outputvars = outputs.keys()
+    outputvars = [k for k in outputs.keys() if k not in drop_variables]
 
     # Read a value to cache the files
     outputs[outputvars[0]]
@@ -225,6 +239,14 @@ def squashoutput(
 
         var = None
         gc.collect()
+
+    # Copy file attributes
+    for attrname in outputs.list_file_attributes():
+        attrval = outputs.get_file_attribute(attrname)
+        for f in files:
+            f.write_file_attribute(attrname, attrval)
+
+    f.write_file_attribute("squashoutput_version", __version__)
 
     for f in files:
         f.close()
@@ -291,3 +313,9 @@ def _get_filenames_t_slices(time_split_size, time_split_first_label, fullpath, t
             filenames.append(filename)
             t_slices.append(slice(i * time_split_size, (i + 1) * time_split_size))
         return filenames, t_slices
+
+
+if __name__ == "__main__":
+    from .scripts.bout_squashoutput import main
+
+    main()

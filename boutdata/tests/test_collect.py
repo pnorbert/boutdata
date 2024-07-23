@@ -6,12 +6,14 @@ import pytest
 
 from boutdata.collect import collect
 from boutdata.squashoutput import squashoutput
+from boututils.datafile import DataFile
 
 from boutdata.tests.make_test_data import (
     apply_slices,
     create_dump_file,
     concatenate_data,
     expected_attributes,
+    expected_file_attributes,
     make_grid_info,
     remove_xboundaries,
     remove_yboundaries,
@@ -57,7 +59,7 @@ def check_collected_data(
         Arrays should be global (not per-process).
     fieldperp_global_yind : int
         Global y-index where FieldPerps are expected to be defined.
-    path : pathlib.Path or str
+    path : pathlib.Path
         Path to collect data from.
     squash : bool
         If True, call `squashoutput()` and delete the `BOUT.dmp.*.nc` files (so that we
@@ -103,6 +105,14 @@ def check_collected_data(
             expected_attributes.get(varname, None),
             fieldperp_global_yind,
         )
+
+    if squash:
+        filename = path.joinpath("boutdata.nc")
+    else:
+        filename = path.joinpath("BOUT.dmp.0.nc")
+    with DataFile(str(filename)) as f:
+        for attrname, attr in expected_file_attributes.items():
+            assert f.read_file_attribute(attrname) == attr
 
 
 def check_variable(
@@ -749,62 +759,6 @@ class TestCollect:
         dump_params = [
             # inner divertor leg
             (0, ["xinner", "xouter", "ylower"], 2),
-            # core
-            (1, ["xinner", "xouter"], 7),
-            # outer divertor leg
-            (2, ["xinner", "xouter", "yupper"], -1),
-        ]
-        dumps = []
-        for i, boundaries, fieldperp_yind in dump_params:
-            dumps.append(
-                create_dump_file(
-                    tmpdir=tmp_path,
-                    rng=rng,
-                    grid_info=grid_info,
-                    i=i,
-                    boundaries=boundaries,
-                    fieldperp_global_yind=fieldperp_yind,
-                )
-            )
-
-        expected = concatenate_data(
-            dumps, nxpe=grid_info["NXPE"], fieldperp_yproc_ind=fieldperp_yproc_ind
-        )
-
-        with pytest.raises(ValueError, match="Found FieldPerp"):
-            check_collected_data(
-                expected,
-                fieldperp_global_yind=fieldperp_global_yind,
-                doublenull=False,
-                path=tmp_path,
-                squash=squash,
-                collect_kwargs=collect_kwargs,
-                squash_kwargs=squash_kwargs,
-            )
-
-    @pytest.mark.parametrize("squash_params", squash_params_list)
-    def test_singlenull_min_files_fieldperp_on_two_yproc_same_index(
-        self, tmp_path, squash_params
-    ):
-        """
-        Check output from a single-null case using the minimum number of processes. This
-        test has FieldPerps created on different y-processes to check this produces an
-        error.
-        """
-        squash, squash_kwargs = squash_params
-
-        collect_kwargs = {"xguards": True, "yguards": "include_upper"}
-
-        grid_info = make_grid_info(nype=3, ixseps1=4, xpoints=1)
-
-        fieldperp_global_yind = 7
-        fieldperp_yproc_ind = 1
-
-        rng = np.random.default_rng(104)
-
-        dump_params = [
-            # inner divertor leg
-            (0, ["xinner", "xouter", "ylower"], 7),
             # core
             (1, ["xinner", "xouter"], 7),
             # outer divertor leg

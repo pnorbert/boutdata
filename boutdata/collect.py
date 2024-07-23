@@ -675,7 +675,9 @@ def _collect_from_one_proc(
     if is_fieldperp:
         f_attributes = datafile.attributes(varname)
         temp_yindex = f_attributes["yindex_global"]
-        if temp_yindex < 0:
+        if temp_yindex < 0 or not _fieldperp_from_this(
+            nype, pe_yind, mysub, myg, temp_yindex
+        ):
             # No data for FieldPerp on this processor
             return None, None
 
@@ -685,6 +687,16 @@ def _collect_from_one_proc(
         return temp_yindex, f_attributes
 
     return None, None
+
+
+def _fieldperp_from_this(nype, pe_yind, mysub, myg, temp_yindex):
+    if pe_yind == 0:
+        if temp_yindex < mysub + myg:
+            return True
+    if pe_yind == nype - 1:
+        if myg + mysub * pe_yind <= temp_yindex:
+            return True
+    return myg + mysub * pe_yind <= temp_yindex < myg + mysub * (pe_yind + 1)
 
 
 def _check_local_range_lower(start, stop, lower_index, inrange):
