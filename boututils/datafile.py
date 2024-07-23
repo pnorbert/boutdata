@@ -23,9 +23,6 @@ TODO
 
 """
 
-
-from builtins import map, object, str, zip
-
 import numpy as np
 
 from boututils.boutarray import BoutArray
@@ -402,7 +399,7 @@ class DataFile_netCDF(DataFile):
             var = None
             for n in list(self.handle.variables.keys()):
                 if n.lower() == name.lower():
-                    print("WARNING: Reading '" + n + "' instead of '" + name + "'")
+                    print(f"WARNING: Reading '{n}' instead of '{name}'")
                     var = self.handle.variables[n]
             if var is None:
                 return None
@@ -424,9 +421,7 @@ class DataFile_netCDF(DataFile):
                 elif len(ranges) != ndims:
                     raise ValueError(
                         "Incorrect number of elements in ranges argument "
-                        "(got {}, expected {} or {})".format(
-                            len(ranges), ndims, 2 * ndims
-                        )
+                        f"(got {ranges}, expected {ndims} or {2 * ndims})"
                     )
 
                 data = var[ranges[:ndims]]
@@ -442,7 +437,7 @@ class DataFile_netCDF(DataFile):
     def __getitem__(self, name):
         var = self.read(name)
         if var is None:
-            raise KeyError("No variable found: " + name)
+            raise KeyError(f"No variable found: {name}")
         return var
 
     def __setitem__(self, key, value):
@@ -505,24 +500,14 @@ class DataFile_netCDF(DataFile):
             else:
                 return "string"
 
-        dims_dict = {
-            ("t", "x", "y", "z"): "Field3D_t",
-            ("t", "x", "y"): "Field2D_t",
-            ("t", "x", "z"): "FieldPerp_t",
-            ("t",): "scalar_t",
-            ("x", "y", "z"): "Field3D",
-            ("x", "y"): "Field2D",
-            ("x", "z"): "FieldPerp",
-            ("x",): "ArrayX",
-            (): "scalar",
-        }
-
-        return dims_dict.get(dims, None)
+        return BoutArray.type_from_dims(dims)
 
     def _bout_dimensions_from_var(self, data):
         try:
             bout_type = data.attributes["bout_type"]
         except AttributeError:
+            if hasattr(data, "dims"):
+                return data.dims
             defdims_list = [
                 (),
                 ("t",),
@@ -534,30 +519,13 @@ class DataFile_netCDF(DataFile):
 
         if bout_type == "string_t":
             nt, string_length = data.shape
-            return (
-                "t",
-                "char" + str(string_length),
-            )
+            return ("t", f"char{string_length}")
         elif bout_type == "string":
-            string_length = len(data)
-            return ("char" + str(string_length),)
+            return (f"char{len(data)}",)
 
-        dims_dict = {
-            "Field3D_t": ("t", "x", "y", "z"),
-            "Field2D_t": ("t", "x", "y"),
-            "FieldPerp_t": ("t", "x", "z"),
-            "scalar_t": ("t",),
-            "Field3D": ("x", "y", "z"),
-            "Field2D": ("x", "y"),
-            "FieldPerp": ("x", "z"),
-            "ArrayX": ("x",),
-            "scalar": (),
-        }
-
-        return dims_dict.get(bout_type, None)
+        return BoutArray.dims_from_type(bout_type)
 
     def write(self, name, data, info=False):
-
         if not self.writeable:
             raise Exception("File not writeable. Open with write=True keyword")
 
@@ -565,6 +533,9 @@ class DataFile_netCDF(DataFile):
 
         # Get the variable type
         t = type(data).__name__
+
+        if t == "DataArray":
+            t = data.dtype.str
 
         if t == "NoneType":
             print("DataFile: None passed as data to write. Ignoring")
@@ -590,7 +561,7 @@ class DataFile_netCDF(DataFile):
 
             # Check the shape of the variable
             if var.shape != s:
-                print("DataFile: Variable already exists with different size: " + name)
+                print(f"DataFile: Variable already exists with different size: {name}")
                 # Fallthrough to the exception
                 raise KeyError
         except KeyError:
@@ -628,16 +599,14 @@ class DataFile_netCDF(DataFile):
                     # None found, so create a new one
                     i = 2
                     while True:
-                        dn = name + str(i)
+                        dn = f"{name}{i}"
                         try:
                             d = self.handle.dimensions[dn]
                             # Already exists, so keep going
                         except KeyError:
                             # Not found. Create
                             if info:
-                                print(
-                                    "Defining dimension {} of size {}".format(dn, size)
-                                )
+                                print(f"Defining dimension {dn} of size {size}")
 
                             self.handle.createDimension(dn, size)
                             return dn
@@ -646,7 +615,7 @@ class DataFile_netCDF(DataFile):
                 except KeyError:
                     # Doesn't exist, so add
                     if info:
-                        print("Defining dimension " + name + " of size %d" % size)
+                        print(f"Defining dimension {name} of size {size}")
                     if name == "t":
                         size = None
 
@@ -672,14 +641,16 @@ class DataFile_netCDF(DataFile):
             try:
                 # Some libraries allow this for arrays
                 var.assignValue(data)
-            except:
+            except Exception:
                 # And some others only this
                 var[:] = data
 
         # Write attributes, if present
         try:
-            for attrname in data.attributes:
-                var.setncattr(attrname, data.attributes[attrname])
+            for attrname, attrval in data.attributes.items():
+                if isinstance(attrval, int):
+                    attrval = np.int32(attrval)
+                var.setncattr(attrname, attrval)
         except AttributeError:
             pass
 
@@ -709,9 +680,7 @@ class DataFile_netCDF(DataFile):
                 var = None
                 for n in list(self.handle.variables.keys()):
                     if n.lower() == varname.lower():
-                        print(
-                            "WARNING: Reading '" + n + "' instead of '" + varname + "'"
-                        )
+                        print(f"WARNING: Reading '{n}' instead of '{varname}'")
                         var = self.handle.variables[n]
                 if var is None:
                     return None
@@ -724,8 +693,8 @@ class DataFile_netCDF(DataFile):
                     attributes[attrname] = var.getncattr(
                         attrname
                     )  # Get all values and insert into map
-            except:
-                print("Error reading attributes for " + varname)
+            except Exception:
+                print(f"Error reading attributes for {varname}")
                 # Result will be an empty map
 
             if "bout_type" not in attributes:
@@ -784,7 +753,7 @@ class DataFile_HDF5(DataFile):
             var = None
             for n in self.handle:
                 if n.lower() == name.lower():
-                    print("WARNING: Reading '" + n + "' instead of '" + name + "'")
+                    print(f"WARNING: Reading '{n}' instead of '{name}'")
                     var = self.handle[n]
             if var is None:
                 return None
@@ -807,9 +776,7 @@ class DataFile_HDF5(DataFile):
                 elif len(ranges) != ndims:
                     raise ValueError(
                         "Incorrect number of elements in ranges argument "
-                        "(got {}, expected {} or {})".format(
-                            len(ranges), ndims, 2 * ndims
-                        )
+                        f"(got {ranges}, expected {ndims} or {2 * ndims})"
                     )
                 # Probably a bug in h5py, work around by passing tuple
                 data = var[tuple(ranges[:ndims])]
@@ -825,7 +792,7 @@ class DataFile_HDF5(DataFile):
     def __getitem__(self, name):
         var = self.read(name)
         if var is None:
-            raise KeyError("No variable found: " + name)
+            raise KeyError(f"No variable found: {name}")
         return var
 
     def __setitem__(self, key, value):
@@ -843,25 +810,12 @@ class DataFile_HDF5(DataFile):
 
     def dimensions(self, varname):
         bout_type = self.bout_type(varname)
-        dims_dict = {
-            "Field3D_t": ("t", "x", "y", "z"),
-            "FieldPerp_t": ("t", "x", "z"),
-            "Field2D_t": ("t", "x", "y"),
-            "scalar_t": ("t",),
-            "string_t": ("t", "char"),
-            "Field3D": ("x", "y", "z"),
-            "FieldPerp": ("x", "z"),
-            "Field2D": ("x", "y"),
-            "ArrayX": ("x",),
-            "scalar": (),
-            "string": ("char",),
-        }
-        try:
-            return dims_dict[bout_type]
-        except KeyError:
+        dims = BoutArray.dims_from_type(bout_type)
+        if dims is None:
             raise ValueError(
                 "Variable bout_type not recognized (got {})".format(bout_type)
             )
+        return dims
 
     def _bout_type_from_array(self, data):
         """Get the bout_type from the array 'data'
@@ -917,7 +871,7 @@ class DataFile_HDF5(DataFile):
         elif ndim == 0:
             return "scalar"
         else:
-            raise ValueError("Unrecognized variable bout_type, ndims=" + str(ndim))
+            raise ValueError(f"Unrecognized variable bout_type, ndims={ndim}")
 
     def ndims(self, varname):
         if self.handle is None:
@@ -946,7 +900,6 @@ class DataFile_HDF5(DataFile):
         return var.shape
 
     def write(self, name, data, info=False):
-
         if not self.writeable:
             raise Exception("File not writeable. Open with write=True keyword")
 
@@ -956,7 +909,7 @@ class DataFile_HDF5(DataFile):
             bout_type = self._bout_type_from_array(data)
 
         if info:
-            print("Creating variable '" + name + "' with bout_type '" + bout_type + "'")
+            print(f"Creating variable '{name}' with bout_type '{bout_type}'")
 
         if bout_type[-2:] == "_t":
             # time evolving fields
@@ -987,9 +940,8 @@ class DataFile_HDF5(DataFile):
             )
 
         try:
-            for attrname in data.attributes:
-                attrval = data.attributes[attrname]
-                if type(attrval) == str:
+            for attrname, attrval in data.attributes.items():
+                if isinstance(attrval, str):
                     attrval = attrval.encode(encoding="utf-8")
                 self.handle[name].attrs.create(attrname, attrval)
         except AttributeError:
@@ -1009,7 +961,6 @@ class DataFile_HDF5(DataFile):
         return self.handle.attrs.keys()
 
     def attributes(self, varname):
-
         try:
             return self._attributes_cache[varname]
         except KeyError:
@@ -1026,7 +977,7 @@ class DataFile_HDF5(DataFile):
                 # bout_type is a required attribute for BOUT++ outputs, so it should
                 # have been found
                 raise ValueError(
-                    "Error: bout_type not found in attributes of " + varname
+                    f"Error: bout_type not found in attributes of {varname}"
                 )
 
             # Save the attributes for this variable to the cache

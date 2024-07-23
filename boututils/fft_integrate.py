@@ -1,5 +1,3 @@
-from builtins import range
-
 import numpy as np
 from pylab import plot, show
 
@@ -39,7 +37,6 @@ def fft_integrate(y, loop=None):
 
 
 def test_integrate():
-
     n = 10
     dx = 2.0 * np.pi / np.float(n)
     x = dx * np.arange(n)

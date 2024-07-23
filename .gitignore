@@ -128,3 +128,4 @@ dmypy.json
 *.sw[po]
 
 boutdata/_version.py
+boututils/_version.py

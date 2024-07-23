@@ -1,5 +1,3 @@
-from builtins import range
-
 import numpy
 
 from boututils.bunch import Bunch
@@ -7,7 +5,6 @@ from boututils.geqdsk import Geqdsk
 
 
 def read_geqdsk(file):
-
     data = Geqdsk()
 
     data.openFile(file)

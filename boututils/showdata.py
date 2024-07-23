@@ -8,8 +8,6 @@ Additional functionality by George Breyiannis 26/12/2014
 
 """
 
-from builtins import chr, range, str
-
 from matplotlib import animation
 from matplotlib import pyplot as plt
 from numpy import abs, array, floor, isclose, linspace, max, meshgrid, min, pi
@@ -448,7 +446,7 @@ def showdata(
                     + ", the shape of x is not compatible with the shape of the "
                     "variable. Shape of x should be (Nx), (Nx,Ny) or (Nt,Nx,Ny)."
                 )
-        except:
+        except ValueError:
             for j in range(0, Nlines[i]):
                 xnew[i].append(linspace(0, Nx[i][j] - 1, Nx[i][j]))
 
@@ -470,7 +468,7 @@ def showdata(
                         + ", the shape of y is not compatible with the shape of the "
                         "variable. Shape of y should be (Ny), (Nx,Ny) or (Nt,Nx,Ny)."
                     )
-            except:
+            except ValueError:
                 ynew.append(linspace(0, Ny[i][0] - 1, Ny[i][0]))
         else:
             ynew.append(0)
@@ -486,7 +484,6 @@ def showdata(
     clevels = []
 
     for i in range(0, Nvar):
-
         dummymax.append([])
         dummymin.append([])
         for j in range(0, Nlines[i]):

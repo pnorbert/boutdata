@@ -3,9 +3,6 @@
 Takes a RZ psi grid, and finds x-points and o-points
 """
 
-
-from builtins import range, str, zip
-
 import numpy
 from crosslines import find_inter
 from matplotlib.pyplot import annotate, contour, draw, gradient, plot
@@ -209,7 +206,6 @@ def analyse_equil(F, R, Z):
     print("")
 
     if n_xpoint > 0:
-
         # Find the primary separatrix
 
         # First remove non-monotonic separatrices
@@ -265,7 +261,6 @@ def analyse_equil(F, R, Z):
         inner_sep = 0
 
     else:
-
         # No x-points. Pick mid-point in f
 
         xpt_f = 0.5 * (numpy.max(F) + numpy.min(F))

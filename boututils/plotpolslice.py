@@ -1,5 +1,4 @@
 import sys
-from builtins import range, str
 
 import numpy as np
 from past.utils import old_div
@@ -126,7 +125,6 @@ def plotpolslice(var3d, gridfile, period=1, zangle=0.0, rz=1, fig=0):
         z[x, ypos] = zxy[x, ny - 1]
 
     if fig == 1:
-
         f = mlab.figure(size=(600, 600))
         # Tell visual to use this as the viewer.
         visual.set_viewer(f)

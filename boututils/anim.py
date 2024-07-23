@@ -1,8 +1,6 @@
 """Animate graph with mayavi"""
 
-
 import os
-from builtins import range
 
 import numpy as np
 from boutdata.collect import collect
@@ -65,7 +63,6 @@ def anim(s, d, *args, **kwargs):
 
 
 if __name__ == "__main__":
-
     path = "../../../examples/elm-pb/data"
 
     data = collect("P", path=path)

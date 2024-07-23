@@ -1,4 +1,4 @@
-name: Test
+name: Test and lint
 
 on:
   # Run each time we push and pull requests
@@ -10,10 +10,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # As we are running on different environments, we are splitting the jobs
-  # https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-syntax-for-github-actions#jobs
-  local:
-    runs-on: ${{ matrix.os }}
+  test:
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: true
       matrix:
