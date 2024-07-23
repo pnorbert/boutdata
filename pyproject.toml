@@ -52,14 +52,11 @@ docs = [
 [project.scripts]
 bout-squashoutput = "boutdata.scripts.bout_squashoutput:main"
 
-[tool.setuptools]
-packages = ["boutdata", "boututils"]
-
 [tool.setuptools.dynamic]
 version = { attr = "setuptools_scm.get_version" }
 
 [tool.setuptools_scm]
-write_to = "boutdata/_version.py"
+write_to = "src/boutdata/_version.py"
 
 [tool.pytest.ini_options]
 addopts = "--cov=boutdata"

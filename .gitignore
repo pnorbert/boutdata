@@ -127,5 +127,5 @@ dmypy.json
 .idea/
 *.sw[po]
 
-boutdata/_version.py
-boututils/_version.py
+src/boutdata/_version.py
+src/boututils/_version.py
