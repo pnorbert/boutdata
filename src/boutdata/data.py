@@ -4,60 +4,43 @@ OMFIT
 
 """
 
-from collections import OrderedDict
 import copy
 import glob
 import io
-import numpy
 import os
 import re
+from collections import OrderedDict, UserDict
+from multiprocessing import Pipe, Process, RawArray
 
-from multiprocessing import Process, Pipe, RawArray
+import numpy
+
+# These are imported to be used by 'eval' in
+# BoutOptions.evaluate_scalar() and BoutOptionsFile.evaluate().
+# Change the names to match those used by C++/BOUT++
+from numpy import abs as abs  # noqa: F401
+from numpy import arccos as acos  # noqa: F401
+from numpy import arccosh as acosh  # noqa: F401
+from numpy import arcsin as asin  # noqa: F401
+from numpy import arcsinh as asinh  # noqa: F401
+from numpy import arctan as atan  # noqa: F401
+from numpy import arctan2 as atan2  # noqa: F401
+from numpy import arctanh as atanh  # noqa: F401
+from numpy import ceil, cos, cosh, exp, floor, log, log10, pi  # noqa: F401
+from numpy import power as pow  # noqa: F401
+from numpy import round, sin, sinh, sqrt, tan, tanh  # noqa: F401
 
 from boutdata.collect import (
-    collect,
-    create_cache,
-    findVar,
     _check_fieldperp_attributes,
     _collect_from_one_proc,
     _get_grid_info,
+    collect,
+    create_cache,
+    findVar,
 )
 from boututils.boutarray import BoutArray
 from boututils.boutwarnings import alwayswarn
 from boututils.datafile import DataFile
 from boututils.run_wrapper import determineNumberOfCPUs
-
-# These are imported to be used by 'eval' in
-# BoutOptions.evaluate_scalar() and BoutOptionsFile.evaluate().
-# Change the names to match those used by C++/BOUT++
-from numpy import (  # noqa: F401
-    pi,
-    sin,
-    cos,
-    tan,
-    arccos as acos,
-    arcsin as asin,
-    arctan as atan,
-    arctan2 as atan2,
-    sinh,
-    cosh,
-    tanh,
-    arcsinh as asinh,
-    arccosh as acosh,
-    arctanh as atanh,
-    exp,
-    log,
-    log10,
-    power as pow,
-    sqrt,
-    ceil,
-    floor,
-    round,
-    abs,
-)
-
-
-from collections import UserDict
 
 
 class CaseInsensitiveDict(UserDict):
@@ -1345,11 +1328,12 @@ class BoutOutputs(object):
             redistribute the restart files also (default: True)
 
         """
+        from os import mkdir, path, rename
+
         from boutdata.processor_rearrange import (
-            get_processor_layout,
             create_processor_layout,
+            get_processor_layout,
         )
-        from os import rename, path, mkdir
 
         # use get_processor_layout to get nx, ny
         old_processor_layout = get_processor_layout(
@@ -1490,8 +1474,9 @@ class BoutOutputs(object):
 
         if include_restarts:
             print("processing restarts")
-            from boutdata import restart
             from glob import glob
+
+            from boutdata import restart
 
             restart_prefix = "BOUT.restart"
             restarts_list = glob(path.join(self._path, restart_prefix + "*"))

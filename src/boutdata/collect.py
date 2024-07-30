@@ -1,11 +1,11 @@
+import glob
 import os
 import sys
-import glob
 
 import numpy as np
 
-from boututils.datafile import DataFile
 from boututils.boutarray import BoutArray
+from boututils.datafile import DataFile
 
 
 def findVar(varname, varlist):

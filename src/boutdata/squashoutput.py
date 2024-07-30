@@ -110,15 +110,17 @@ def squashoutput(
         is used.
     """
     # use local imports to allow fast import for tab-completion
-    from boutdata.data import BoutOutputs
-    from boututils.datafile import DataFile
-    from boututils.boutarray import BoutArray
-    import numpy
-    import os
     import gc
-    import tempfile
-    import shutil
     import glob
+    import os
+    import shutil
+    import tempfile
+
+    import numpy
+
+    from boutdata.data import BoutOutputs
+    from boututils.boutarray import BoutArray
+    from boututils.datafile import DataFile
 
     try:
         # If we are using the netCDF4 module (the usual case) set caching to zero, since

@@ -3,9 +3,8 @@
 
 """
 
-from sympy import symbols, cos, sin, diff, sqrt, pi, simplify, trigsimp, integrate, Wild
-
 from numpy import arange, zeros
+from sympy import Wild, cos, diff, integrate, pi, simplify, sin, sqrt, symbols, trigsimp
 
 # Constants
 qe = 1.602e-19

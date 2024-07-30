@@ -3,6 +3,7 @@
 import os
 
 import numpy as np
+
 from boutdata.collect import collect
 
 try:

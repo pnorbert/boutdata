@@ -2,8 +2,8 @@
 
 """
 
-from numpy.fft import rfft
 from numpy import ndarray
+from numpy.fft import rfft
 
 
 def transform3D(arr):

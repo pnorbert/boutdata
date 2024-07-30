@@ -1,13 +1,13 @@
 from glob import glob
+
 import numpy as np
 import numpy.testing as npt
 
-from boutdata.collect import collect
 from boutdata import restart
-
+from boutdata.collect import collect
 from boutdata.tests.make_test_data import (
-    create_restart_file,
     concatenate_data,
+    create_restart_file,
     expected_attributes,
     make_grid_info,
 )
