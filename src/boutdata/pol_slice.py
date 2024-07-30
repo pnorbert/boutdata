@@ -1,6 +1,7 @@
-from boututils.datafile import DataFile
 import numpy as np
 from scipy.ndimage import map_coordinates
+
+from boututils.datafile import DataFile
 
 
 def pol_slice(var3d, gridfile, n=1, zangle=0.0, nyInterp=None):

@@ -1,8 +1,7 @@
 import numpy as np
-from numpy import cos, sin, pi
-
-from enthought.tvtk.api import tvtk
 from enthought.mayavi.scripts import mayavi2
+from enthought.tvtk.api import tvtk
+from numpy import cos, pi, sin
 
 
 def aligned_points(grid, nz=1, period=1.0, maxshift=0.4):
@@ -74,8 +73,8 @@ def create_grid(grid, data, period=1):
 
 @mayavi2.standalone
 def view3d(sgrid):
+    from enthought.mayavi.modules.api import GridPlane, Outline
     from enthought.mayavi.sources.vtk_data_source import VTKDataSource
-    from enthought.mayavi.modules.api import Outline, GridPlane
 
     mayavi2.new_scene()
     src = VTKDataSource(data=sgrid)

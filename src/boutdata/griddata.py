@@ -2,9 +2,9 @@
 
 """
 
-from numpy import ndarray, zeros, concatenate, linspace, amin, amax
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+from numpy import amax, amin, concatenate, linspace, ndarray, zeros
 
 from boututils.datafile import DataFile
 

@@ -8,23 +8,22 @@ TODO
 
 """
 
-import os
 import glob
-
-from boutdata.collect import collect, create_cache
-from boututils.datafile import DataFile
-from boututils.boutarray import BoutArray
-from boutdata.processor_rearrange import get_processor_layout, create_processor_layout
-
 import multiprocessing
-from natsort import natsorted
-import numpy as np
-from numpy import mean, zeros, arange
-from numpy.random import normal
+import os
 
+import numpy as np
+from natsort import natsorted
+from numpy import arange, mean, zeros
+from numpy.random import normal
 from scipy.interpolate import interp1d
 
 from boutdata import shiftz
+from boutdata.collect import collect, create_cache
+from boutdata.processor_rearrange import create_processor_layout, get_processor_layout
+from boututils.boutarray import BoutArray
+from boututils.datafile import DataFile
+
 from . import griddata
 
 try:

@@ -1,5 +1,4 @@
-from numpy import ndarray, pi, cos, sin
-from numpy import fft
+from numpy import cos, fft, ndarray, pi, sin
 
 
 def shiftz(var, zangle, zperiod=1.0):

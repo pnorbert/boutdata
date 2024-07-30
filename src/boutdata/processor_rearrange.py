@@ -3,8 +3,8 @@ processors
 
 """
 
-from math import sqrt
 from collections import namedtuple
+from math import sqrt
 
 processor_layout_ = namedtuple(
     "BOUT_processor_layout",

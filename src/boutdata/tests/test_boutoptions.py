@@ -1,7 +1,8 @@
-from boutdata.data import BoutOptions
+import textwrap
 
 import pytest
-import textwrap
+
+from boutdata.data import BoutOptions
 
 
 def test_getSection_nonexistent():

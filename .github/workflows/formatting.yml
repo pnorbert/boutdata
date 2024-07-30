@@ -1,7 +1,6 @@
 name: Formatting (black & isort)
 on:
   push:
-    branches: master
     paths:
       - '**.py'
 
@@ -27,12 +26,12 @@ jobs:
         python --version
         black --version
         isort --version
-    - name: Run black
-      run: |
-        black boututils
     - name: Run isort
       run: |
-        isort boututils
+        isort src
+    - name: Run black
+      run: |
+        black src
     - uses: stefanzweifel/git-auto-commit-action@v4
       with:
         commit_message: "[skip ci] Apply black/isort changes"

@@ -1,17 +1,16 @@
 from glob import glob
+from pathlib import Path
+
 import numpy as np
 import numpy.testing as npt
-from pathlib import Path
 import pytest
 
 from boutdata.collect import collect
 from boutdata.squashoutput import squashoutput
-from boututils.datafile import DataFile
-
 from boutdata.tests.make_test_data import (
     apply_slices,
-    create_dump_file,
     concatenate_data,
+    create_dump_file,
     expected_attributes,
     expected_file_attributes,
     make_grid_info,
@@ -19,6 +18,7 @@ from boutdata.tests.make_test_data import (
     remove_yboundaries,
     remove_yboundaries_upper_divertor,
 )
+from boututils.datafile import DataFile
 
 # Note - using tmp_path fixture requires pytest>=3.9.0
 

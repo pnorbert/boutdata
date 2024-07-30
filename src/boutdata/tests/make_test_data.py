@@ -1,6 +1,7 @@
 from copy import copy
-from netCDF4 import Dataset
+
 import numpy as np
+from netCDF4 import Dataset
 
 field3d_t_list = ["field3d_t_1", "field3d_t_2"]
 field3d_list = ["field3d_1", "field3d_2"]
