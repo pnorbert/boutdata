@@ -28,7 +28,7 @@ keywords = [
     "data-visualization",
 ]
 license = {text = "GNU Lesser General Public License v3 or later (LGPLv3+)"}
-authors = [{name = "Ben Dudson", email = "benjamin.dudson@york.ac.uk"}]
+authors = [{name = "Ben Dudson", email = "benjamin.dudson@york.ac.uk"}, {name = "BOUT++ team"}]
 urls = {project = "https://github.com/boutproject/boutdata"}
 dependencies = [
     "sympy>=1.5.1",
@@ -36,7 +36,7 @@ dependencies = [
     "matplotlib>=3.2.1",
     "natsort>=8.1.0",
     "scipy>=1.4.1",
-    "boututils>=0.1.9",
+    "netCDF4",
 ]
 dynamic = ["version"]
 
@@ -52,14 +52,11 @@ docs = [
 [project.scripts]
 bout-squashoutput = "boutdata.scripts.bout_squashoutput:main"
 
-[tool.setuptools]
-packages = ["boutdata"]
-
 [tool.setuptools.dynamic]
 version = { attr = "setuptools_scm.get_version" }
 
 [tool.setuptools_scm]
-write_to = "boutdata/_version.py"
+write_to = "src/boutdata/_version.py"
 
 [tool.pytest.ini_options]
 addopts = "--cov=boutdata"
