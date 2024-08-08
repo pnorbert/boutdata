@@ -103,7 +103,7 @@ class DataFile(object):
                 self.impl = DataFile_HDF5(
                     filename=filename, write=write, create=create, format=format
                 )
-            elif filename.split(".")[-1] in ("bp", "bp5"):
+            elif filename.split(".")[-1] in ("bp"):
                 self.impl = DataFile_ADIOS2(
                     filename=filename, write=write, create=create, format=format
                 )
@@ -119,7 +119,7 @@ class DataFile(object):
             self.impl = DataFile_HDF5(
                 filename=filename, write=write, create=create, format=format
             )
-        elif format.lower().startswith() == "adios":
+        elif format.lower().startswith("adios"):
             self.impl = DataFile_ADIOS2(
                 filename=filename, write=write, create=create, format=format
             )
