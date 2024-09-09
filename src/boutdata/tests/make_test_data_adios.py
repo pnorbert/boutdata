@@ -218,10 +218,13 @@ def create_dump_file(*, i, tmpdir, rng, grid_info, boundaries, fieldperp_global_
         # Field3D
         def create3D_t(name):
             data = rng.random((nt, localnx, localny, localnz))
-            outputfile.write(name, data,
-                             [1, localnx, localny, localnz],
-                             [0, 0, 0, 0],
-                             [1, localnx, localny, localnz])
+            outputfile.write(
+                name,
+                data,
+                [1, localnx, localny, localnz],
+                [0, 0, 0, 0],
+                [1, localnx, localny, localnz],
+            )
             for key, value in expected_attributes[name].items():
                 outputfile.write_attribute(key, value, name)
 
@@ -232,10 +235,13 @@ def create_dump_file(*, i, tmpdir, rng, grid_info, boundaries, fieldperp_global_
 
         def create3D(name):
             data = rng.random((localnx, localny, localnz))
-            outputfile.write(name, data,
-                             [localnx, localny, localnz],
-                             [0, 0, 0],
-                             [localnx, localny, localnz])
+            outputfile.write(
+                name,
+                data,
+                [localnx, localny, localnz],
+                [0, 0, 0],
+                [localnx, localny, localnz],
+            )
             for key, value in expected_attributes[name].items():
                 outputfile.write_attribute(key, value, name)
 
@@ -247,10 +253,9 @@ def create_dump_file(*, i, tmpdir, rng, grid_info, boundaries, fieldperp_global_
         # Field2D
         def create2D_t(name):
             data = rng.random((nt, localnx, localny))
-            outputfile.write(name, data,
-                             [1, localnx, localny],
-                             [0, 0, 0],
-                             [1, localnx, localny])
+            outputfile.write(
+                name, data, [1, localnx, localny], [0, 0, 0], [1, localnx, localny]
+            )
             for key, value in expected_attributes[name].items():
                 outputfile.write_attribute(key, value, name)
 
@@ -261,10 +266,7 @@ def create_dump_file(*, i, tmpdir, rng, grid_info, boundaries, fieldperp_global_
 
         def create2D(name):
             data = rng.random((localnx, localny))
-            outputfile.write(name, data,
-                             [localnx, localny],
-                             [0, 0],
-                             [localnx, localny])
+            outputfile.write(name, data, [localnx, localny], [0, 0], [localnx, localny])
             for key, value in expected_attributes[name].items():
                 outputfile.write_attribute(key, value, name)
 
@@ -276,10 +278,9 @@ def create_dump_file(*, i, tmpdir, rng, grid_info, boundaries, fieldperp_global_
         # FieldPerp
         def createPerp_t(name):
             data = rng.random((nt, localnx, localnz))
-            outputfile.write(name, data,
-                             [1, localnx, localnz],
-                             [0, 0, 0],
-                             [1, localnx, localnz])
+            outputfile.write(
+                name, data, [1, localnx, localnz], [0, 0, 0], [1, localnx, localnz]
+            )
             for key, value in expected_attributes[name].items():
                 outputfile.write_attribute(key, value, name)
             outputfile.write_attribute("yindex_global", fieldperp_global_yind, name)
@@ -291,10 +292,7 @@ def create_dump_file(*, i, tmpdir, rng, grid_info, boundaries, fieldperp_global_
 
         def createPerp(name):
             data = rng.random((localnx, localnz))
-            outputfile.write(name, data,
-                             [localnx, localnz],
-                             [0, 0],
-                             [localnx, localnz])
+            outputfile.write(name, data, [localnx, localnz], [0, 0], [localnx, localnz])
             for key, value in expected_attributes[name].items():
                 outputfile.write_attribute(key, value, name)
             outputfile.write_attribute("yindex_global", fieldperp_global_yind, name)
